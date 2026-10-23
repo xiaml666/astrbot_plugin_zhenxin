@@ -14,7 +14,7 @@ import math
 import time
 from typing import Any, Callable
 
-from ..aux.compression import keywords_for_seed
+from .._aux.compression import keywords_for_seed
 from ..db import Database
 from ..embeddings import LocalScorer
 
@@ -232,3 +232,4 @@ class FactBank:
 
     def count(self, user_key: str) -> int:
         return int(self.db.scalar("SELECT COUNT(*) FROM facts WHERE user_key=?", (user_key,), 0))
+

@@ -11,7 +11,7 @@ class AuxTests(unittest.TestCase):
             "今天发生了很多事情，早上开会，中午改图，下午甲方又提了新的要求，"
             "我真的很烦，感觉做不完了。你帮我看看先改哪一页比较好？"
         )
-        from zhenxin.aux.compression import compress_inbound
+        from zhenxin._aux.compression import compress_inbound
 
         out = compress_inbound(text, threshold=50)
         self.assertTrue(out.compressed)
@@ -20,7 +20,7 @@ class AuxTests(unittest.TestCase):
         self.assertLess(len(out.text), len(text))
 
     def test_topic_stack_depth(self):
-        from zhenxin.aux.topic_stack import TopicStack
+        from zhenxin._aux.topic_stack import TopicStack
 
         engine, _ = make_engine()
         stack = TopicStack(engine.db, engine.scorer, max_depth=3)
@@ -30,7 +30,7 @@ class AuxTests(unittest.TestCase):
         self.assertLessEqual(len(stack.rows("u1")), 3)
 
     def test_lexicon_learn_and_apply(self):
-        from zhenxin.aux.lexicon import Lexicon
+        from zhenxin._aux.lexicon import Lexicon
 
         engine, _ = make_engine()
         lex = Lexicon(engine.db)
@@ -41,7 +41,7 @@ class AuxTests(unittest.TestCase):
         self.assertIn("海盐", reply)
 
     def test_rhythm_postprocess(self):
-        from zhenxin.aux.rhythm import Rhythm, RhythmController
+        from zhenxin._aux.rhythm import Rhythm, RhythmController
 
         engine, _ = make_engine()
         rhythm = RhythmController(engine.db)
@@ -51,7 +51,7 @@ class AuxTests(unittest.TestCase):
         self.assertNotIn("🙂", out)
 
     def test_negative_pattern_counts(self):
-        from zhenxin.aux.negative import NegativePatterns
+        from zhenxin._aux.negative import NegativePatterns
 
         engine, _ = make_engine()
         neg = NegativePatterns(engine.db)
@@ -61,3 +61,4 @@ class AuxTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

@@ -246,9 +246,9 @@ pip install -r astrbot_plugin_zhenxin/requirements.txt
 **方式三：从 Release 安装**
 
 下载 [最新 Release](https://github.com/xiaml666/astrbot_plugin_zhenxin/releases/latest) 里的
-`astrbot_plugin_zhenxin-0.3.0.zip`，AstrBot 面板 → 插件 → 安装插件 → 从文件安装。插件卡片会使用 [`logo.png`](logo.png)。
+`astrbot_plugin_zhenxin-0.3.1.zip`，AstrBot 面板 → 插件 → 安装插件 → 从文件安装。插件卡片会使用 [`logo.png`](logo.png)。
 
-> Windows 上如果解压 zip，`src/zhenxin/aux` 可能被系统改写；遇到加载失败请用 `git clone` 或把 `src` 目录直接复制到 `data/plugins/astrbot_plugin_zhenxin/`。
+> 0.3.1 起包目录为 `src/zhenxin/_aux`（`aux` 是 Windows 保留名），从 zip 安装不会再被系统改写。
 
 
 重启 AstrBot，或在 WebUI 插件页重载。插件名为 `astrbot_plugin_zhenxin`。
@@ -512,7 +512,7 @@ python scripts/quality_sheet.py --pairs data/quality_pairs.example.jsonl
 │   ├── engine.py               # 五层编排
 │   ├── config.py / db.py / llm.py / metrics.py / compare.py
 │   ├── layers/                 # l0 l1 l2 l3 shortcircuit
-│   ├── aux/                    # 话题栈/压缩/节奏/词汇/队列/负面模式
+│   ├── _aux/                   # 话题栈/压缩/节奏/词汇/队列/负面模式
 │   └── adapters/               # astrbot / nonebot2
 ├── tests/                      # 74 个 unittest
 ├── data/sim_dialogue.jsonl     # 60 轮模拟数据
@@ -533,7 +533,7 @@ python scripts/quality_sheet.py --pairs data/quality_pairs.example.jsonl
 ├── docs/astrbot-install.md     # 4.29.1 面板安装/新建验证对话
 ├── docs/astrbot-live-report.md # 4.29.1 实机验证记录
 ├── docs/cache-layout-rollout.md # 0.1.1 缓存布局改动：上线/验证/回滚
-└── dist/astrbot_plugin_zhenxin-0.3.0.zip
+└── dist/astrbot_plugin_zhenxin-0.3.1.zip
 ```
 
 ---
@@ -569,6 +569,7 @@ python scripts/quality_sheet.py --pairs data/quality_pairs.example.jsonl
 ## License
 
 MIT。见 [`LICENSE`](LICENSE)。
+
 
 
 

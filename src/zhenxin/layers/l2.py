@@ -11,10 +11,10 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
-from ..aux.compression import extract_entities, keywords_for_seed
-from ..aux.lexicon import Lexicon
-from ..aux.negative import NegativePatterns
-from ..aux.open_loops import OpenLoops
+from .._aux.compression import extract_entities, keywords_for_seed
+from .._aux.lexicon import Lexicon
+from .._aux.negative import NegativePatterns
+from .._aux.open_loops import OpenLoops
 from ..config import L2Config, L0Config
 from ..db import Database
 from ..embeddings import LocalScorer
@@ -365,3 +365,4 @@ class L2Writer:
 
     def bootstrap_done(self, user_key: str) -> bool:
         return bool(self.db.get_state(user_key, "bootstrapped", False))
+

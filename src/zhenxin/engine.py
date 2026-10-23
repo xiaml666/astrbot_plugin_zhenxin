@@ -6,12 +6,12 @@ import copy
 import time
 from typing import Any, Callable, Sequence
 
-from .aux.compression import CompressedInbound, compress_inbound
-from .aux.lexicon import Lexicon
-from .aux.negative import NegativePatterns
-from .aux.open_loops import OpenLoops
-from .aux.rhythm import RhythmController
-from .aux.topic_stack import TopicStack
+from ._aux.compression import CompressedInbound, compress_inbound
+from ._aux.lexicon import Lexicon
+from ._aux.negative import NegativePatterns
+from ._aux.open_loops import OpenLoops
+from ._aux.rhythm import RhythmController
+from ._aux.topic_stack import TopicStack
 from .config import Config
 from .db import Database
 from .embeddings import LocalScorer
@@ -554,3 +554,4 @@ def _match_dict(match: Any) -> dict[str, Any]:
         "neg_streak": match.path.neg_streak,
         "hits": match.path.hits,
     }
+

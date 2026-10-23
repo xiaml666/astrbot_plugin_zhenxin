@@ -1,5 +1,11 @@
 # 更新日志
 
+## 0.3.1
+
+- 把 `src/zhenxin/aux` 改名为 `src/zhenxin/_aux`。`aux` 是 Windows 保留设备名，
+  从 zip 安装时会被系统改写或直接解压失败；改名后 Windows 面板可以直接装 zip。
+- 新增 `metadata.yaml` / `__version__` 一致性测试。
+
 ## 0.3.0
 
 - 新增两个模型可调用工具：`zhenxin_recall`（显式回忆）与 `zhenxin_remember`（显式记住），
