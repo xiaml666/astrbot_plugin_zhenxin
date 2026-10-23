@@ -1,0 +1,706 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>真心 · 控制中心</title>
+<style>
+:root{
+  --bg:#f6f7fb; --card:#fff; --ink:#111827; --muted:#6b7280; --line:#e5e7eb;
+  --acc:#0f766e; --acc-soft:#ccfbf1; --bad:#b91c1c; --good:#047857;
+  --radius:14px; --shadow:0 1px 2px rgba(16,24,40,.05),0 8px 24px rgba(16,24,40,.06);
+}
+@media (prefers-color-scheme:dark){
+  :root{ --bg:#0b1210; --card:#121b19; --ink:#e5efec; --muted:#9aa7a3; --line:#22302c;
+    --acc:#2dd4bf; --acc-soft:#134e4a; --bad:#f87171; --good:#34d399;
+    --shadow:0 1px 2px rgba(0,0,0,.4);}
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font:15px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans SC",sans-serif}
+.wrap{display:grid;grid-template-columns:220px 1fr;min-height:100vh}
+@media(max-width:860px){.wrap{grid-template-columns:1fr}}
+
+aside{background:var(--card);border-right:1px solid var(--line);padding:18px 14px;position:sticky;top:0;height:100vh;overflow:auto}
+@media(max-width:860px){aside{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line)}}
+.brand{display:flex;align-items:center;gap:10px;margin:2px 4px 16px}
+.brand .dot{width:30px;height:30px;border-radius:9px;background:var(--acc-soft);display:grid;place-items:center;color:var(--acc);font-weight:800}
+.brand b{font-size:16px}
+.brand small{display:block;color:var(--muted);font-size:11px;font-weight:500}
+nav{display:flex;flex-direction:column;gap:4px}
+nav button{display:flex;align-items:center;gap:9px;width:100%;text-align:left;border:0;background:transparent;
+  color:var(--ink);font:inherit;padding:9px 11px;border-radius:10px;cursor:pointer}
+nav button:hover{background:color-mix(in srgb,var(--acc-soft) 45%,transparent)}
+nav button.on{background:var(--acc);color:#fff;font-weight:600}
+nav .pill{margin-left:auto;font-size:11px;background:var(--acc-soft);color:var(--acc);padding:1px 7px;border-radius:999px}
+nav button.on .pill{background:#ffffff33;color:#fff}
+.side-foot{margin-top:18px;padding:10px 12px;border-top:1px dashed var(--line);color:var(--muted);font-size:12px;line-height:1.7}
+
+main{padding:26px 26px 120px;max-width:1080px}
+@media(max-width:860px){main{padding:18px 14px 120px}}
+h1{font-size:24px;margin:0 0 4px}
+.sub{color:var(--muted);margin:0 0 18px}
+section{display:none}
+section.on{display:block}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;margin-bottom:14px;box-shadow:var(--shadow)}
+.card h2{font-size:16px;margin:0 0 2px}
+.card .lead{color:var(--muted);font-size:13px;margin:0 0 14px}
+
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+@media(max-width:760px){.kpis{grid-template-columns:repeat(2,1fr)}}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;box-shadow:var(--shadow)}
+.kpi .k{color:var(--muted);font-size:11.5px}
+.kpi .v{font-size:20px;font-weight:750;font-variant-numeric:tabular-nums;margin-top:2px}
+.kpi .v small{font-size:11px;color:var(--muted);font-weight:500}
+
+.chart{width:100%;height:130px;background:color-mix(in srgb,var(--card) 92%,transparent);border-radius:10px}
+.legend{color:var(--muted);font-size:12.5px;margin-top:8px}
+.health{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);font-size:12.5px;color:var(--muted)}
+.health .bad{color:var(--bad);font-weight:600}
+.health .good{color:var(--good);font-weight:600}
+
+.row{display:flex;gap:16px;align-items:flex-start;justify-content:space-between;padding:13px 0;border-bottom:1px dashed var(--line)}
+.row:last-child{border-bottom:0;padding-bottom:2px}
+.row .txt{flex:1;min-width:0}
+.row .txt b{font-weight:600}
+.row .txt p{margin:2px 0 0;color:var(--muted);font-size:12.5px}
+.row .ctl{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding-top:2px}
+.switch{position:relative;display:inline-block;width:46px;height:26px}
+.switch input{opacity:0;width:0;height:0}
+.switch span{position:absolute;inset:0;background:#d1d5db;border-radius:999px;cursor:pointer;transition:.15s}
+.switch span:before{content:"";position:absolute;width:20px;height:20px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.15s}
+.switch input:checked+span{background:var(--acc)}
+.switch input:checked+span:before{transform:translateX(20px)}
+input[type=number],select{font:inherit;padding:6px 9px;border:1px solid var(--line);border-radius:9px;background:var(--card);color:var(--ink);min-width:92px}
+input[type=range]{width:170px;accent-color:var(--acc)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{border:0;background:transparent;color:var(--ink);font:inherit;padding:7px 12px;cursor:pointer}
+.seg button.on{background:var(--acc);color:#fff;font-weight:600}
+
+.tools{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.tools input[type=search]{flex:1;min-width:180px;font:inherit;padding:8px 11px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink)}
+button.ghost{font:inherit;padding:8px 13px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);cursor:pointer}
+button.ghost:hover{border-color:var(--acc);color:var(--acc)}
+button.danger{border-color:var(--bad);color:var(--bad)}
+.mem{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+@media(max-width:760px){.mem{grid-template-columns:1fr}}
+.mem-item{border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--card);display:flex;gap:10px;align-items:flex-start}
+.mem-item .body{flex:1;min-width:0}
+.mem-item .t{font-weight:600;word-break:break-word}
+.mem-item .m{color:var(--muted);font-size:11.5px;margin-top:3px}
+.mem-item .tag{display:inline-block;font-size:10.5px;padding:0 6px;border-radius:999px;margin-right:5px;
+  background:var(--acc-soft);color:var(--acc);font-weight:600}
+.mem-item .tag.low{background:color-mix(in srgb,var(--muted) 18%,transparent);color:var(--muted)}
+.mem-item.trace .t{font-weight:500;color:var(--muted)}
+.mem-item .del{border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:16px;line-height:1;padding:2px 4px}
+.mem-item .del:hover{color:var(--bad)}
+.empty{color:var(--muted);font-size:13px;padding:18px 0;text-align:center}
+details.adv{border-top:1px dashed var(--line);padding-top:12px;margin-top:6px}
+details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
+
+.dock{position:fixed;left:0;right:0;bottom:0;background:color-mix(in srgb,var(--card) 94%,transparent);
+  backdrop-filter:blur(8px);border-top:1px solid var(--line);padding:11px 16px;display:flex;gap:12px;align-items:center;justify-content:center;z-index:8}
+.dock .hint{color:var(--muted);font-size:12.5px}
+.dock button{font:inherit;padding:10px 18px;border-radius:10px;border:0;background:var(--acc);color:#fff;cursor:pointer}
+.dock button:disabled{opacity:.45;cursor:default}
+.toast{position:fixed;left:50%;bottom:76px;transform:translateX(-50%) translateY(8px);opacity:0;
+  background:#111827;color:#fff;padding:9px 16px;border-radius:10px;font-size:13px;transition:.18s;pointer-events:none;z-index:9}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <aside>
+    <div class="brand">
+      <div class="dot">真</div>
+      <div><b>真心</b><small id="ver">v--</small></div>
+    </div>
+    <nav id="nav">
+      <button data-tab="overview" class="on">概览</button>
+      <button data-tab="memory">记忆<span class="pill" id="memcount">0</span></button>
+      <button data-tab="cost">花费</button>
+      <button data-tab="behavior">行为设置</button>
+      <button data-tab="advanced">高级</button>
+      <button data-tab="reset">重置</button>
+    </nav>
+    <div class="side-foot" id="side-status">正在连接 AstrBot…</div>
+  </aside>
+
+  <main>
+    <section id="tab-overview" class="on">
+      <h1>概览</h1>
+      <p class="sub">真心不换模型，只决定“每轮给模型看什么”。这里显示它现在做得怎么样。</p>
+      <div class="kpis">
+        <div class="kpi"><div class="k">已记录轮次</div><div class="v" id="k-rounds">--</div></div>
+        <div class="kpi"><div class="k">缓存命中</div><div class="v" id="k-hit">--</div></div>
+        <div class="kpi"><div class="k">记忆条数</div><div class="v" id="k-facts">--</div></div>
+        <div class="kpi"><div class="k">累计花费</div><div class="v" id="k-cost">--</div></div>
+      </div>
+      <div class="card">
+        <h2>最近 30 轮的消耗</h2>
+        <p class="lead">绿色是命中缓存的部分（便宜），橙色是没命中（按原价）。柱子越高，那一轮越贵。</p>
+        <svg class="chart" id="chart" viewBox="0 0 600 130" preserveAspectRatio="none"></svg>
+        <div class="legend" id="legend"></div>
+        <div class="health" id="health"></div>
+      </div>
+      <div class="card">
+        <h2>它现在在做什么</h2>
+        <p class="lead" id="now"></p>
+      </div>
+    </section>
+
+    <section id="tab-memory">
+      <h1>记忆</h1>
+      <p class="sub">真心会把你明确说过的事记在这里；每轮只挑最相关的几条带给模型。长期没被用到、又不重要的记忆会自动淡出，只留下关键词痕迹。</p>
+      <div class="tools">
+        <input type="search" id="memsearch" placeholder="搜索记忆内容，例如：香菜 / 海盐 / 团子">
+        <select id="memsort" title="排序">
+          <option value="important">按重要性</option>
+          <option value="recent">按最近出现</option>
+          <option value="old">按最早出现</option>
+        </select>
+        <button class="ghost danger" id="memclear">清空全部</button>
+      </div>
+      <div class="mem" id="memlist"></div>
+      <details class="adv" id="traces-box">
+        <summary>已淡出的关键词痕迹（<span id="tracecount">0</span>）</summary>
+        <p class="lead" style="margin:8px 0 10px">这些记忆长期没有被用到，已从调用库删除，不再进入模型；这里只保留关键词，方便你回想。</p>
+        <div class="mem" id="tracelist"></div>
+      </details>
+    </section>
+
+    <section id="tab-cost">
+      <h1>花费</h1>
+      <p class="sub">下面的数字来自模型真实返回的用量；金额按插件配置里的单价换算，不影响实际扣费。</p>
+      <div class="kpis">
+        <div class="kpi"><div class="k">非缓存输入</div><div class="v" id="c-fresh">--</div></div>
+        <div class="kpi"><div class="k">缓存输入</div><div class="v" id="c-cached">--</div></div>
+        <div class="kpi"><div class="k">输出</div><div class="v" id="c-out">--</div></div>
+        <div class="kpi"><div class="k">累计花费</div><div class="v" id="c-cost">--</div></div>
+      </div>
+    </section>
+
+    <section id="tab-behavior">
+      <h1>行为设置</h1>
+      <p class="sub">只有这几项真的会改变回复。改完点底部保存，下一轮生效，不用重启。</p>
+      <div class="card">
+        <div class="row"><div class="txt"><b>只观察，不改回复</b>
+          <p>开启后真心只记录数据，不碰 AstrBot 的上下文。第一次用建议先开 50 轮看看效果。</p></div>
+          <div class="ctl"><label class="switch"><input type="checkbox" data-path="shadow_mode"><span></span></label></div></div>
+
+        <div class="row"><div class="txt"><b>由真心接管最近对话</b>
+          <p>接管后，每次只把最近几轮发给模型，不再把整段历史都塞进去——这是省钱的主要来源。如果你还装了别的记忆插件，选“不接管”更安全。</p></div>
+          <div class="ctl"><div class="seg" id="hostmode">
+            <button data-v="replace">接管</button><button data-v="off">不接管</button></div></div></div>
+
+        <div class="row"><div class="txt"><b>每轮带几条长期线索</b>
+          <p>像“养了猫叫团子”“不吃香菜”这种。越多越像记得住，也越费 token。</p></div>
+          <div class="ctl"><input type="range" min="1" max="3" step="1" data-path="l0.inject"><span id="v-l0">3</span></div></div>
+
+        <div class="row"><div class="txt"><b>最近保留几轮对话</b>
+          <p>决定模型还能看到多久的原文。太少会接不上话，太多就贵。默认 8 轮够用。</p></div>
+          <div class="ctl"><input type="range" min="4" max="16" step="1" data-path="l3.recent_turns"><span id="v-recent">8</span></div></div>
+
+        <div class="row"><div class="txt"><b>短句直接回（实验）</b>
+          <p>对“嗯”“今天好累”这种高频短句直接套模板，省掉一次模型调用。最容易让回复显得机械，先关着。</p></div>
+          <div class="ctl"><label class="switch"><input type="checkbox" data-path="shortcircuit.enabled"><span></span></label></div></div>
+
+        <div class="row"><div class="txt"><b>每轮线索字数上限</b>
+          <p>防止某条线索太长把上下文撑爆。默认 150 字。</p></div>
+          <div class="ctl"><input type="number" min="40" max="300" step="10" data-path="l0.max_inject_chars"></div></div>
+      </div>
+      <div class="card">
+        <h2>配置来源</h2>
+        <p class="lead">“推荐设置”是实测下来比较稳的组合；“恢复默认”则是刚装好这个插件时的那份原始配置。</p>
+        <div class="tools">
+          <button class="ghost" id="preset">恢复推荐设置</button>
+          <button class="ghost" id="defaults">恢复默认配置</button>
+        </div>
+        <p class="lead" id="preset-hint" style="margin-bottom:0">两个按钮都只改表单，确认无误后再点底部“保存并生效”。</p>
+      </div>
+    </section>
+
+    <section id="tab-advanced">
+      <h1>高级</h1>
+      <p class="sub">这些一般不用动。改坏了可以回“行为设置”点恢复推荐设置。</p>
+      <div class="card">
+        <div class="row"><div class="txt"><b>线索放在请求末尾</b>
+          <p>开着才能保护缓存：换线索时不会让整段上下文失效。关掉只用于对照实验。</p></div>
+          <div class="ctl"><label class="switch"><input type="checkbox" data-path="l0.tail_injection"><span></span></label></div></div>
+        <div class="row"><div class="txt"><b>窗口回收步长（轮）</b>
+          <p>窗口先只追加，涨到“保留轮数 + 步长”才一次性回收到下限。0 表示每轮滑动（不推荐）。</p></div>
+          <div class="ctl"><input type="number" min="0" max="12" step="1" data-path="l3.window_grow_turns"></div></div>
+        <div class="row"><div class="txt"><b>超预算后回收到（比例）</b>
+          <p>0.7 表示一次砍到预算的 70%，避免每轮都砍。</p></div>
+          <div class="ctl"><input type="number" min="0.3" max="1" step="0.05" data-path="l3.recent_char_low_water"></div></div>
+        <div class="row"><div class="txt"><b>切换线索的惰性</b>
+          <p>越高越不容易换线索，越稳定；越低越容易跟着情绪换。</p></div>
+          <div class="ctl"><input type="number" min="0.5" max="3" step="0.1" data-path="l0.hysteresis"></div></div>
+        <div class="row"><div class="txt"><b>最短换线索间隔（轮）</b>
+          <p>两次换线索之间至少隔几轮。</p></div>
+          <div class="ctl"><input type="number" min="1" max="30" step="1" data-path="l0.min_dwell_rounds"></div></div>
+        <div class="row"><div class="txt"><b>检查换线索的间隔（轮）</b>
+          <p>每隔几轮才重新排一次线索。</p></div>
+          <div class="ctl"><input type="number" min="1" max="30" step="1" data-path="l0.rebalance_interval"></div></div>
+        <details class="adv">
+          <summary>按需回忆 / 写入 / 辅助模块（默认就好）</summary>
+          <div class="row"><div class="txt"><b>启用按需回忆</b><p>出现“上次/之前”这类强指代时，才去翻旧记忆。</p></div>
+            <div class="ctl"><label class="switch"><input type="checkbox" data-path="l1.enabled"><span></span></label></div></div>
+          <div class="row"><div class="txt"><b>回忆冷却（轮）</b><p>同一条旧记忆多久内不重复翻。</p></div>
+            <div class="ctl"><input type="number" min="1" max="30" step="1" data-path="l1.wake_cooldown_rounds"></div></div>
+          <div class="row"><div class="txt"><b>启用零调用写入</b><p>用规则从对话里抽线索，不调用模型。</p></div>
+            <div class="ctl"><label class="switch"><input type="checkbox" data-path="l2.enabled"><span></span></label></div></div>
+          <div class="row"><div class="txt"><b>话题栈</b><p>切话题/回话题时把上一句带回来。</p></div>
+            <div class="ctl"><label class="switch"><input type="checkbox" data-path="aux.topic_stack"><span></span></label></div></div>
+          <div class="row"><div class="txt"><b>长消息压缩</b><p>超长消息只保留情绪和要点，不调用模型。</p></div>
+            <div class="ctl"><label class="switch"><input type="checkbox" data-path="aux.compression"><span></span></label></div></div>
+          <div class="row"><div class="txt"><b>回复节奏</b><p>约束字数、少追问、不加表情。关掉会更啰嗦，也更贵。</p></div>
+            <div class="ctl"><label class="switch"><input type="checkbox" data-path="aux.rhythm"><span></span></label></div></div>
+          <div class="row"><div class="txt"><b>用户词汇表</b><p>记住你习惯的叫法，回复时跟着用。</p></div>
+            <div class="ctl"><label class="switch"><input type="checkbox" data-path="aux.lexicon"><span></span></label></div></div>
+          <div class="row"><div class="txt"><b>未完成事项</b><p>“周五交稿”这类事没做完之前会提醒。</p></div>
+            <div class="ctl"><label class="switch"><input type="checkbox" data-path="aux.open_loops"><span></span></label></div></div>
+        </details>
+      </div>
+    </section>
+
+    <section id="tab-reset">
+      <h1>重置</h1>
+      <p class="sub">换了模型、新开对话，或者真心学歪了的时候，可以在这里把学到的东西清掉。</p>
+
+      <div class="card">
+        <h2>对话状态</h2>
+        <p class="lead">清空最近窗口、长期线索、话题栈、未完成事项和短句固化路径。
+          AstrBot 里的聊天记录和长期记忆不受影响。</p>
+        <button class="ghost danger" data-reset="conversation">重置对话状态</button>
+      </div>
+
+      <div class="card">
+        <h2>长期记忆</h2>
+        <p class="lead">清空记忆库（“不吃香菜”“养了猫叫团子”这类）。清掉之后真心不会再主动提起它们。</p>
+        <button class="ghost danger" data-reset="memory">清空记忆库</button>
+      </div>
+
+      <div class="card">
+        <h2>花费与错误统计</h2>
+        <p class="lead">清空花费曲线、轮次记录和错误计数，方便从今天重新观察。不影响真实对话。</p>
+        <button class="ghost danger" data-reset="metrics">清空统计</button>
+      </div>
+
+      <div class="card">
+        <h2>全部恢复初始</h2>
+        <p class="lead">把上面三项全部清空，并把配置恢复成刚装好时的默认值。这个操作不能撤销，
+          建议先备份 <code>data/plugin_data/astrbot_plugin_zhenxin/zhenxin.sqlite3</code>。</p>
+        <button class="ghost danger" data-reset="all">全部重置</button>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="dock">
+  <span class="hint" id="dock-hint">改动会在下一轮生效，不需要重启</span>
+  <button id="save" disabled>保存并生效</button>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+(function () {
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+  const state = { config: {}, defaults: {}, defaultsApplied: false, metrics: {}, health: {}, series: [], facts: [], traces: [], archivedTotal: 0, dirty: false };
+
+  // AstrBot injects its bridge script at the end of <body>, i.e. AFTER this
+  // inline script has already run.  Resolve the bridge lazily instead of
+  // capturing `undefined` at parse time (that made every save fail with
+  // "no bridge").
+  function getBridge() {
+    return window.AstrBotPluginView || window.AstrBotPluginPage || null;
+  }
+  async function waitForBridge(timeoutMs = 10000) {
+    const started = Date.now();
+    while (!getBridge()) {
+      if (Date.now() - started > timeoutMs) return null;
+      await new Promise((r) => setTimeout(r, 60));
+    }
+    return getBridge();
+  }
+
+  const BOOL = ["shadow_mode","shortcircuit.enabled","l0.tail_injection","l1.enabled","l2.enabled",
+    "aux.topic_stack","aux.compression","aux.rhythm","aux.lexicon","aux.open_loops"];
+  const NUM = ["l0.inject","l0.max_inject_chars","l3.recent_turns","l3.window_grow_turns",
+    "l3.recent_char_low_water","l0.hysteresis","l0.min_dwell_rounds","l0.rebalance_interval",
+    "l1.wake_cooldown_rounds"];
+
+  function get(path, def) {
+    return String(path).split(".").reduce((o, k) => (o == null ? o : o[k]), state.config) ?? def;
+  }
+  function setPath(path, value) {
+    const parts = String(path).split(".");
+    let cur = state.config;
+    for (let i = 0; i < parts.length - 1; i++) {
+      if (typeof cur[parts[i]] !== "object" || cur[parts[i]] == null) cur[parts[i]] = {};
+      cur = cur[parts[i]];
+    }
+    cur[parts[parts.length - 1]] = value;
+    markDirty();
+  }
+  function markDirty() {
+    state.dirty = true;
+    $("#save").disabled = false;
+    $("#dock-hint").textContent = "有未保存的改动，点右边保存后下一轮生效";
+  }
+  function toast(msg) {
+    const el = $("#toast");
+    el.textContent = msg; el.classList.add("on");
+    clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove("on"), 1800);
+  }
+  function fmt(n) { return n == null || isNaN(n) ? "--" : Number(n).toLocaleString("zh-CN"); }
+  function pct(x) { return (x == null || isNaN(x)) ? "--" : (Number(x) * 100).toFixed(1) + "%"; }
+
+  async function callGet(path) {
+    const bridge = await waitForBridge();
+    if (!bridge) throw new Error("没有检测到 AstrBot 页面桥，请从「插件 → 真心」重新打开本页");
+    const res = await bridge.apiGet(path, {});
+    return res && res.status === "ok" ? res.data : (res && res.data ? res.data : res);
+  }
+  async function callPost(path, body) {
+    const bridge = await waitForBridge();
+    if (!bridge) throw new Error("没有检测到 AstrBot 页面桥，请从「插件 → 真心」重新打开本页");
+    const res = await bridge.apiPost(path, body);
+    const data = res && res.status === "ok" ? res.data : (res && res.data ? res.data : res);
+    if (data && data.ok === false) throw new Error(data.message || "请求失败");
+    return data;
+  }
+
+  $("#nav").addEventListener("click", (e) => {
+    const btn = e.target.closest("button[data-tab]");
+    if (!btn) return;
+    $$("#nav button").forEach((b) => b.classList.toggle("on", b === btn));
+    $$("main section").forEach((s) => s.classList.toggle("on", s.id === "tab-" + btn.dataset.tab));
+    if (btn.dataset.tab === "memory") loadMemory();
+  });
+
+  function bindConfig() {
+    $$("[data-path]").forEach((el) => {
+      const path = el.dataset.path;
+      const v = get(path);
+      if (el.type === "checkbox") el.checked = Boolean(v);
+      else el.value = v == null ? "" : v;
+      el.oninput = () => {
+        if (el.type === "checkbox") setPath(path, el.checked);
+        else if (el.type === "number" || el.type === "range") setPath(path, Number(el.value));
+        else setPath(path, el.value);
+        syncLabels();
+      };
+    });
+    const mode = get("l3.host_context_mode", "off");
+    $$("#hostmode button").forEach((b) => {
+      b.classList.toggle("on", b.dataset.v === mode);
+      b.onclick = () => {
+        $$("#hostmode button").forEach((x) => x.classList.toggle("on", x === b));
+        setPath("l3.host_context_mode", b.dataset.v);
+      };
+    });
+    syncLabels();
+  }
+  function syncLabels() {
+    $("#v-l0").textContent = get("l0.inject", 3);
+    $("#v-recent").textContent = get("l3.recent_turns", 8);
+  }
+
+  function renderStatus(data) {
+    state.config = data.config || {};
+    state.metrics = data.metrics || {};
+    state.health = data.health || {};
+    state.series = Array.isArray(data.series) ? data.series : [];
+    state.scorerName = data.scorer;
+    $("#ver").textContent = "v" + (data.version || "--");
+    bindConfig();
+    renderOverview();
+    $("#save").disabled = true;
+    state.dirty = false;
+  }
+
+  function renderOverview() {
+    const m = state.metrics, h = state.health;
+    const totalIn = Number(m.actual_total_input_tokens || 0) + Number(m.actual_cached_tokens || 0);
+    $("#k-rounds").textContent = fmt(m.rounds);
+    $("#k-hit").textContent = totalIn ? pct(Number(m.actual_cached_tokens || 0) / totalIn) : "--";
+    $("#k-facts").textContent = fmt(h.facts) + " 条";
+    $("#k-cost").innerHTML = (m.actual_currency || "CNY") + " " + Number(m.actual_cost || 0).toFixed(4);
+    $("#memcount").textContent = fmt(h.facts);
+    $("#c-fresh").textContent = fmt(m.actual_total_input_tokens);
+    $("#c-cached").textContent = fmt(m.actual_cached_tokens);
+    $("#c-out").textContent = fmt(m.actual_output_tokens);
+    $("#c-cost").textContent = (m.actual_currency || "CNY") + " " + Number(m.actual_cost || 0).toFixed(4);
+
+    const s = state.series;
+    const W = 600, H = 130, n = Math.max(s.length, 1);
+    const max = Math.max(1, ...s.map((x) => (x.fresh || 0) + (x.cached || 0)));
+    const bw = W / n;
+    $("#chart").innerHTML = s.map((x, i) => {
+      const hC = ((x.cached || 0) / max) * H, hF = ((x.fresh || 0) / max) * H;
+      const x0 = i * bw + 1, w = Math.max(1, bw - 2);
+      return '<rect x="' + x0 + '" y="' + (H - hC) + '" width="' + w + '" height="' + hC + '" fill="#0f766e"></rect>' +
+             '<rect x="' + x0 + '" y="' + (H - hC - hF) + '" width="' + w + '" height="' + hF + '" fill="#f59e0b"></rect>';
+    }).join("");
+    const cost = s.reduce((a, x) => a + (x.cost || 0), 0);
+    const fresh = s.reduce((a, x) => a + (x.fresh || 0), 0);
+    const cached = s.reduce((a, x) => a + (x.cached || 0), 0);
+    $("#legend").textContent = s.length
+      ? "近 " + s.length + " 轮：缓存 " + fmt(cached) + " / 未缓存 " + fmt(fresh) +
+        " token，合计 " + cost.toFixed(4) + " 元，每轮均价 " + (cost / s.length).toFixed(4) + " 元"
+      : "还没有数据，先聊几句。";
+    const when = h.last_error_at ? new Date(h.last_error_at * 1000).toLocaleString() : "";
+    const err = h.last_error
+      ? '<span class="bad">最近错误：' + h.last_error + (when ? " · " + when : "") + "</span>"
+      : '<span class="good">没有记录到错误</span>';
+    $("#health").innerHTML =
+      "<span>向量 " + (state.scorerName || "本地") + "</span>" +
+      "<span>数据库 " + (h.db_ok ? h.db_kb + " KB" : "不可用") + "</span>" +
+      "<span>累计错误 " + (h.errors || 0) + "</span>" + err;
+    const host = (state.config.l3 || {}).host_context_mode;
+    $("#now").textContent = state.config.shadow_mode
+      ? "现在是观察模式：真心照常计算、照常记录，但不会改动 AstrBot 发给模型的任何内容。先跑 50 轮看看数据，再决定要不要接管。"
+      : "正在接管：" + (host === "replace"
+          ? "只发送最近几轮对话 + 少量长期线索，其余历史由真心自己保管。"
+          : "保留了 AstrBot 自己的上下文，只额外补充长期线索。");
+  }
+
+  async function loadMemory() {
+    try {
+      const data = await callGet("page/memory");
+      state.facts = (data && data.facts) || [];
+      state.traces = (data && data.traces) || [];
+      state.archivedTotal = (data && data.archived_total) || 0;
+      renderMemory();
+      renderTraces();
+    } catch (e) {
+      $("#memlist").innerHTML = '<div class="empty">读取记忆失败：' + e.message + "</div>";
+    }
+  }
+  function kindLabel(kind) {
+    return { habit: "习惯/偏好", relationship: "关系", emotion: "情绪", unclosed: "未完成", fact: "事实" }[kind] || "事实";
+  }
+  function importanceLabel(f) {
+    if (f.tier === "important" || Number(f.importance) >= 0.75) return "重要";
+    if (f.tier === "recent") return "最近";
+    return "普通";
+  }
+  function whenLabel(days) {
+    const d = Number(days) || 0;
+    if (d < 1) return "今天";
+    if (d < 2) return "昨天";
+    if (d < 30) return Math.round(d) + " 天前";
+    if (d < 365) return Math.round(d / 30) + " 个月前";
+    return Math.round(d / 365) + " 年前";
+  }
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+  function renderMemory() {
+    const q = ($("#memsearch").value || "").trim();
+    const sort = $("#memsort").value;
+    const items = state.facts.filter((f) => !q || f.text.includes(q) || (f.kind || "").includes(q));
+    items.sort((a, b) => {
+      if (sort === "recent") return (b.created_at || 0) - (a.created_at || 0);
+      if (sort === "old") return (a.created_at || 0) - (b.created_at || 0);
+      return (b.importance || 0) - (a.importance || 0) || (b.used || 0) - (a.used || 0);
+    });
+    $("#memcount").textContent = fmt(state.facts.length);
+    if (!items.length) {
+      $("#memlist").innerHTML = '<div class="empty">' + (state.facts.length ? "没有匹配的记忆" : "还没有记忆，先聊几句") + "</div>";
+      return;
+    }
+    $("#memlist").innerHTML = items.map((f) => {
+      const tag = importanceLabel(f);
+      return '<div class="mem-item"><div class="body"><div class="t"><span class="tag' +
+        (tag === "普通" ? " low" : "") + '">' + tag + "</span>" + escapeHtml(f.text) + "</div>" +
+        '<div class="m">' + kindLabel(f.kind) + " · " + whenLabel(f.age_days) + " · 用过 " + f.used +
+        " 次 · 出现在 " + (f.sessions || 1) + " 个会话</div></div>" +
+        '<button class="del" title="删除这条" data-text="' + escapeHtml(f.text) + '">×</button></div>';
+    }).join("");
+  }
+  function renderTraces() {
+    $("#tracecount").textContent = fmt(state.archivedTotal || state.traces.length);
+    if (!state.traces.length) {
+      $("#tracelist").innerHTML = '<div class="empty">还没有淡出的记忆</div>';
+      return;
+    }
+    $("#tracelist").innerHTML = state.traces.map((t) =>
+      '<div class="mem-item trace"><div class="body"><div class="t">' +
+      (t.keywords ? escapeHtml(t.keywords) : "（无关键词）") + "</div>" +
+      '<div class="m">' + kindLabel(t.kind) + " · 关键词痕迹 · 已淡出</div></div></div>"
+    ).join("");
+  }
+  $("#memsearch").addEventListener("input", renderMemory);
+  $("#memsort").addEventListener("change", renderMemory);
+  $("#memlist").addEventListener("click", async (e) => {
+    const btn = e.target.closest("button[data-text]");
+    if (!btn) return;
+    if (!confirm("删掉这条记忆？真心之后就不会再带它了。")) return;
+    try {
+      await callPost("page/memory/delete", { texts: [btn.dataset.text] });
+      state.facts = state.facts.filter((f) => f.text !== btn.dataset.text);
+      renderMemory();
+      toast("已删除");
+    } catch (err) { toast(err.message); }
+  });
+  $("#memclear").addEventListener("click", async () => {
+    if (!confirm("清空全部记忆（包括关键词痕迹）？这个操作不能撤销。")) return;
+    try {
+      await callPost("page/memory/clear", {});
+      state.facts = [];
+      state.traces = [];
+      state.archivedTotal = 0;
+      renderMemory();
+      renderTraces();
+      toast("已清空");
+    } catch (err) { toast(err.message); }
+  });
+
+  function collect() {
+    const values = {};
+    BOOL.concat(NUM).forEach((path) => {
+      if (get(path) !== undefined) values[path] = get(path);
+    });
+    if (get("l3.host_context_mode") !== undefined) values["l3.host_context_mode"] = get("l3.host_context_mode");
+    // "恢复默认" also resets knobs that have no input on this page.  Only send
+    // them right after that button, so a normal save never overwrites values
+    // the user tuned directly in AstrBot's plugin config.
+    if (state.defaultsApplied) {
+      Object.keys(state.defaults || {}).forEach((path) => {
+        const v = get(path);
+        if (v !== undefined) values[path] = v;
+      });
+    }
+    return values;
+  }
+  $("#save").addEventListener("click", async () => {
+    const btn = $("#save");
+    btn.disabled = true;
+    try {
+      const data = await callPost("page/config", { values: collect() });
+      state.config = (data && data.config) || state.config;
+      state.defaultsApplied = false;
+      bindConfig();
+      $("#dock-hint").textContent = "已保存，下一轮生效";
+      toast("已保存，下一轮生效");
+      renderOverview();
+    } catch (e) {
+      $("#dock-hint").textContent = "保存失败：" + e.message;
+      toast("保存失败：" + e.message);
+      btn.disabled = false;
+    }
+  });
+  function applyValues(values) {
+    Object.keys(values).forEach((path) => {
+      const parts = String(path).split(".");
+      let cur = state.config;
+      for (let i = 0; i < parts.length - 1; i++) {
+        if (typeof cur[parts[i]] !== "object" || cur[parts[i]] == null) cur[parts[i]] = {};
+        cur = cur[parts[i]];
+      }
+      cur[parts[parts.length - 1]] = values[path];
+    });
+    bindConfig();
+    markDirty();
+    renderOverview();
+  }
+
+  const RECOMMENDED = {
+    shadow_mode: true, "l3.host_context_mode": "off", "l0.inject": 3, "l3.recent_turns": 8,
+    "shortcircuit.enabled": false, "l0.max_inject_chars": 150, "l0.tail_injection": true,
+    "l3.window_grow_turns": 4, "l3.recent_char_low_water": 0.7, "l0.hysteresis": 2,
+    "l0.min_dwell_rounds": 8, "l0.rebalance_interval": 8, "l1.enabled": true,
+    "l2.enabled": true, "aux.topic_stack": true, "aux.compression": true, "aux.rhythm": true,
+    "aux.lexicon": true, "aux.open_loops": true, "l1.wake_cooldown_rounds": 8
+  };
+  $("#preset").addEventListener("click", () => {
+    applyValues(RECOMMENDED);
+    state.defaultsApplied = false;
+    $("#preset-hint").textContent = "已套用推荐设置，确认后点底部“保存并生效”。";
+    toast("已套用推荐设置，记得保存");
+  });
+  $("#defaults").addEventListener("click", () => {
+    const values = Object.keys(state.defaults || {}).length ? state.defaults : RECOMMENDED;
+    applyValues(values);
+    state.defaultsApplied = true;
+    $("#preset-hint").textContent = "已填回出厂默认值，确认后点底部“保存并生效”。";
+    toast("已填回默认配置，记得保存");
+  });
+
+  function afterMutation() {
+    return loadStatus(true);
+  }
+
+  const RESET_CONFIRM = {
+    conversation: "重置所有会话的对话状态？最近窗口、线索、话题栈和固化路径会清空，长期记忆保留。",
+    memory: "清空全部长期记忆？这个操作不能撤销。",
+    metrics: "清空花费与错误统计？真实对话不受影响。",
+    all: "全部恢复初始？对话状态、长期记忆、统计和配置都会重置，不能撤销。"
+  };
+  $$("button[data-reset]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const scope = btn.dataset.reset;
+      if (!confirm(RESET_CONFIRM[scope] || "确认重置？")) return;
+      btn.disabled = true;
+      try {
+        const data = await callPost("page/reset", { scope });
+        const counts = (data && data.deleted) || {};
+        const total = Object.values(counts).reduce((a, b) => a + (Number(b) || 0), 0);
+        toast("已重置" + (total ? "（清理 " + total + " 条记录）" : ""));
+        if (scope === "memory" || scope === "all") {
+          state.facts = [];
+          state.traces = [];
+          state.archivedTotal = 0;
+          renderMemory();
+          renderTraces();
+        }
+        if (scope === "all" && data && data.config) state.config = data.config;
+        await afterMutation();
+      } catch (e) {
+        toast("重置失败：" + e.message);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  });
+
+  async function loadStatus(silent) {
+    const data = await callGet("page/status");
+    renderStatus(data);
+    $("#side-status").textContent = (data.config || {}).shadow_mode
+      ? "观察模式：只记录，不改回复" : "生效中：正在接管上下文";
+    if (!silent) await loadMemory();
+    return data;
+  }
+
+  (async function boot() {
+    const bridge = await waitForBridge();
+    if (!bridge) {
+      $("#side-status").textContent = "没有检测到 AstrBot 页面桥：请从「插件 → 真心」重新打开本页。";
+      $("#dock-hint").textContent = "页面桥未加载：请刷新页面，或从「插件 → 真心」重新打开。";
+      return;
+    }
+    try {
+      const status = await loadStatus(false);
+      try {
+        const defaults = await callGet("page/defaults");
+        state.defaults = (defaults && defaults.defaults) || {};
+      } catch (e) {
+        state.defaults = {};
+      }
+      const mode = (status.config || {}).shadow_mode;
+      $("#dock-hint").textContent = mode
+        ? "当前是观察模式。改动会在下一轮生效，不需要重启"
+        : "改动会在下一轮生效，不需要重启";
+    } catch (e) {
+      $("#side-status").textContent = "连接失败：" + e.message;
+      $("#dock-hint").textContent = "加载失败：" + e.message;
+    }
+  })();
+})();
+</script>
+</body>
+</html>

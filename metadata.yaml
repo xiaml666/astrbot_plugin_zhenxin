@@ -1,0 +1,30 @@
+name: astrbot_plugin_zhenxin
+display_name: 真心
+short_desc: 默认不检索的五层上下文层：写路径零 LLM 调用，长对话省 38%，零价值记忆自动淡出。
+desc: >-
+  真心不换模型，只接管“每一轮给模型看什么”。默认不检索，只注入 2-3 条极短线索；
+  出现指代、矛盾或未完成事务时才按需唤醒。线索放在请求末尾、稳定前缀逐字节保持，
+  让服务端提示缓存持续命中。记忆写入、亮度、置信度全部走规则，零 LLM 调用；
+  记忆按重要性和时间线治理，长期没用又不重要的条目自动淡出、只留关键词痕迹。
+  自带控制中心（概览/记忆/花费/行为设置/高级/重置），可先 shadow 观察再一键接管。
+  与常见“每轮向量检索 + 全量注入”的记忆插件不同：它优化的是上下文成本与缓存，而不是检索精度。
+version: 0.3.0
+author: xiaml666
+repo: https://github.com/xiaml666/astrbot_plugin_zhenxin
+social_link: https://github.com/xiaml666
+tags:
+  - memory
+  - context
+  - prompt-cache
+  - cost
+  - llm
+astrbot_version: ">=4.16,<5"
+support_platforms:
+  - aiocqhttp
+  - qq_official
+  - telegram
+  - wecom
+  - lark
+  - dingtalk
+  - discord
+  - slack

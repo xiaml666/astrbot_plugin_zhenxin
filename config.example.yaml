@@ -1,0 +1,127 @@
+# 真心插件独立运行配置（AstrBot 内可直接用 _conf_schema.json / WebUI 配置）
+# 所有相对路径以进程工作目录为准；AstrBot 通常就是其根目录。
+
+db_path: "data/zhenxin.sqlite3"
+shadow_mode: true
+strict_zero_llm: true
+
+system_prompt: "你是对方熟悉的朋友，说话自然、简短，不说教。根据长期线索和最近对话回应，不要声称自己拥有数据库或检索系统。"
+persona: "语气温和但有边界，偶尔冷幽默；不连续追问，不堆表情。"
+
+main_model:
+  enabled: false
+  provider: "openai_compatible"
+  base_url: "https://api.openai.com/v1"
+  api_key_env: "ZHENXIN_MAIN_API_KEY"
+  name: "gpt-4o-mini"
+  temperature: 0.8
+  max_tokens: 512
+  timeout_s: 60
+
+decision_model:
+  enabled: false
+  provider: "openai_compatible"
+  base_url: ""
+  api_key_env: "ZHENXIN_DECISION_API_KEY"
+  name: ""
+  temperature: 0.5
+  max_tokens: 128
+  timeout_s: 30
+
+embedding:
+  backend: "auto"          # auto | onnx | hash
+  model_path: "models/bge-small-zh.onnx"
+  tokenizer_path: "models/tokenizer.json"
+  max_length: 256
+  dims: 384
+
+l0:
+  enabled: true
+  slots: 10
+  inject: 3
+  max_seed_chars: 30
+  max_inject_chars: 150
+  decay: 0.99
+  warm_decay: 0.995
+  hysteresis: 2.0
+  tail_injection: true      # 线索块放请求末尾，换线索不再作废系统提示后的缓存
+  min_dwell_rounds: 8
+  rebalance_interval: 8
+  type_bonus:
+    unclosed: 0.25
+    emotion: 0.2
+    relationship: 0.15
+    habit: 0.1
+    fact: 0.0
+
+shortcircuit:
+  enabled: false
+  hit_threshold: 3.0
+  template_confidence: 5.0
+  initial_confidence: 2.0
+  repeat_boost: 1.0
+  ack_boost: 0.5
+  continue_boost: 1.0
+  negative_penalty: 1.0
+  neg_degrade_threshold: 2
+  degrade_hours: 24
+  max_literal_chars: 24
+  max_hit_chars: 8
+  use_small_model: false
+  max_reply_chars: 80
+
+l1:
+  enabled: true
+  low_l0_threshold: 0.3
+  candidate_min_score: 0.1
+  recall_max_chars: 100
+  max_recalls: 2
+  wake_cooldown_rounds: 8
+  rerank: false
+  rerank_top_k: 5
+
+l2:
+  enabled: true
+  warm_limit: 30
+  max_candidates: 4
+  open_loop_limit: 5
+  open_loop_ttl_rounds: 25
+  cold_max_rows: 800
+  bootstrap_seeds: 2
+
+l3:
+  enabled: true
+  cache_aware_pruning: true
+  recent_turns: 8
+  window_grow_turns: 4      # 涨到 recent_turns+4 再一次性回收，避免每轮滑动
+  recent_max_chars: 2200
+  recent_char_low_water: 0.7
+  ephemeral_max_chars: 420
+  include_ephemeral: true
+  cache_ttl_seconds: 300
+  host_context_mode: "replace"
+
+aux:
+  topic_stack: true
+  compression: true
+  rhythm: true
+  lexicon: true
+  open_loops: true
+  negative_patterns: true
+  compression_threshold: 150
+  topic_depth: 5
+  rhythm_postprocess: true
+  lexicon_postprocess: true
+  lexicon_aliases: {}
+
+metrics:
+  enabled: true
+  jsonl_path: "logs/metrics.jsonl"
+  log_traces: true
+  currency: "CNY"
+  input_price_per_million: 2.0
+  cached_input_price_per_million: 0.5
+  output_price_per_million: 8.0
+
+
+
