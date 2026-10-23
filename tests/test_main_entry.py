@@ -50,6 +50,16 @@ class _Filter:
 
 
 class MainEntryTests(unittest.TestCase):
+    def test_version_matches_metadata(self):
+        import re
+
+        from zhenxin import __version__
+
+        metadata = (Path(ROOT) / "metadata.yaml").read_text(encoding="utf-8")
+        match = re.search(r"^version:\s*([^\s]+)", metadata, re.M)
+        self.assertIsNotNone(match)
+        self.assertEqual(match.group(1), __version__)
+
     def test_main_module_registers_star_without_astrbot(self):
         created = {}
 
