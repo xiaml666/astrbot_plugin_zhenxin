@@ -39,11 +39,7 @@
 - **可回退**：推荐设置、恢复默认、分范围重置（对话/记忆/统计），换模型或新开对话后不用手动清库。
 - **两种显式工具**：`zhenxin_recall` / `zhenxin_remember`，需要时模型可主动回忆或记住；平时不占调用。
 
-- **主适配目标：AstrBot 4.x**
-- 兼容层：NoneBot2（薄适配，宿主自行接入 LLM）
-- 运行环境：Python 3.11+
-- 持久化：SQLite 单文件
-- 本地嵌入：`onnxruntime` + bge-small-zh（可选）；没有 ONNX 时自动退化到纯 Python 哈希向量
+**运行环境：** AstrBot 4.x（另有 NoneBot2 薄适配）· Python 3.11+ · SQLite 单文件 · 本地 ONNX 可选（没有就退化为纯 Python 哈希向量，不联网）
 
 > **状态：0.3.1。** 74 个 unittest、真实 AstrBot 4.29.1 实机验证、100 轮成本 A/B。先开 shadow 跑真实数据，再决定是否 live。省 token 是条件性收益，不是对所有配置的保证；验证方法见 [`docs/validation.md`](docs/validation.md)。
 
