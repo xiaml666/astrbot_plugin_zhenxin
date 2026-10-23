@@ -2,7 +2,17 @@
 
 <p align="center"><img src="logo.png" width="112" alt="真心 logo"></p>
 
+<p align="center">
+  <a href="https://github.com/xiaml666/astrbot_plugin_zhenxin/releases/latest"><img alt="release" src="https://img.shields.io/github/v/release/xiaml666/astrbot_plugin_zhenxin?color=0f766e"></a>
+  <img alt="tests" src="https://img.shields.io/badge/tests-74%20passed-brightgreen">
+  <img alt="AstrBot" src="https://img.shields.io/badge/AstrBot-4.x-0f766e">
+  <img alt="license" src="https://img.shields.io/badge/license-MIT-blue">
+</p>
+
+
 > 不改变底层对话模型，只接管“每一轮为模型准备什么上下文”。
+
+<p align="center"><img src="docs/control-center.png" width="860" alt="真心控制中心"></p>
 
 真心是一个面向 QQ / 微信聊天机器人的上下文层插件。它默认**不检索**：大部分轮次只注入 2–3 条极短线索；只有出现指代、矛盾或未闭合事务时，才按需唤醒冷记忆。记忆写入、亮度更新、置信度更新、节奏计算全部走规则/计数，**零 LLM 调用**。上下文修剪只从尾部剥离临时片段，稳定前缀逐字节保持，以命中服务端提示缓存。
 
@@ -35,7 +45,7 @@
 - 持久化：SQLite 单文件
 - 本地嵌入：`onnxruntime` + bge-small-zh（可选）；没有 ONNX 时自动退化到纯 Python 哈希向量
 
-> **状态：0.3.0。** 74 个 unittest、真实 AstrBot 4.29.1 实机验证、100 轮成本 A/B。先开 shadow 跑真实数据，再决定是否 live。省 token 是条件性收益，不是对所有配置的保证；验证方法见 [`docs/validation.md`](docs/validation.md)。
+> **状态：0.3.1。** 74 个 unittest、真实 AstrBot 4.29.1 实机验证、100 轮成本 A/B。先开 shadow 跑真实数据，再决定是否 live。省 token 是条件性收益，不是对所有配置的保证；验证方法见 [`docs/validation.md`](docs/validation.md)。
 
 ## 0. 验证状态（请先读）
 
@@ -545,7 +555,7 @@ python scripts/quality_sheet.py --pairs data/quality_pairs.example.jsonl
 
 1. 仓库根目录保留 `main.py`、`metadata.yaml`、`_conf_schema.json`、`requirements.txt`、`logo.png`。
 2. `metadata.yaml` 的 `name` 用 `astrbot_plugin_zhenxin`，`repo` 指向本仓库，版本号与 Release 一致。
-3. 打 tag（如 `v0.3.0`）并上传 Release zip；zip 不超过 16MB（当前约 150KB）。
+3. 打 tag（如 `v0.3.1`）并上传 Release zip；zip 不超过 16MB（当前约 150KB）。
 4. 登录 [AstrBot Cloud](https://cloud.astrbot.app/) 的插件发布页，提交本仓库；审核通过后即可在
    AstrBot 面板「插件 → 安装插件」里搜索到。
 5. 不要提交 `data/*.sqlite3`、`logs/`、`.venv/`、`models/`、`reports/`、`.astrbot_cookies.txt`。
