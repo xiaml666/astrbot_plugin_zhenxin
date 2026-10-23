@@ -35,11 +35,11 @@
 - 持久化：SQLite 单文件
 - 本地嵌入：`onnxruntime` + bge-small-zh（可选）；没有 ONNX 时自动退化到纯 Python 哈希向量
 
-> **状态：0.3.0。** 73 个 unittest、真实 AstrBot 4.29.1 实机验证、100 轮成本 A/B。先开 shadow 跑真实数据，再决定是否 live。省 token 是条件性收益，不是对所有配置的保证；验证方法见 [`docs/validation.md`](docs/validation.md)。
+> **状态：0.3.0。** 74 个 unittest、真实 AstrBot 4.29.1 实机验证、100 轮成本 A/B。先开 shadow 跑真实数据，再决定是否 live。省 token 是条件性收益，不是对所有配置的保证；验证方法见 [`docs/validation.md`](docs/validation.md)。
 
 ## 0. 验证状态（请先读）
 
-- **已做**：73 个 unittest；60 轮 live/shadow 模拟；装/不装上下文对比；本地 ONNX/哈希回退；
+- **已做**：74 个 unittest；60 轮 live/shadow 模拟；装/不装上下文对比；本地 ONNX/哈希回退；
   用假 AstrBot event/request 验证 hook 注入、短路阻断、shadow 不改请求、`LLMResponse.usage` 落库。
 - **未做**：在真实 AstrBot 实例 + 真实 QQ/微信适配器 + 其他插件组合下的长期回归。当前环境没有 AstrBot 依赖，
   所以仓库不能声称“已对所有 AstrBot 版本验证通过”。
@@ -448,7 +448,7 @@ SELECT round_no, wake, wake_trigger, prefix_stable FROM metrics ORDER BY round_n
 ## 8. 复现验收
 
 ```bash
-# 全部单测（73 个，含 60 轮验收）
+# 全部单测（74 个，含 60 轮验收）
 python -m unittest discover -s tests -t . -v
 
 # 仅跑验收
@@ -514,7 +514,7 @@ python scripts/quality_sheet.py --pairs data/quality_pairs.example.jsonl
 │   ├── layers/                 # l0 l1 l2 l3 shortcircuit
 │   ├── aux/                    # 话题栈/压缩/节奏/词汇/队列/负面模式
 │   └── adapters/               # astrbot / nonebot2
-├── tests/                      # 73 个 unittest
+├── tests/                      # 74 个 unittest
 ├── data/sim_dialogue.jsonl     # 60 轮模拟数据
 ├── data/human_eval_cases.jsonl # 20 条人工评测
 ├── data/quality_pairs.example.jsonl # 盲测输入示例
@@ -569,6 +569,7 @@ python scripts/quality_sheet.py --pairs data/quality_pairs.example.jsonl
 ## License
 
 MIT。见 [`LICENSE`](LICENSE)。
+
 
 
 
