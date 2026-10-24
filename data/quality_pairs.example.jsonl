@@ -1,0 +1,3 @@
+{"id":"HE01","category":"short_ack","user":"嗯","baseline_reply":"嗯，我在听。","plugin_reply":"嗯。"}
+{"id":"HE04","category":"emotion","user":"今天好累","baseline_reply":"那先休息一下，别太勉强。","plugin_reply":"先靠一会儿吧，别硬撑着。"}
+{"id":"HE10","category":"topic_return","user":"你还记得团子叫什么吗","baseline_reply":"团子？是你之前提到的那只猫吗？","plugin_reply":"记得，团子。"}
