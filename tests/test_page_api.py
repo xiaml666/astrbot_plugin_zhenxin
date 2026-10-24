@@ -26,7 +26,7 @@ class PageApiTests(unittest.TestCase):
         config = {}
         api = PluginPageAPI(FakePlugin(context), engine, config)
         api.register()
-        self.assertEqual(len(context.routes), 19)
+        self.assertEqual(len(context.routes), 20)
         self.assertTrue(context.routes[0][0].endswith("/page/status"))
         self.assertTrue(any(r[0].endswith("/page/defaults") for r in context.routes))
         self.assertTrue(any(r[0].endswith("/page/reset") for r in context.routes))
@@ -41,7 +41,7 @@ class PageApiTests(unittest.TestCase):
         page = (ROOT / "pages" / "zhenxin" / "index.html").read_text(encoding="utf-8")
         # The overview/cost pages were removed; realtime status now sits above
         # every settings tab and the cost numbers live inside it.
-        for label in ("行为与状态", "记忆", "说话习惯", "体检与反馈", "高级", "重置"):
+        for label in ("运行总览", "对话设置", "记忆", "说话与主动", "体检与反馈", "高级", "重置"):
             self.assertIn(label, page)
         self.assertNotIn('data-tab="overview"', page)
         self.assertNotIn('data-tab="cost"', page)
@@ -58,7 +58,8 @@ class PageApiTests(unittest.TestCase):
         self.assertIn('id="refresh"', page)
         self.assertIn('id="kb-details"', page)
         self.assertIn('id="graph"', page)
-        self.assertIn('id="memview"', page)
+        self.assertIn('id="memundo"', page)
+        self.assertNotIn('id="garden"', page)
         self.assertIn('id="hero"', page)
         self.assertIn("关键链路", page)
         # Pricing knobs moved out of the page; cost is display-only now.

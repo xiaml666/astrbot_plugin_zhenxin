@@ -222,6 +222,19 @@ class MemoryV2Tests(unittest.TestCase):
         self.assertGreater(boosted["weight"], before["weight"])
         self.assertGreaterEqual(boosted["manual_boost"], 0.2)
 
+    def test_boost_can_be_undone_exactly(self):
+        engine, _ = make_engine()
+        engine.facts.add("u1", "不吃香菜", "habit", importance=0.5)
+        before = engine.facts.list_facts()[0]
+        boosted = engine.facts.boost(before["id"], 0.12)
+        self.assertGreater(boosted["manual_boost"], before["manual_boost"])
+        restored = engine.facts.set_boost(
+            before["id"], before["manual_boost"], before["importance"], before["pool"]
+        )
+        self.assertEqual(before["manual_boost"], restored["manual_boost"])
+        self.assertEqual(before["importance"], restored["importance"])
+        self.assertEqual(before["pool"], restored["pool"])
+
     def test_cycle_separates_treasure_and_shallow(self):
         engine, clock = make_engine()
         engine.facts.add("u1", "很重要的事", "habit", importance=0.99)
