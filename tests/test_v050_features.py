@@ -90,6 +90,12 @@ class MemoryV2Tests(unittest.TestCase):
         self.assertEqual("", engine.facts.address("u1"))
         self.assertEqual(1, engine.facts.pool_counts("u1")["trash"])
 
+    def test_vague_cancellation_targets_a_single_open_loop(self):
+        engine, _ = make_engine(**{"shortcircuit.enabled": False})
+        engine.facts.add("u1", "海盐绘本", "unclosed", importance=0.8)
+        self.assertEqual(1, engine.facts.scan_zero_value("u1", "不想弄这个了"))
+        self.assertEqual(1, engine.facts.pool_counts("u1")["trash"])
+
     def test_vague_address_rejection_uses_the_word_not_an_unrelated_verb(self):
         from zhenxin._aux import zero_value
 
