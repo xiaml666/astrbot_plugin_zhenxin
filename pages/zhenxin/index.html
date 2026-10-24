@@ -57,11 +57,73 @@ h1{font-size:25px;margin:4px 0 3px;letter-spacing:.2px}
 .sub{color:var(--muted);margin:0 0 16px;font-size:13.5px}
 section{display:none;animation:fade .18s ease}
 section.on{display:block}
+main section > h1,main section > .sub{display:none}
 @keyframes fade{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
 .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px;margin-bottom:16px;box-shadow:var(--shadow)}
 .card h2{font-size:16px;margin:0 0 3px}
 .card .lead{color:var(--muted);font-size:12.8px;margin:0 0 14px;line-height:1.65}
 .card.tight{padding:14px 18px}
+
+/* ---------- sidebar status / dashboard ---------- */
+.side-mode{display:flex;gap:9px;align-items:center;padding:10px 11px;margin:0 4px 16px;
+  border:1px solid var(--line);border-radius:12px;background:color-mix(in srgb,var(--acc-soft) 38%,transparent)}
+.side-mode .sm-dot{width:8px;height:8px;border-radius:50%;background:var(--warn);box-shadow:0 0 0 4px color-mix(in srgb,var(--warn) 16%,transparent)}
+.side-mode .sm-dot.good{background:var(--good);box-shadow:0 0 0 4px color-mix(in srgb,var(--good) 16%,transparent)}
+.side-mode b{display:block;font-size:12.5px;line-height:1.3}
+.side-mode small{display:block;color:var(--muted);font-size:11px;line-height:1.4;margin-top:2px}
+.nav-label{color:var(--muted);font-size:10.5px;letter-spacing:.14em;font-weight:700;margin:14px 8px 5px}
+.page-head{display:flex;justify-content:space-between;align-items:flex-end;gap:14px;margin:2px 0 18px;flex-wrap:wrap}
+.page-head h1{margin:2px 0 2px}
+.kicker{color:var(--acc);font-size:10.5px;letter-spacing:.18em;font-weight:750}
+.page-head .sub{margin:0}
+.hero{display:flex;justify-content:space-between;gap:20px;align-items:center;padding:20px 22px;margin-bottom:14px;
+  border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow);
+  background:linear-gradient(135deg,color-mix(in srgb,var(--good-soft) 60%,var(--card)),var(--card))}
+.hero-main{display:flex;gap:15px;align-items:flex-start;min-width:0}
+.hero-ico{width:52px;height:52px;border-radius:15px;display:grid;place-items:center;flex:0 0 auto;
+  background:linear-gradient(135deg,var(--good),#34d399);color:#fff;font-size:22px;font-weight:800;
+  box-shadow:0 10px 22px color-mix(in srgb,var(--good) 24%,transparent)}
+.hero-ico.warn{background:linear-gradient(135deg,var(--warn),#f59e0b);box-shadow:0 10px 22px color-mix(in srgb,var(--warn) 24%,transparent)}
+.hero-kicker{font-size:10.5px;letter-spacing:.16em;color:var(--good);font-weight:800}
+.hero h2{font-size:21px;margin:4px 0 4px;letter-spacing:-.2px}
+.hero p{margin:0;color:var(--muted);font-size:13px;line-height:1.7;max-width:640px}
+.hero-score{flex:0 0 150px;text-align:right}
+.score-num{font-size:30px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-1px}
+.score-num small{font-size:13px;color:var(--muted);font-weight:600}
+.score-label{color:var(--muted);font-size:11.5px;margin-bottom:7px}
+.metric-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:11px;margin-bottom:14px}
+@media(max-width:1000px){.metric-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:560px){.metric-grid{grid-template-columns:1fr}}
+.metric{display:flex;gap:11px;align-items:center;border:1px solid var(--line);border-radius:15px;padding:13px 14px;
+  background:var(--card);box-shadow:0 1px 2px rgba(16,32,29,.03);min-width:0}
+.metric>div:last-child{min-width:0;flex:1}
+.m-ico{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-size:15px;font-weight:800;flex:0 0 auto}
+.m-ico.teal{background:var(--acc-soft);color:var(--acc)}
+.m-ico.blue{background:#e0f2fe;color:#0369a1}
+.m-ico.amber{background:var(--warn-soft);color:var(--warn)}
+.m-ico.purple{background:#ede9fe;color:#6d28d9}
+.m-ico.green{background:var(--good-soft);color:var(--good)}
+.m-ico.pink{background:#fce7f3;color:#be185d}
+.m-k{color:var(--muted);font-size:11px;display:flex;align-items:center;gap:5px}
+.m-v{font-size:19px;font-weight:780;font-variant-numeric:tabular-nums;line-height:1.35}
+.m-v small{font-size:10.5px;color:var(--muted);font-weight:500}
+.m-note{color:var(--muted);font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.m-bar{height:5px;border-radius:999px;background:var(--bg2);margin-top:6px;overflow:hidden}
+.m-bar i{display:block;height:100%;width:0;border-radius:999px;background:linear-gradient(90deg,var(--acc),var(--acc2));transition:width .3s}
+.overview-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+@media(max-width:900px){.overview-grid{grid-template-columns:1fr}}
+.link-list{display:flex;flex-direction:column;gap:2px}
+.link-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px dashed var(--line);font-size:12.8px}
+.link-row:last-child{border-bottom:0}
+.link-row .li{width:27px;height:27px;border-radius:8px;display:grid;place-items:center;background:var(--acc-soft);color:var(--acc);font-size:12px;flex:0 0 auto}
+.link-row b{font-weight:650}
+.link-row small{display:block;color:var(--muted);font-size:11px;margin-top:1px}
+.link-row .st{margin-left:auto;color:var(--good);font-size:11.5px;font-weight:650;white-space:nowrap}
+.link-row .st.bad{color:var(--bad)}
+.link-row .st.warn{color:var(--warn)}
+.chart-card .chart-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.chart-card .chart-head h2{margin:0}
+.chart-card .chart-head .rt-time{margin-left:auto}
 
 /* ---------- realtime strip ---------- */
 .realtime{background:linear-gradient(135deg,color-mix(in srgb,var(--card) 92%,var(--acc-soft)),var(--card));
@@ -94,6 +156,13 @@ section.on{display:block}
 .dot-key{display:inline-flex;align-items:center;gap:5px}
 .dot-key i{width:9px;height:9px;border-radius:3px;display:inline-block}
 .health{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);font-size:12.3px;color:var(--muted)}
+.alert{display:flex;gap:12px;align-items:flex-start;justify-content:space-between;margin-bottom:16px;
+  border:1px solid color-mix(in srgb,var(--warn) 40%,var(--line));background:var(--warn-soft);
+  color:var(--warn);border-radius:14px;padding:12px 15px;font-size:13px;line-height:1.7}
+.alert b{display:block;color:var(--ink);font-size:14px;margin-bottom:2px}
+.alert .acts{display:flex;gap:8px;flex-wrap:wrap;flex-shrink:0}
+.alert .acts button{border:1px solid color-mix(in srgb,var(--warn) 40%,var(--line));background:var(--card);
+  color:var(--ink);padding:6px 11px;border-radius:9px;cursor:pointer;font:inherit;font-size:12.5px}
 .health .bad{color:var(--bad);font-weight:650}
 .health .good{color:var(--good);font-weight:650}
 
@@ -156,6 +225,15 @@ input[type=range]{width:190px;accent-color:var(--acc)}
   transition:transform .15s,box-shadow .15s;margin:0}
 .dot:hover{transform:scale(1.18);box-shadow:0 0 0 6px color-mix(in srgb,var(--c) 24%,transparent),0 6px 16px color-mix(in srgb,var(--c) 48%,transparent)}
 .dot.trash{opacity:.45;filter:grayscale(.25)}
+.mem-graph{border:1px solid var(--line);border-radius:16px;background:
+  radial-gradient(circle at 1px 1px,color-mix(in srgb,var(--line) 60%,transparent) 1px,transparent 0) 0 0/22px 22px,
+  color-mix(in srgb,var(--bg2) 55%,transparent);overflow:hidden}
+.mem-graph svg{display:block;width:100%;height:auto;min-height:320px}
+.graph-node{cursor:pointer}
+.graph-node circle{transition:transform .15s,filter .15s}
+.graph-node:hover circle{filter:brightness(1.15)}
+.graph-label{fill:var(--ink);font-size:11.5px;pointer-events:none}
+.graph-edge{stroke:var(--muted);stroke-width:.9;opacity:.24}
 .dot.pulse{animation:pulse .35s ease}
 @keyframes pulse{50%{transform:scale(1.35);filter:brightness(1.12)}}
 .mem-detail{border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-top:12px;background:color-mix(in srgb,var(--card) 80%,var(--bg2))}
@@ -227,41 +305,88 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
       <div class="logo">真</div>
       <div><b>真心</b><small id="ver">v--</small></div>
     </div>
+    <div class="side-mode" id="side-mode-card">
+      <span class="sm-dot" id="side-mode-dot"></span>
+      <div><b id="side-mode">观察模式</b><small id="side-status">正在连接 AstrBot…</small></div>
+    </div>
+    <div class="nav-label">管理</div>
     <nav id="nav">
-      <button data-tab="behavior" class="on"><span class="ico">◎</span>行为与状态</button>
-      <button data-tab="memory"><span class="ico">✦</span>记忆<span class="pill" id="memcount">0</span></button>
+      <button data-tab="behavior" class="on"><span class="ico">◎</span>运行总览</button>
+      <button data-tab="memory"><span class="ico">✦</span>记忆花园<span class="pill" id="memcount">0</span></button>
       <button data-tab="voice"><span class="ico">◌</span>说话习惯</button>
       <button data-tab="health"><span class="ico">✓</span>体检与反馈</button>
-      <button data-tab="advanced"><span class="ico">⚙</span>高级</button>
+    </nav>
+    <div class="nav-label">维护</div>
+    <nav id="nav-maintenance">
+      <button data-tab="advanced"><span class="ico">⚙</span>高级设置</button>
       <button data-tab="reset"><span class="ico">↺</span>重置</button>
     </nav>
-    <div class="side-foot" id="side-status">正在连接 AstrBot…</div>
+    <div class="side-foot">真心只接管上下文，不换模型。<br><span id="side-foot-meta">v-- · AstrBot 插件</span></div>
   </aside>
 
   <main>
-    <!-- always-on realtime strip: replaces the old 概览 + 花费 pages -->
-    <div class="realtime" id="realtime">
-      <div class="rt-head">
-        <span class="rt-dot shadow" id="rt-dot"></span>
-        <h2>实时状态</h2>
-        <span class="badge" id="rt-mode">观察模式</span>
-        <span class="badge" id="rt-usage">用量：--</span>
-        <span class="rt-time" id="rt-time">尚未刷新</span>
-        <button class="refresh" id="refresh" title="重新读取数据库里的实时状态"><span class="r">⟳</span>刷新</button>
+    <div class="page-head">
+      <div>
+        <div class="kicker" id="page-kicker">ZHENXIN · CONTROL CENTER</div>
+        <h1 id="page-title">运行总览</h1>
+        <p class="sub" id="page-sub">上下文、记忆、说话习惯与花费状态集中在这里；刷新只读本地数据库。</p>
       </div>
-      <div class="kpis">
-        <div class="kpi"><div class="k">已记录轮次</div><div class="v" id="k-rounds">--</div></div>
-        <div class="kpi"><div class="k">缓存命中</div><div class="v" id="k-hit">--</div></div>
-        <div class="kpi"><div class="k">长期记忆</div><div class="v" id="k-facts">--</div></div>
-        <div class="kpi"><div class="k">累计花费 <span class="badge" id="k-cost-kind">真实</span></div><div class="v" id="k-cost">--</div></div>
-        <div class="kpi"><div class="k">L0 / 近窗</div><div class="v" id="k-window">--</div></div>
+      <button class="refresh" id="refresh" title="重新读取数据库里的实时状态"><span class="r">⟳</span>刷新状态</button>
+    </div>
+
+    <div class="hero" id="hero">
+      <div class="hero-main">
+        <div class="hero-ico" id="hero-ico">✓</div>
+        <div>
+          <div class="hero-kicker" id="hero-badge">SYSTEM HEALTHY</div>
+          <h2 id="hero-title">未发现重大问题</h2>
+          <p id="hero-desc">正在读取本地状态…</p>
+        </div>
       </div>
+      <div class="hero-score">
+        <div class="score-num"><span id="hero-score">--</span><small>%</small></div>
+        <div class="score-label">运行健康</div>
+        <div class="progress"><i id="hero-bar"></i></div>
+      </div>
+    </div>
+
+    <div class="metric-grid">
+      <div class="metric"><div class="m-ico teal">↻</div><div><div class="m-k">已记录轮次</div><div class="m-v" id="k-rounds">--</div><div class="m-note" id="k-rounds-note">本地 SQLite 计数</div></div></div>
+      <div class="metric"><div class="m-ico blue">◈</div><div><div class="m-k">缓存命中</div><div class="m-v" id="k-hit">--</div><div class="m-bar"><i id="k-hit-bar"></i></div></div></div>
+      <div class="metric"><div class="m-ico amber">✦</div><div><div class="m-k">长期记忆</div><div class="m-v" id="k-facts">--</div><div class="m-note" id="k-facts-note">周期 / 珍藏 / 浅忆 / 回收</div></div></div>
+      <div class="metric"><div class="m-ico purple">¥</div><div><div class="m-k">累计花费 <span class="badge" id="k-cost-kind">真实</span></div><div class="m-v" id="k-cost">--</div><div class="m-note" id="k-cost-note">按真实 usage 计价</div></div></div>
+      <div class="metric"><div class="m-ico green">▤</div><div><div class="m-k">L0 / 近窗</div><div class="m-v" id="k-window">--</div><div class="m-note" id="k-window-note">线索字符 / 保留轮数</div></div></div>
+      <div class="metric"><div class="m-ico pink">◉</div><div><div class="m-k">用量覆盖</div><div class="m-v" id="k-usage">--</div><div class="m-bar"><i id="k-usage-bar"></i></div></div></div>
+    </div>
+
+    <div class="overview-grid">
+      <div class="card tight">
+        <h2>关键链路</h2>
+        <p class="lead">一眼确认真心是否真的在按预期工作。</p>
+        <div id="links" class="link-list"></div>
+      </div>
+      <div class="card tight">
+        <h2>运行节奏</h2>
+        <p class="lead">自动学习、主动消息和遗忘周期的下一次时间。</p>
+        <div id="rhythm" class="link-list"></div>
+      </div>
+    </div>
+
+    <div class="card tight chart-card">
+      <div class="chart-head"><h2>最近 30 轮消耗</h2><span class="rt-time" id="rt-time">尚未刷新</span><span class="badge" id="rt-usage">用量：--</span></div>
       <div class="chart-wrap">
         <svg class="chart" id="chart" viewBox="0 0 900 74" preserveAspectRatio="none"></svg>
         <div class="chart-empty" id="chart-empty" hidden>还没有轮次数据，先聊几句；这里会自动出现每轮消耗。</div>
       </div>
       <div class="legend" id="legend"></div>
       <div class="health" id="health"></div>
+    </div>
+    <div class="alert" id="conflict-alert" hidden>
+      <div><b id="conflict-title">检测到新启用的插件</b><span id="conflict-text"></span></div>
+      <div class="acts">
+        <button id="conflict-view">查看体检</button>
+        <button id="conflict-ack">知道了</button>
+      </div>
     </div>
 
     <section id="tab-behavior" class="on">
@@ -368,12 +493,17 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
         <div class="mem-top">
           <div class="chips" id="pool-chips"></div>
           <div class="tools" style="margin:0">
+            <div class="seg" id="memview">
+              <button data-v="graph" class="on">图谱</button><button data-v="dots">点阵</button>
+            </div>
+            <button class="btn small" id="memrebuild" title="从已保存的对话里补回称呼、AI 名字和明确要求记住的事">从历史对话重建</button>
             <input type="search" id="memsearch" placeholder="搜索记忆内容，例如：香菜 / 海盐 / 团子">
             <button class="btn small danger" id="memclear">清空全部</button>
           </div>
         </div>
         <div class="dates" id="dates"></div>
         <div class="garden" id="garden"></div>
+        <div class="mem-graph" id="graph" hidden><svg id="graph-svg" viewBox="0 0 900 420" preserveAspectRatio="xMidYMid meet"></svg></div>
         <div id="mem-detail"></div>
         <div class="mem-list" id="memlist"></div>
         <details class="adv" id="traces-box">
@@ -418,14 +548,17 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
           <div class="ctl"><input type="number" min="200" max="800" step="50" data-path="style_learning.max_chars"></div></div>
         <div class="tools" style="margin-top:12px">
           <select id="style-user" title="选择要查看的会话"></select>
-          <button class="btn" id="style-local">立即从本地对话学习</button>
-          <button class="btn primary" id="style-online">联网更新</button>
+          <button class="btn" id="style-local">立即学习一次（本地）</button>
         </div>
+        <p class="hintline">联网学习会按上面的间隔自动进行，不需要手动点；网络失败会保留上一次知识库。</p>
         <div class="progress"><i id="kb-bar"></i></div>
-        <div class="hintline" id="kb-meta">还没有学习结果，先聊几句再点“立即学习”。</div>
-        <div class="kb" id="kb-box">（空）</div>
-        <div class="src" id="kb-src"></div>
-        <p class="hintline" id="kb-error"></p>
+        <div class="hintline" id="kb-meta">还没有学习结果，先聊几句，后台会自动学习。</div>
+        <details class="adv" id="kb-details">
+          <summary>查看知识库（<span id="kb-chars">0</span> / <span id="kb-max">500</span> 字）</summary>
+          <div class="kb" id="kb-box" style="margin-top:10px">（空）</div>
+          <div class="src" id="kb-src"></div>
+          <p class="hintline" id="kb-error"></p>
+        </details>
       </div>
     </section>
 
@@ -444,7 +577,7 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
       </div>
       <div class="card">
         <h2>问题反馈</h2>
-        <p class="lead">反馈会先保存到插件自己的数据库；也可以点“打开 GitHub Issue”把它提交到仓库，方便跟进。</p>
+        <p class="lead">填写后点一次按钮，直接在 GitHub 打开预填好的 Issue；不会保存到插件本地，也不会额外上传聊天内容。</p>
         <div class="row"><div class="txt"><b>类型</b><p>选一个最接近的。</p></div>
           <div class="ctl"><select id="fb-category">
             <option value="bug">功能异常 / Bug</option>
@@ -457,14 +590,10 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
         <p class="lead" style="margin:10px 0 4px">联系方式（可选）</p>
         <input type="text" id="fb-contact" placeholder="QQ / 邮箱 / GitHub 用户名" style="width:100%">
         <div class="feedback-actions">
-          <button class="btn primary" id="fb-submit">保存反馈</button>
-          <button class="btn" id="fb-issue" disabled>打开 GitHub Issue</button>
+          <button class="btn primary" id="fb-submit">一键打开 GitHub 提交</button>
           <span class="hintline" id="fb-hint"></span>
         </div>
-        <details class="adv" style="margin-top:12px">
-          <summary>最近的本地反馈</summary>
-          <div id="fb-list" class="hintline">还没有反馈。</div>
-        </details>
+        <p class="hintline">如果浏览器拦截了新窗口，请允许弹出窗口，或从仓库 Issues 页面手动粘贴。</p>
       </div>
     </section>
 
@@ -592,7 +721,7 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
   const state = {
     config: {}, defaults: {}, defaultsApplied: false, metrics: {}, health: {},
     series: [], facts: [], traces: [], archivedTotal: 0, pools: {}, dates: [],
-    mem: { view: "day", date: "", pool: "", user: "" },
+    mem: { view: "day", date: "", pool: "", user: "", mode: "graph" },
     style: { users: [], selected: "" }, dirty: false, build: {}, usage: {}, proactive: null
   };
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -664,14 +793,42 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
   }
 
   // ------------------------------------------------------------- navigation
-  $("#nav").addEventListener("click", (e) => {
+  $("aside").addEventListener("click", (e) => {
     const btn = e.target.closest("button[data-tab]");
     if (!btn) return;
-    $$("#nav button").forEach((b) => b.classList.toggle("on", b === btn));
+    $$("aside nav button").forEach((b) => b.classList.toggle("on", b === btn));
     $$("main section").forEach((s) => s.classList.toggle("on", s.id === "tab-" + btn.dataset.tab));
+    const meta = {
+      behavior: ["运行总览", "上下文、记忆、说话习惯与花费状态集中在这里；刷新只读本地数据库。", "ZHENXIN · CONTROL CENTER"],
+      memory: ["记忆花园", "按时间浏览记忆；点节点加深权重，点日期切换当天或全部。", "MEMORY · RETRIEVAL & FORGETTING"],
+      voice: ["说话习惯", "模仿用户 + 周期联网学习，知识库默认收起，避免页面和上下文变长。", "STYLE · HUMAN-LIKE SPEECH"],
+      health: ["体检与反馈", "只扫描当前启用的插件；媒体类插件不计入上下文冲突。", "HEALTH · COMPATIBILITY"],
+      advanced: ["高级设置", "检索权重、遗忘周期和换线索节奏。", "ADVANCED · WEIGHTS & CYCLE"],
+      reset: ["重置", "清理对话状态、记忆、说话学习或统计。", "RESET · MAINTENANCE"],
+    }[btn.dataset.tab];
+    if (meta) {
+      $("#page-title").textContent = meta[0];
+      $("#page-sub").textContent = meta[1];
+      $("#page-kicker").textContent = meta[2];
+    }
+    const showDashboard = btn.dataset.tab === "behavior";
+    ["#hero", ".metric-grid", ".overview-grid", ".chart-card"].forEach((sel) => {
+      const el = document.querySelector(sel);
+      if (el) el.hidden = !showDashboard;
+    });
     if (btn.dataset.tab === "memory") loadMemory();
     if (btn.dataset.tab === "voice") loadStyle();
-    if (btn.dataset.tab === "health") { loadFeedback(); if (!state.scanDone) runScan(); }
+    if (btn.dataset.tab === "health") { if (!state.scanDone) runScan(); }
+  });
+
+  $("#conflict-view").addEventListener("click", () => {
+    const btn = document.querySelector('#nav button[data-tab="health"]');
+    if (btn) btn.click();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+  $("#conflict-ack").addEventListener("click", async () => {
+    try { await callPost("page/health/ack", {}); } catch (e) { /* best effort */ }
+    $("#conflict-alert").hidden = true;
   });
 
   // ------------------------------------------------------------- config
@@ -730,9 +887,6 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
     if (tail) tail.textContent = get("l0.tail_injection", true) ? "已开启：缓存更稳" : "已关闭：仅用于对照";
     const shadow = Boolean(get("shadow_mode", true));
     const host = get("l3.host_context_mode", "replace");
-    $("#rt-dot").className = "rt-dot" + (shadow ? " shadow" : "");
-    $("#rt-mode").textContent = shadow ? "观察模式" : (host === "replace" ? "接管中" : "只补充线索");
-    $("#rt-mode").className = "badge" + (shadow ? " warn" : "");
   }
 
   function renderStatus(data) {
@@ -749,9 +903,26 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
     $("#memcount").textContent = fmt(state.health.facts || 0);
     bindConfig();
     renderRealtime();
+    renderConflictAlert(data.conflict_alert);
     $("#save").disabled = true;
     state.dirty = false;
     $("#dock-hint").textContent = "改动会在下一轮生效，不需要重启";
+  }
+
+  function renderConflictAlert(alert) {
+    const box = $("#conflict-alert");
+    if (!alert || !(alert.items || []).length) { box.hidden = true; return; }
+    const items = alert.items || [];
+    $("#conflict-title").textContent = "检测到新启用的插件";
+    $("#conflict-text").textContent = items.map((item) =>
+      (item.display || item.name) + "（" + (item.severity === "direct" ? "直接冲突" : "需注意") + "）"
+    ).join("、") + "。如果发现记忆重复、回复变慢或变贵，可到这里调整接管方式或停用其中一个。";
+    box.hidden = false;
+  }
+
+  function linkRow(icon, title, note, status, cls) {
+    return '<div class="link-row"><div class="li">' + icon + "</div><div><b>" + esc(title) + "</b><small>" +
+      esc(note) + '</small></div><div class="st ' + (cls || "") + '">' + esc(status) + "</div></div>";
   }
 
   function renderRealtime() {
@@ -760,6 +931,21 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
     const cached = num(m.actual_cached_tokens, 0);
     const totalIn = fresh + cached;
     const available = Boolean(state.usage.available);
+    const rounds = num(m.rounds, 0);
+    const errors = num(h.errors, 0);
+    const conflicted = !h.db_ok || errors > 5;
+    let score = 100 - Math.min(35, errors * 5) - (h.db_ok ? 0 : 35) - (available ? 0 : 6);
+    score = Math.max(15, Math.min(100, Math.round(score)));
+    $("#hero-score").textContent = score;
+    $("#hero-bar").style.width = score + "%";
+    $("#hero-badge").textContent = conflicted ? "NEEDS ATTENTION" : "SYSTEM HEALTHY";
+    $("#hero-title").textContent = conflicted ? "有需要处理的问题" : "未发现重大问题";
+    $("#hero-ico").classList.toggle("warn", conflicted);
+    $("#hero-ico").textContent = conflicted ? "!" : "✓";
+    const hitText = totalIn ? pct(cached / totalIn) : "--";
+    const whenRound = h.last_round_at ? when(h.last_round_at) : "还没有";
+    $("#hero-desc").textContent = "已记录 " + fmt(rounds) + " 轮，缓存命中 " + hitText + "，长期记忆 " +
+      fmt(h.facts) + " 条；真实用量 " + (available ? "已接入" : "未返回，按插件估算") + "。最近一轮 " + whenRound + "。";
     $("#k-rounds").textContent = fmt(m.rounds);
     $("#k-hit").textContent = totalIn ? pct(cached / totalIn) : "--";
     $("#k-facts").innerHTML = fmt(h.facts) + " <small>条</small>";
@@ -768,6 +954,15 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
     $("#k-cost-kind").textContent = available ? "真实" : "估算";
     $("#k-cost-kind").className = "badge" + (available ? "" : " warn");
     $("#k-window").innerHTML = fmt(m.l0_chars_max) + " <small>字 / " + fmt(get("l3.recent_turns", 8)) + " 轮</small>";
+    const usageCoverage = rounds ? Math.round(num(m.actual_usage_rounds, 0) / rounds * 100) : 0;
+    $("#k-usage").innerHTML = usageCoverage + " <small>%</small>";
+    $("#k-usage-bar").style.width = Math.max(0, Math.min(100, usageCoverage)) + "%";
+    $("#k-hit-bar").style.width = totalIn ? Math.max(0, Math.min(100, cached / totalIn * 100)) + "%" : "0%";
+    $("#k-rounds-note").textContent = "最近一轮 " + whenRound;
+    $("#k-facts-note").textContent = "周期 " + fmt(state.pools.cycle || 0) + " / 珍藏 " + fmt(state.pools.treasure || 0) +
+      " / 浅忆 " + fmt(state.pools.shallow || 0) + " / 回收 " + fmt(state.pools.trash || 0);
+    $("#k-cost-note").textContent = available ? "按真实 usage 计价" : "模型未返回 usage，按插件估算";
+    $("#k-window-note").textContent = "L0 线索字符 / 最近保留轮数";
     $("#rt-usage").textContent = available ? ("用量：真实 " + m.actual_usage_rounds + " 轮") : "用量：模型未返回，按插件估算";
     $("#rt-usage").className = "badge" + (available ? "" : " warn");
     $("#rt-time").textContent = "更新于 " + new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
@@ -801,9 +996,28 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
       "<span>数据库 " + (h.db_ok ? h.db_kb + " KB" : "不可用") + "</span>" +
       "<span>记忆 " + fmt((state.pools.cycle || 0)) + " / 珍藏 " + fmt(state.pools.treasure || 0) + " / 浅忆 " + fmt(state.pools.shallow || 0) + " / 回收 " + fmt(state.pools.trash || 0) + "</span>" +
       "<span>累计错误 " + (h.errors || 0) + "</span>" + err;
-    $("#side-status").innerHTML = (state.config.shadow_mode)
-      ? "<b>观察模式</b><br>只记录，不改回复"
-      : "<b>生效中</b><br>正在接管上下文";
+    const host = get("l3.host_context_mode", "replace");
+    const shadow = Boolean(get("shadow_mode", true));
+    $("#links").innerHTML =
+      linkRow("↔", "AstrBot 上下文", shadow ? "观察模式，不改请求" : "接管最近窗口", shadow ? "只观察" : (host === "replace" ? "已接管" : "仅补充"), shadow ? "warn" : "") +
+      linkRow("▤", "SQLite 数据库", h.db_ok ? (h.db_kb + " KB · WAL") : "不可用", h.db_ok ? "正常" : "异常", h.db_ok ? "" : "bad") +
+      linkRow("◈", "向量后端", String(state.scorerName || "本地哈希"), "已就绪", "正常") +
+      linkRow("⚡", "写入路径", "L2 规则蒸馏，不允许调用模型", num(m.l2_llm_calls, 0) === 0 ? "零调用" : "有调用", num(m.l2_llm_calls, 0) === 0 ? "" : "bad") +
+      linkRow("◌", "说话学习", get("style_learning.online", true) ? "每隔 " + get("style_learning.interval_days", 7) + " 天自动联网" : "仅本地学习", get("style_learning.enabled", true) ? "自动" : "关闭", get("style_learning.enabled", true) ? "" : "warn") +
+      linkRow("✉", "主动消息", get("proactive.enabled", false) ? "私聊 / 静默时段 / 每日上限" : "默认关闭，不打扰", get("proactive.enabled", false) ? "已开启" : "关闭", get("proactive.enabled", false) ? "" : "warn");
+    const cycleDays = get("memory.cycle_days", 14);
+    const proactive = get("proactive.enabled", false);
+    $("#rhythm").innerHTML =
+      linkRow("◷", "记忆遗忘周期", "每 " + cycleDays + " 天评估珍藏 / 浅忆 / 回收", "运行中") +
+      linkRow("↻", "说话知识库", "每 " + get("style_learning.interval_days", 7) + " 天自动更新，上限 " + get("style_learning.max_chars", 500) + " 字", get("style_learning.online", true) ? "自动" : "本地") +
+      linkRow("✉", "主动消息节奏", proactive ? ("空闲 " + get("proactive.min_idle_minutes", 180) + " 分钟后，每天最多 " + get("proactive.max_per_day", 2) + " 条") : "未开启", proactive ? "待触发" : "关闭", proactive ? "" : "warn") +
+      linkRow("◷", "最近一轮", whenRound, h.last_error ? "有错误" : "正常", h.last_error ? "bad" : "");
+    const modeText = shadow ? "观察模式" : "生效中";
+    const modeNote = shadow ? "只记录，不改回复" : (host === "replace" ? "正在接管最近窗口" : "只补充长期线索");
+    $("#side-mode").textContent = modeText;
+    $("#side-status").textContent = modeNote;
+    $("#side-mode-dot").className = "sm-dot" + (shadow ? "" : " good");
+    $("#side-foot-meta").textContent = "v" + (state.build.version || "--") + " · AstrBot 插件";
     syncLabels();
   }
 
@@ -914,7 +1128,7 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
     return { cycle: "周期池", treasure: "珍藏池", shallow: "浅忆池", trash: "回收池" }[pool] || "记忆";
   }
   function kindLabel(kind) {
-    return { habit: "习惯/偏好", relationship: "关系", emotion: "情绪", unclosed: "未完成", fact: "事实", address: "称呼" }[kind] || "事实";
+    return { habit: "习惯/偏好", relationship: "关系", emotion: "情绪", unclosed: "未完成", fact: "事实", address: "称呼", assistant_name: "AI名字" }[kind] || "事实";
   }
   function importanceLabel(f) {
     if (f.pool === "treasure" || Number(f.importance) >= 0.75) return "重要";
@@ -956,44 +1170,163 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
       };
     });
   }
-  function renderMemory() {
-    renderPoolChips();
-    renderDates();
-    const items = state.facts || [];
-    $("#memcount").textContent = fmt(state.health.facts || 0);
-    if (!items.length) {
-      $("#garden").innerHTML = '<div class="empty" style="grid-column:1/-1">' + (state.mem.view === "day" ? "今天还没有新的记忆，换个日期或点“全部”看看。" : "没有匹配的记忆。") + "</div>";
-      $("#memlist").innerHTML = "";
-      $("#mem-detail").innerHTML = "";
-      return;
+  async function boostFact(factId, el) {
+    const fact = state.facts.find((f) => String(f.id) === String(factId));
+    if (!fact) return;
+    if (fact.pool === "trash") { showDetail(fact, el); return; }
+    if (el) { el.classList.add("pulse"); setTimeout(() => el.classList.remove("pulse"), 400); }
+    try {
+      const data = await callPost("page/memory/boost", { id: fact.id, delta: 0.12 });
+      if (data.fact) Object.assign(fact, data.fact);
+      toast("已加深这条记忆");
+      renderMemory();
+      const next = state.facts.find((f) => String(f.id) === String(fact.id)) || fact;
+      showDetail(next, null);
+      loadStatus(true);
+    } catch (err) {
+      showDetail(fact, null);
+      toast(err.message);
     }
+  }
+
+  function renderDots(items) {
     $("#garden").innerHTML = items.map((f) => {
       const size = 18 + Math.round(num(f.weight, .3) * 26);
       return '<button class="dot' + (f.pool === "trash" ? " trash" : "") + '" data-id="' + f.id + '" ' +
         'style="--c:' + esc(f.color) + ";--s:" + size + 'px" title="' + esc(f.text) + "（" + fmtMath(f.weight) + '）"></button>';
     }).join("");
     $$("#garden .dot").forEach((btn) => {
-      // A single click on the dot is the requested "click to deepen": it
-      // raises the weight/colour immediately and opens the detail actions.
-      btn.onclick = async () => {
-        const fact = state.facts.find((f) => String(f.id) === String(btn.dataset.id));
-        if (!fact) return;
-        if (fact.pool === "trash") { showDetail(fact, btn); return; }
-        btn.classList.add("pulse");
-        try {
-          const data = await callPost("page/memory/boost", { id: fact.id, delta: 0.12 });
-          if (data.fact) Object.assign(fact, data.fact);
-          toast("已加深这条记忆");
-          renderMemory();
-          const next = state.facts.find((f) => String(f.id) === String(fact.id)) || fact;
-          showDetail(next, null);
-          loadStatus(true);
-        } catch (err) {
-          showDetail(fact, null);
-          toast(err.message);
-        }
+      btn.onclick = () => boostFact(btn.dataset.id, btn);
+    });
+  }
+
+  function graphTokens(text) {
+    const clean = String(text || "").replace(/[^\u4e00-\u9fffa-zA-Z0-9]/g, "");
+    const out = new Set();
+    for (let i = 0; i < clean.length - 1; i++) out.add(clean.slice(i, i + 2));
+    return out;
+  }
+
+  function renderGraph(items) {
+    const svg = $("#graph-svg");
+    const W = 900, H = 420;
+    const shown = Math.min(45, items.length);
+    const nodes = items.slice(0, shown).map((f, i) => {
+      const id = Number(f.id) || i;
+      const angle = i * 2.39996 + (id % 11) * 0.12;
+      // Golden-angle spiral starting wide enough that labels do not pile up
+      // in the centre (the reference graph is airy, not a hairball).
+      const ring = 150 + 52 * Math.sqrt(i);
+      return {
+        fact: f,
+        x: W / 2 + Math.cos(angle) * ring,
+        y: H / 2 + Math.sin(angle) * ring * 0.62,
+        r: 8 + num(f.weight, .3) * 10,
+        tokens: graphTokens(f.text),
       };
     });
+    // Edges: shared Chinese bigrams, capped to two strongest neighbours.
+    const edges = [];
+    for (let i = 0; i < nodes.length; i++) {
+      const links = [];
+      for (let j = 0; j < nodes.length; j++) {
+        if (i === j) continue;
+        let shared = 0;
+        nodes[i].tokens.forEach((t) => { if (nodes[j].tokens.has(t)) shared++; });
+        if (shared >= 1) links.push([shared, j]);
+      }
+      links.sort((a, b) => b[0] - a[0]);
+      if (!links.length) {
+        // No shared words (common for different topics): connect to the two
+        // nearest nodes so the graph still reads as a network, like the
+        // reference panel.
+        const nearest = nodes
+          .map((b, j) => [j, Math.hypot(b.x - nodes[i].x, b.y - nodes[i].y)])
+          .filter(([j]) => j !== i)
+          .sort((a, b) => a[1] - b[1])
+          .slice(0, 2);
+        nearest.forEach(([j]) => { if (i < j) edges.push([i, j]); });
+      } else {
+        links.slice(0, 2).forEach(([, j]) => { if (i < j) edges.push([i, j]); });
+      }
+    }
+    // Small deterministic force layout.
+    for (let iter = 0; iter < 90; iter++) {
+      for (let i = 0; i < nodes.length; i++) {
+        const a = nodes[i];
+        for (let j = i + 1; j < nodes.length; j++) {
+          const b = nodes[j];
+          let dx = b.x - a.x, dy = b.y - a.y;
+          let dist = Math.hypot(dx, dy) || 0.01;
+          const min = a.r + b.r + 68;
+          if (dist < min) {
+            const push = (min - dist) / dist * 0.38;
+            a.x -= dx * push; a.y -= dy * push;
+            b.x += dx * push; b.y += dy * push;
+          }
+        }
+        // Weak center gravity; labels need room more than perfect centring.
+        a.x += (W / 2 - a.x) * 0.0018;
+        a.y += (H / 2 - a.y) * 0.0024;
+        a.x = Math.max(70, Math.min(W - 70, a.x));
+        a.y = Math.max(32, Math.min(H - 32, a.y));
+      }
+      edges.forEach(([i, j]) => {
+        const a = nodes[i], b = nodes[j];
+        const dx = b.x - a.x, dy = b.y - a.y;
+        const dist = Math.hypot(dx, dy) || 0.01;
+        const target = 140;
+        const pull = (dist - target) / dist * 0.010;
+        a.x += dx * pull; a.y += dy * pull;
+        b.x -= dx * pull; b.y -= dy * pull;
+      });
+    }
+    const parts = [];
+    edges.forEach(([i, j]) => {
+      parts.push('<line class="graph-edge" x1="' + nodes[i].x.toFixed(1) + '" y1="' + nodes[i].y.toFixed(1) +
+        '" x2="' + nodes[j].x.toFixed(1) + '" y2="' + nodes[j].y.toFixed(1) + '"></line>');
+    });
+    nodes.forEach((node) => {
+      const f = node.fact;
+      const trunc = f.text.length > 18 ? f.text.slice(0, 17) + "…" : f.text;
+      const left = node.x > W - 210;
+      const tx = left ? node.x - node.r - 6 : node.x + node.r + 6;
+      const anchor = left ? "end" : "start";
+      parts.push('<g class="graph-node" data-id="' + f.id + '">' +
+        '<title>' + esc(f.text) + "（" + poolLabel(f.pool) + "，深度 " + fmtMath(f.weight) + "）</title>" +
+        '<circle cx="' + node.x.toFixed(1) + '" cy="' + node.y.toFixed(1) + '" r="' + node.r.toFixed(1) +
+        '" fill="' + esc(f.color) + '" stroke="' + (f.pool === "treasure" ? "#f59e0b" : "#ffffff") + '" stroke-width="1.4" opacity="' +
+        (f.pool === "trash" ? ".45" : ".95") + '"></circle>' +
+        '<text class="graph-label" x="' + tx.toFixed(1) + '" y="' + (node.y + 4).toFixed(1) + '" text-anchor="' + anchor + '">' +
+        esc(trunc) + "</text></g>");
+    });
+    if (items.length > shown) {
+      parts.push('<text x="14" y="404" fill="#64756f" font-size="11">只显示前 ' + shown + ' 条；用搜索或日期缩小范围。</text>');
+    }
+    svg.innerHTML = parts.join("");
+    $$("#graph-svg .graph-node").forEach((node) => {
+      node.onclick = () => boostFact(node.dataset.id, null);
+    });
+  }
+
+  function renderMemory() {
+    renderPoolChips();
+    renderDates();
+    const items = state.facts || [];
+    $("#memcount").textContent = fmt(state.health.facts || 0);
+    const graphMode = state.mem.mode === "graph";
+    $("#garden").hidden = graphMode;
+    $("#graph").hidden = !graphMode;
+    if (!items.length) {
+      const empty = '<div class="empty" style="grid-column:1/-1">' + (state.mem.view === "day" ? "今天还没有新的记忆，换个日期或点“全部”看看。" : "没有匹配的记忆。") + "</div>";
+      $("#garden").hidden = false;
+      $("#graph").hidden = true;
+      $("#garden").innerHTML = empty;
+      $("#memlist").innerHTML = "";
+      $("#mem-detail").innerHTML = "";
+      return;
+    }
+    if (graphMode) renderGraph(items); else renderDots(items);
     $("#memlist").innerHTML = items.map((f) => {
       const tag = importanceLabel(f);
       return '<div class="mem-item"><div class="body"><div class="t"><span class="tag' +
@@ -1072,6 +1405,24 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
       '<div class="m">' + kindLabel(t.kind) + " · 关键词痕迹 · 已彻底删除 · " + when(t.archived_at) + "</div></div></div>"
     ).join("");
   }
+  $("#memview").addEventListener("click", (e) => {
+    const btn = e.target.closest("button[data-v]");
+    if (!btn) return;
+    state.mem.mode = btn.dataset.v;
+    $$("#memview button").forEach((b) => b.classList.toggle("on", b === btn));
+    renderMemory();
+  });
+  $("#memrebuild").addEventListener("click", async () => {
+    const btn = $("#memrebuild");
+    btn.disabled = true;
+    try {
+      const data = await callPost("page/memory/rebuild", {});
+      toast(data.message || "已从历史对话重建记忆");
+      await loadMemory();
+      await loadStatus(true);
+    } catch (e) { toast("重建失败：" + e.message); }
+    finally { btn.disabled = false; }
+  });
   $("#memsearch").addEventListener("input", renderMemory);
   $("#memclear").addEventListener("click", async () => {
     if (!(await askConfirm("清空全部记忆（包括回收池和关键词痕迹）？这个操作不能撤销。"))) return;
@@ -1095,7 +1446,9 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
       $("#kb-box").textContent = kb || "（空）还没有学习结果。先聊几句，再点“立即从本地对话学习”。";
       const max = num(status.max_chars, 500), chars = num(status.chars, kb.length);
       $("#kb-bar").style.width = Math.min(100, Math.round(chars / max * 100)) + "%";
-      $("#kb-meta").textContent = "会话：" + (status.user || "—") + " · " + chars + " / " + max + " 字 · 最近学习 " + when(status.updated_at) +
+      $("#kb-chars").textContent = chars;
+      $("#kb-max").textContent = max;
+      $("#kb-meta").textContent = "会话：" + (status.user || "—") + " · " + chars + " / " + max + " 字 · 最近自动学习 " + when(status.updated_at) +
         " · 下次本地 " + (status.next_at ? when(status.next_at) : "待触发") +
         " · 下次联网 " + (status.online_next_at ? when(status.online_next_at) : "待触发");
       $("#kb-src").innerHTML = Object.keys(status.sources || {}).map((key) =>
@@ -1127,7 +1480,6 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
     finally { btn.disabled = false; btn.textContent = old; }
   }
   $("#style-local").addEventListener("click", () => learnStyle(false));
-  $("#style-online").addEventListener("click", () => learnStyle(true));
 
   // ------------------------------------------------------------- proactive
   async function loadProactive() {
@@ -1182,16 +1534,6 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
     } catch (e) { $("#scan-summary").textContent = "扫描失败：" + e.message; }
   }
   $("#scan").addEventListener("click", runScan);
-  async function loadFeedback() {
-    try {
-      const data = await callGet("page/feedback/list", {});
-      const items = (data && data.items) || [];
-      $("#fb-list").innerHTML = items.length ? items.map((f) =>
-        '<div class="fb-item"><b>' + esc(f.category) + "</b> · " + when(f.created_at) + " · " + esc(f.content.slice(0, 120)) + "</div>"
-      ).join("") : "还没有反馈。";
-    } catch (e) { /* ignore */ }
-  }
-  let fbIssueUrl = "";
   $("#fb-submit").addEventListener("click", async () => {
     const content = $("#fb-content").value.trim();
     if (content.length < 5) { toast("请至少写 5 个字"); return; }
@@ -1203,18 +1545,15 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
         contact: $("#fb-contact").value.trim(),
         diagnostics: JSON.stringify({ version: state.build.version, rounds: state.metrics.rounds, usage: state.usage, pools: state.pools })
       });
-      fbIssueUrl = data.issue_url || "";
-      $("#fb-issue").disabled = !fbIssueUrl;
-      $("#fb-hint").textContent = data.message || "已保存";
-      toast("反馈已保存");
-      loadFeedback();
-    } catch (e) { toast("保存失败：" + e.message); $("#fb-hint").textContent = e.message; }
+      const url = data.issue_url || "";
+      if (!url) throw new Error("没有生成 GitHub 链接");
+      $("#fb-hint").textContent = "已打开 GitHub，请在页面底部点 Submit new issue。";
+      const a = document.createElement("a");
+      a.href = url; a.target = "_blank"; a.rel = "noopener noreferrer";
+      document.body.appendChild(a); a.click(); a.remove();
+      toast("已打开 GitHub 提交页");
+    } catch (e) { toast("打开失败：" + e.message); $("#fb-hint").textContent = "打开失败：" + e.message; }
     finally { btn.disabled = false; }
-  });
-  $("#fb-issue").addEventListener("click", () => {
-    if (!fbIssueUrl) return;
-    try { window.open(fbIssueUrl, "_blank", "noopener"); }
-    catch (e) { toast("浏览器拦截了新窗口，请复制链接：" + fbIssueUrl); }
   });
 
   // ------------------------------------------------------------- reset
@@ -1256,7 +1595,6 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
       await loadMemory();
       await loadStyle();
       await loadProactive();
-      await loadFeedback();
     }
     return data;
   }
