@@ -59,7 +59,7 @@ class L0Config:
     # input tokens (~37% of a 32k-session's uncached input).
     tail_injection: bool = True
     max_seed_chars: int = 30
-    max_inject_chars: int = 200
+    max_inject_chars: int = 260
     decay: float = 0.99
     warm_decay: float = 0.995
     hysteresis: float = 2.0

@@ -40,7 +40,7 @@ l0:
   slots: 10
   inject: 3                # 1-8；超过 3 条会明显增加 token
   max_seed_chars: 30
-  max_inject_chars: 200
+  max_inject_chars: 260
   decay: 0.99
   warm_decay: 0.995
   hysteresis: 2.0

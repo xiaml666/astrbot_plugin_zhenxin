@@ -50,7 +50,7 @@
       "max_inject_chars": {
         "description": "L0 字符上限",
         "type": "int",
-        "default": 200,
+        "default": 260,
         "slider": {
           "min": 60,
           "max": 600,
