@@ -1,5 +1,0 @@
-# Optional local embedding backend. Without these the plugin uses a
-# deterministic hashing encoder and never calls a remote embedding API.
-onnxruntime>=1.17
-tokenizers>=0.15
-numpy>=1.24
