@@ -26,7 +26,7 @@ from zhenxin.page_api import PluginPageAPI  # noqa: E402
     "astrbot_plugin_zhenxin",
     "zhenxin contributors",
     "真心：五层上下文与缓存感知修剪，默认不检索、写入零 LLM 调用。",
-    "0.3.2",
+    "0.4.0",
 )
 class ZhenxinPlugin(Star):
     def __init__(self, context: Context, config=None):
@@ -56,6 +56,7 @@ class ZhenxinPlugin(Star):
             f"轮次：{stats.get('rounds', 0)}  L1 唤醒：{stats.get('wake_rate', 0):.1%}\n"
             f"前缀末20稳定：{stats.get('prefix_stable_last20', 0):.1%}  L0：{stats.get('l0_chars_max', 0)} 字\n"
             f"固化命中：{stats.get('solid_hits', 0)}  L2 LLM：{stats.get('l2_llm_calls', 0)}\n"
+            f"风格：{self.engine.style.describe(self.adapter.user_key(event))}\n"
             f"真实 usage：{stats.get('actual_usage_rounds', 0)}/{stats.get('rounds', 0)} 轮  "
             f"{currency} {stats.get('actual_cost', 0):.4f}"
         )
@@ -121,6 +122,7 @@ class ZhenxinPlugin(Star):
             self.engine.record_error("tool_remember", str(exc))
             return "写入记忆失败。"
         return "已记住。" if added else "这条已经记过了。"
+
 
 
 

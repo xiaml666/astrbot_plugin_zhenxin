@@ -439,6 +439,12 @@
         "type": "bool",
         "default": true
       },
+      "style": {
+        "description": "跟着用户的说话习惯微调",
+        "type": "bool",
+        "default": true,
+        "hint": "从长期用词、句长、表情和追问习惯里学；只收紧回复长度/表情/追问，不增加额外模型调用。"
+      },
       "rhythm_postprocess": {
         "description": "节奏后处理",
         "type": "bool",

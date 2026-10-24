@@ -35,6 +35,7 @@ class PageApiTests(unittest.TestCase):
         self.assertEqual(api._coerce("l0.inject", "2"), 2)
         self.assertEqual(api._coerce("l3.host_context_mode", "off"), "off")
         self.assertEqual(api._coerce("live_allowlist", "a\nb\n"), ["a", "b"])
+        self.assertEqual(api._coerce("aux.style", "true"), True)
 
     def test_page_assets_are_beginner_pro_and_jargon_free(self):
         page = (ROOT / "pages" / "zhenxin" / "index.html").read_text(encoding="utf-8")
@@ -65,6 +66,7 @@ class PageApiTests(unittest.TestCase):
         self.assertNotIn("confirm(", script)
         self.assertIn("askConfirm", script)
         self.assertIn("confirm-mask", page)
+        self.assertIn('data-path="aux.style"', page)
 
     def test_memory_list_separates_importance_and_keeps_keyword_traces(self):
         import asyncio
@@ -97,6 +99,7 @@ class PageApiTests(unittest.TestCase):
         self.assertEqual(defaults["shadow_mode"], True)
         self.assertEqual(defaults["l0.inject"], 3)
         self.assertEqual(defaults["metrics.output_price_per_million"], 8.0)
+        self.assertEqual(defaults["aux.style"], True)
 
     def test_reset_conversation_keeps_facts_and_metrics(self):
         import asyncio

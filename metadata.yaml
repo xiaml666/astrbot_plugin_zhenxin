@@ -6,10 +6,11 @@ desc: >-
   平时只带 2-3 条线索，出现“你还记得…”才翻旧记忆；写记忆零 LLM 调用，
   线索放请求末尾、稳定前缀不动，缓存持续命中。100 轮实测省 38%，
   第 101 轮仍记得第 5 轮说的细节。记忆按重要性/时间自动淡出，只留关键词；
+  会从长期对话里慢慢学习你的句长/表情/追问习惯，只收紧不放开、不额外调用模型；
   自带控制中心，可先 shadow 观察再一键接管。
   不建议与其他接管上下文的记忆插件、每轮自动压缩/总结插件、每轮动态改
   system_prompt 的插件同时开启；共存时把 l3.host_context_mode 设为 off。
-version: 0.3.2
+version: 0.4.0
 author: xiaml666
 repo: https://github.com/xiaml666/astrbot_plugin_zhenxin
 social_link: https://github.com/xiaml666
@@ -29,5 +30,6 @@ support_platforms:
   - dingtalk
   - discord
   - slack
+
 
 

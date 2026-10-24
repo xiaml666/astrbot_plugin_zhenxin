@@ -59,6 +59,7 @@ ALLOWED_PATHS = {
     "aux.compression",
     "aux.compression_threshold",
     "aux.rhythm",
+    "aux.style",
     "aux.rhythm_postprocess",
     "aux.lexicon",
     "aux.open_loops",
@@ -71,6 +72,7 @@ ALLOWED_PATHS = {
 
 _BOOL_PATHS = {p for p in ALLOWED_PATHS if p.endswith((".enabled", "shadow_mode"))} | {
     "l0.tail_injection",
+    "aux.style",
 }
 _INT_PATHS = {
     "l0.inject",
@@ -506,6 +508,8 @@ class PluginPageAPI:
             self.engine.topic.enabled = bool(value)
         elif path == "aux.rhythm":
             self.engine.rhythm.enabled = bool(value)
+        elif path == "aux.style":
+            self.engine.style.enabled = bool(value)
         elif path == "aux.lexicon":
             self.engine.lexicon.enabled = bool(value)
         elif path == "aux.open_loops":

@@ -11,6 +11,7 @@ from ._aux.lexicon import Lexicon
 from ._aux.negative import NegativePatterns
 from ._aux.open_loops import OpenLoops
 from ._aux.rhythm import RhythmController
+from ._aux.style import StyleLearner
 from ._aux.topic_stack import TopicStack
 from .config import Config
 from .db import Database
@@ -53,6 +54,7 @@ class ZhenxinEngine:
         self.rhythm = RhythmController(
             self.db, self.cfg.aux.rhythm, self.cfg.aux.rhythm_postprocess
         )
+        self.style = StyleLearner(self.db, self.cfg.aux.style, clock)
         self.lexicon = Lexicon(self.db, self.cfg.aux.lexicon_aliases, self.cfg.aux.lexicon)
         self.loops = OpenLoops(
             self.db,
@@ -132,6 +134,7 @@ class ZhenxinEngine:
         self.l2.bootstrap(user_key, raw)
         self.db.set_state(user_key, "last_inbound_text", raw)
         self.rhythm.observe(user_key, raw)
+        self.style.observe(user_key, raw)
         self.topic.observe(user_key, compressed.text)
         loop_state = self.loops.observe(user_key, raw, round_no)
         self.l0.decay(user_key)
@@ -220,8 +223,12 @@ class ZhenxinEngine:
             if topic_hint:
                 ephemeral_parts.append(topic_hint)
             rhythm = self.rhythm.compute(user_key, raw)
+            rhythm = self.style.adjust(user_key, rhythm)
             if rhythm.hint:
                 ephemeral_parts.append(rhythm.hint)
+            style_hint = self.style.hint(user_key, rhythm)
+            if style_hint:
+                ephemeral_parts.append(style_hint)
             lexicon_hint = self.lexicon.hint(user_key)
             if lexicon_hint:
                 ephemeral_parts.append(lexicon_hint)
@@ -230,6 +237,7 @@ class ZhenxinEngine:
                 ephemeral_parts.append(negative_hint)
         else:
             rhythm = self.rhythm.compute(user_key, raw)
+            rhythm = self.style.adjust(user_key, rhythm)
 
         host_system = host_system_prompt or self.cfg.system_prompt
         # Cache-safe layout: everything that can change between rounds (the L0
@@ -320,7 +328,9 @@ class ZhenxinEngine:
     ) -> TurnResult:
         if plan.completed:
             raise RuntimeError("turn already completed")
-        rhythm = self.rhythm.compute(plan.user_key, plan.text)
+        rhythm = self.style.adjust(
+            plan.user_key, self.rhythm.compute(plan.user_key, plan.text)
+        )
         if plan.shadow:
             # The host already sent this exact text.  Post-processing it would
             # make the baseline arm look different from what the user saw and

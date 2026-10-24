@@ -149,6 +149,7 @@ class AuxConfig:
     topic_stack: bool = True
     compression: bool = True
     rhythm: bool = True
+    style: bool = True
     lexicon: bool = True
     open_loops: bool = True
     negative_patterns: bool = True

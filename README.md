@@ -4,7 +4,7 @@
 
 <p align="center">
   <a href="https://github.com/xiaml666/astrbot_plugin_zhenxin/releases/latest"><img alt="release" src="https://img.shields.io/github/v/release/xiaml666/astrbot_plugin_zhenxin?color=0f766e"></a>
-  <img alt="tests" src="https://img.shields.io/badge/tests-74%20passed-brightgreen">
+  <img alt="tests" src="https://img.shields.io/badge/tests-82%20passed-brightgreen">
   <img alt="AstrBot" src="https://img.shields.io/badge/AstrBot-4.x-0f766e">
   <img alt="license" src="https://img.shields.io/badge/license-MIT-blue">
 </p>
@@ -14,7 +14,7 @@
 
 <p align="center"><img src="docs/control-center.png" width="860" alt="真心控制中心"></p>
 
-> 0.3.2 · 74 个测试 · AstrBot 4.29.1 实测 · MIT
+> 0.4.0 · 82 个测试 · AstrBot 4.29.1 实测 · MIT
 
 ## 一句话
 
@@ -26,6 +26,19 @@
 - 100 轮实测：¥1.32 → ¥0.82（**-38%**）；第 101 轮仍记得第 5 轮说的细节
 - 记忆按重要性和时间自动减负，零价值的只留关键词
 - 自带控制中心：概览 / 记忆 / 花费 / 行为设置 / 高级 / 重置
+
+## 会慢慢学会你的说话方式
+
+真心会统计你平时的句长、表情、追问和口语 / 正式程度，用 EWMA 慢慢更新；每轮只在请求尾部带一句约 20 字的习惯提示：
+
+- 你常说短句 → 回复上限收紧到 46 字
+- 你从不用表情 → 回复不带表情
+- 你很少提问 → 少追问
+- 你说“说短点 / 别用表情 / 别老问” → 立即生效，不用等统计
+
+它**不调用模型、不改系统提示、不会放开回复长度**；只做“收紧”，所以不会和节省预算、保护缓存的目标打架。可以在「行为设置 → 跟着你的说话习惯」里关掉。
+
+<p align="center"><img src="docs/style-setting.png" width="760" alt="行为设置里的说话习惯开关"></p>
 
 ## 和其他记忆插件有什么不同
 
@@ -59,7 +72,7 @@ AstrBot 面板 → 插件 → 安装插件 → 搜索「真心」；或从 [Rele
 
 ## 0. 验证状态（请先读）
 
-- **已做**：74 个 unittest；60 轮 live/shadow 模拟；装/不装上下文对比；本地 ONNX/哈希回退；
+- **已做**：82 个 unittest；60 轮 live/shadow 模拟；装/不装上下文对比；本地 ONNX/哈希回退；
   用假 AstrBot event/request 验证 hook 注入、短路阻断、shadow 不改请求、`LLMResponse.usage` 落库。
 - **未做**：在真实 AstrBot 实例 + 真实 QQ/微信适配器 + 其他插件组合下的长期回归。当前环境没有 AstrBot 依赖，
   所以仓库不能声称“已对所有 AstrBot 版本验证通过”。
@@ -266,7 +279,7 @@ pip install -r astrbot_plugin_zhenxin/requirements.txt
 **方式三：从 Release 安装**
 
 下载 [最新 Release](https://github.com/xiaml666/astrbot_plugin_zhenxin/releases/latest) 里的
-`astrbot_plugin_zhenxin-0.3.2.zip`，AstrBot 面板 → 插件 → 安装插件 → 从文件安装。插件卡片会使用 [`logo.png`](logo.png)。
+`astrbot_plugin_zhenxin-0.4.0.zip`，AstrBot 面板 → 插件 → 安装插件 → 从文件安装。插件卡片会使用 [`logo.png`](logo.png)。
 
 > 0.3.1 起包目录为 `src/zhenxin/_aux`（`aux` 是 Windows 保留名），从 zip 安装不会再被系统改写。
 
@@ -299,7 +312,7 @@ AstrBot 官方的提示词注入建议是“稳定内容进 system_prompt，每�
 | **概览** | 轮次 / 缓存命中 / 记忆条数 / 累计花费 四张卡；最近 30 轮消耗柱状图（绿=命中缓存、橙=未命中）；运行健康行（版本、向量后端、数据库大小、累计错误、最近一次错误与时间） |
 | **记忆** | 记忆库按“重要性 / 最近出现 / 最早出现”排序，显示类型、出现时间、用过几次、出现在几个会话；长期没被用到又不重要的记忆会自动淡出调用库，只保留关键词痕迹 |
 | **花费** | 非缓存 / 缓存 / 输出 token 与总花费（只读；单价在 AstrBot 插件配置里） |
-| **行为设置** | 只有 6 项真的会改变回复：只观察、是否接管最近对话、每轮线索条数、保留几轮、短句直答、线索字数上限。每项下面都有白话说明；另有“恢复推荐设置 / 恢复默认配置” |
+| **行为设置** | 只有 7 项真的会改变回复：只观察、是否接管最近对话、每轮线索条数、保留几轮、跟着你的说话习惯、短句直答、线索字数上限。每项下面都有白话说明；另有“恢复推荐设置 / 恢复默认配置” |
 | **高级** | 缓存保护、窗口回收、换线索节奏，以及“按需回忆 / 写入 / 辅助模块”折叠区 |
 | **重置** | 换模型、新开对话后清掉短期状态：对话状态 / 长期记忆 / 统计分别可重置，也可一键全部恢复初始 |
 
@@ -534,7 +547,7 @@ python scripts/quality_sheet.py --pairs data/quality_pairs.example.jsonl
 │   ├── layers/                 # l0 l1 l2 l3 shortcircuit
 │   ├── _aux/                   # 话题栈/压缩/节奏/词汇/队列/负面模式
 │   └── adapters/               # astrbot / nonebot2
-├── tests/                      # 74 个 unittest
+├── tests/                      # 82 个 unittest
 ├── data/sim_dialogue.jsonl     # 60 轮模拟数据
 ├── data/human_eval_cases.jsonl # 20 条人工评测
 ├── data/quality_pairs.example.jsonl # 盲测输入示例
@@ -553,7 +566,7 @@ python scripts/quality_sheet.py --pairs data/quality_pairs.example.jsonl
 ├── docs/astrbot-install.md     # 4.29.1 面板安装/新建验证对话
 ├── docs/astrbot-live-report.md # 4.29.1 实机验证记录
 ├── docs/cache-layout-rollout.md # 0.1.1 缓存布局改动：上线/验证/回滚
-└── dist/astrbot_plugin_zhenxin-0.3.2.zip
+└── dist/astrbot_plugin_zhenxin-0.4.0.zip
 ```
 
 ---
@@ -565,7 +578,7 @@ python scripts/quality_sheet.py --pairs data/quality_pairs.example.jsonl
 
 1. 仓库根目录保留 `main.py`、`metadata.yaml`、`_conf_schema.json`、`requirements.txt`、`logo.png`。
 2. `metadata.yaml` 的 `name` 用 `astrbot_plugin_zhenxin`，`repo` 指向本仓库，版本号与 Release 一致。
-3. 打 tag（如 `v0.3.2`）并上传 Release zip；zip 不超过 16MB（当前约 150KB）。
+3. 打 tag（如 `v0.4.0`）并上传 Release zip；zip 不超过 16MB（当前约 150KB）。
 4. 登录 [AstrBot Cloud](https://cloud.astrbot.app/) 的插件发布页，提交本仓库；审核通过后即可在
    AstrBot 面板「插件 → 安装插件」里搜索到。
 5. 不要提交 `data/*.sqlite3`、`logs/`、`.venv/`、`models/`、`reports/`、`.astrbot_cookies.txt`。
@@ -589,6 +602,7 @@ python scripts/quality_sheet.py --pairs data/quality_pairs.example.jsonl
 ## License
 
 MIT。见 [`LICENSE`](LICENSE)。
+
 
 
 

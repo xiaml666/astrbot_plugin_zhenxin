@@ -211,6 +211,10 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
           <p>决定模型还能看到多久的原文。太少会接不上话，太多就贵。默认 8 轮够用。</p></div>
           <div class="ctl"><input type="range" min="4" max="16" step="1" data-path="l3.recent_turns"><span id="v-recent">8</span></div></div>
 
+        <div class="row"><div class="txt"><b>跟着你的说话习惯</b>
+          <p>从你平时的句长、表情和追问习惯里慢慢学，让回复越来越贴近你的说话方式；只收紧长度/表情/追问，不会为此多调用模型。</p></div>
+          <div class="ctl"><label class="switch"><input type="checkbox" data-path="aux.style"><span></span></label></div></div>
+
         <div class="row"><div class="txt"><b>短句直接回（实验）</b>
           <p>对“嗯”“今天好累”这种高频短句直接套模板，省掉一次模型调用。最容易让回复显得机械，先关着。</p></div>
           <div class="ctl"><label class="switch"><input type="checkbox" data-path="shortcircuit.enabled"><span></span></label></div></div>
@@ -345,7 +349,7 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
   }
 
   const BOOL = ["shadow_mode","shortcircuit.enabled","l0.tail_injection","l1.enabled","l2.enabled",
-    "aux.topic_stack","aux.compression","aux.rhythm","aux.lexicon","aux.open_loops"];
+    "aux.topic_stack","aux.compression","aux.rhythm","aux.style","aux.lexicon","aux.open_loops"];
   const NUM = ["l0.inject","l0.max_inject_chars","l3.recent_turns","l3.window_grow_turns",
     "l3.recent_char_low_water","l0.hysteresis","l0.min_dwell_rounds","l0.rebalance_interval",
     "l1.wake_cooldown_rounds"];
