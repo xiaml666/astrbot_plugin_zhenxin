@@ -39,12 +39,32 @@ class ZhenxinPlugin(Star):
         self.page_api = PluginPageAPI(self, self.engine, config)
         self.page_api.register()
         self._background: asyncio.Task | None = None
+        self._ensure_background()
+
+    def _ensure_background(self) -> None:
+        """Start the 60s loop, from __init__ or the loaded hook.
+
+        ``Star.__init__`` is not guaranteed to run inside a running event loop
+        (AstrBot versions differ), so the loaded hook retries.  Without this,
+        the "real-time" scans and periodic learning would never run.
+        """
+        task = getattr(self, "_background", None)
+        if task is not None and not task.done():
+            return
         try:
             self._background = asyncio.get_running_loop().create_task(self._background_loop())
         except RuntimeError:
-            # No running loop (standalone import / unit test): the page still
-            # works, only scheduled proactive/style refreshes are disabled.
             self._background = None
+
+    @filter.on_astrbot_loaded()
+    async def zhenxin_on_loaded(self, event=None):
+        self._ensure_background()
+        # Record the current enabled-plugin set without alerting; from now on
+        # only a *newly* enabled conflict triggers the page/AI reminder.
+        try:
+            await asyncio.to_thread(self.page_api.poll_conflicts)
+        except Exception:
+            pass
 
     @staticmethod
     def _data_dir():
@@ -111,6 +131,7 @@ class ZhenxinPlugin(Star):
                 await asyncio.sleep(60)
                 await self._tick_style()
                 await self._tick_proactive()
+                await self._tick_conflicts()
             except asyncio.CancelledError:
                 raise
             except Exception:
@@ -129,6 +150,11 @@ class ZhenxinPlugin(Star):
             online = bool(cfg.online) and self.engine.style_learning.online_due(user_key)
             await asyncio.to_thread(self.engine.style_learning.refresh, user_key, online=online)
             await asyncio.sleep(0)
+
+    async def _tick_conflicts(self) -> None:
+        poll = getattr(self.page_api, "poll_conflicts", None)
+        if callable(poll):
+            await asyncio.to_thread(poll)
 
     async def _tick_proactive(self) -> None:
         cfg = self.engine.cfg.proactive
