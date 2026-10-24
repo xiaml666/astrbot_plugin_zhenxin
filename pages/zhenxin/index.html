@@ -149,6 +149,8 @@ main section > h1,main section > .sub{display:none}
 .alert .acts{display:flex;gap:8px;flex-wrap:wrap;flex-shrink:0}
 .alert .acts button{border:1px solid color-mix(in srgb,var(--warn) 40%,var(--line));background:var(--card);
   color:var(--ink);padding:6px 11px;border-radius:9px;cursor:pointer;font:inherit;font-size:12.5px}
+#conflict-alert{position:fixed;left:50%;bottom:78px;transform:translateX(-50%);width:min(720px,calc(100vw - 32px));
+  margin:0;z-index:30;box-shadow:0 12px 32px rgba(0,0,0,.18)}
 .health .bad{color:var(--bad);font-weight:650}
 .health .good{color:var(--good);font-weight:650}
 
@@ -369,19 +371,23 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
       <div class="legend" id="legend"></div>
       <div class="health" id="health"></div>
     </div>
-    <div class="alert" id="conflict-alert" hidden>
-      <div><b id="conflict-title">检测到新启用的插件</b><span id="conflict-text"></span></div>
-      <div class="acts">
-        <button id="conflict-view">查看体检</button>
-        <button id="conflict-ack">知道了</button>
-      </div>
-    </div>
 
     <section id="tab-behavior" class="on"></section>
 
     <section id="tab-chat">
       <h1>对话设置</h1>
-      <p class="sub">接管方式、长期线索、最近窗口和推荐组合放在一起；改完点底部保存。</p>
+      <p class="sub">先选一套组合，再按需微调；推荐设置会检查已装插件并自动适配，三个按钮都立即生效。</p>
+
+      <div class="card">
+        <h2>推荐设置</h2>
+        <p class="lead">“接管”会先检查插件冲突；“推荐设置”会读取当前已装插件，自动启用/停用最合适的项；“恢复默认”回到刚装好时的观察模式。</p>
+        <div class="tools">
+          <button class="btn primary" id="takeover">由真心接管对话</button>
+          <button class="btn" id="preset">恢复推荐设置</button>
+          <button class="btn" id="defaults">恢复默认配置</button>
+        </div>
+        <p class="hintline" id="preset-hint">三个按钮都会立即写入配置；接管前会先检查冲突插件。</p>
+      </div>
 
       <div class="card">
         <h2>对话接管</h2>
@@ -424,17 +430,6 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
         <div class="row"><div class="txt"><b>超预算后回收到比例</b>
           <p>0.7 表示一次砍到预算的 70%，避免每轮都砍。</p></div>
           <div class="ctl"><input type="number" min="0.3" max="1" step="0.05" data-path="l3.recent_char_low_water"></div></div>
-      </div>
-
-      <div class="card">
-        <h2>推荐设置</h2>
-        <p class="lead">“推荐”是实测比较稳的组合，并且会由真心接管对话；“恢复默认”回到刚装好时的原始配置（观察模式）。</p>
-        <div class="tools">
-          <button class="btn primary" id="takeover">由真心接管对话</button>
-          <button class="btn" id="preset">恢复推荐设置</button>
-          <button class="btn" id="defaults">恢复默认配置</button>
-        </div>
-        <p class="hintline" id="preset-hint">三个按钮都只改表单，确认无误后再点底部“保存并生效”。</p>
       </div>
     </section>
 
@@ -714,6 +709,14 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
   </main>
 </div>
 
+<div class="alert" id="conflict-alert" hidden>
+  <div><b id="conflict-title">检测到新启用的插件</b><span id="conflict-text"></span></div>
+  <div class="acts">
+    <button id="conflict-view">查看体检</button>
+    <button id="conflict-ack">知道了</button>
+  </div>
+</div>
+
 <div class="dock">
   <span class="hint" id="dock-hint">改动会在下一轮生效，不需要重启</span>
   <button id="save" disabled>保存并生效</button>
@@ -734,7 +737,7 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
   const state = {
-    config: {}, defaults: {}, defaultsApplied: false, metrics: {}, health: {},
+    config: {}, metrics: {}, health: {},
     series: [], facts: [], traces: [], archivedTotal: 0, pools: {}, dates: [],
     mem: { view: "day", date: "", pool: "" }, lastBoost: null,
     style: { users: [], selected: "" }, dirty: false, build: {}, usage: {}, proactive: null,
@@ -817,7 +820,7 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
     $$("main section").forEach((s) => s.classList.toggle("on", s.id === "tab-" + btn.dataset.tab));
     const meta = {
       behavior: ["运行总览", "上下文、记忆、说话习惯与花费状态集中在这里；刷新只读本地数据库。", "ZHENXIN · CONTROL CENTER"],
-      chat: ["对话设置", "接管方式、长期线索、最近窗口与推荐组合。", "CHAT · CONTEXT CONTROL"],
+      chat: ["对话设置", "推荐组合置顶：接管前查冲突，推荐设置按已装插件自动适配，默认回到刚安装状态。", "CHAT · CONTEXT CONTROL"],
       memory: ["记忆花园", "按时间浏览记忆；滚轮缩放整张点阵、拖空白处平移，点节点可加深或减轻。", "MEMORY · RETRIEVAL & FORGETTING"],
       voice: ["说话与主动", "模仿用户 + 周期联网学习，知识库默认收起；主动消息也在这里调。", "STYLE · HUMAN-LIKE SPEECH"],
       health: ["体检与反馈", "只扫描当前启用的插件；媒体类插件不计入上下文冲突。", "HEALTH · COMPATIBILITY"],
@@ -836,12 +839,13 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
     });
     if (btn.dataset.tab === "memory") loadMemory();
     if (btn.dataset.tab === "voice") loadStyle();
-    if (btn.dataset.tab === "health") { if (!state.scanDone) runScan(); }
+    if (btn.dataset.tab === "health") runScan();
   });
 
   $("#conflict-view").addEventListener("click", () => {
-    const btn = document.querySelector('#nav button[data-tab="health"]');
+    const btn = document.querySelector('button[data-tab="health"]');
     if (btn) btn.click();
+    $("#conflict-alert").hidden = true;
     window.scrollTo({ top: 0, behavior: "smooth" });
   });
   $("#conflict-ack").addEventListener("click", async () => {
@@ -1052,15 +1056,6 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
     });
     const host = get("l3.host_context_mode");
     if (host !== undefined) values["l3.host_context_mode"] = host;
-    // "恢复默认" also resets knobs with no input on this page. Only send them
-    // right after that button, so a normal save does not overwrite values the
-    // user tuned directly in AstrBot's own plugin config.
-    if (state.defaultsApplied) {
-      Object.keys(state.defaults || {}).forEach((path) => {
-        const v = get(path);
-        if (v !== undefined) values[path] = v;
-      });
-    }
     return values;
   }
   $("#save").addEventListener("click", async () => {
@@ -1070,7 +1065,6 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
     try {
       const data = await callPost("page/config", { values });
       state.config = (data && data.config) || state.config;
-      state.defaultsApplied = false;
       bindConfig();
       // Round-trip verification: a stale server-side value used to silently
       // turn "线索放末尾" back off right after saving.
@@ -1098,49 +1092,37 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
   });
 
   // ------------------------------------------------------------- presets
-  const RECOMMENDED = {
-    shadow_mode: false, "l3.host_context_mode": "replace", "l0.inject": 3,
-    "l0.max_inject_chars": 260, "l0.tail_injection": true, "l3.recent_turns": 8,
-    "shortcircuit.enabled": false, "l3.window_grow_turns": 4, "l3.recent_char_low_water": 0.7,
-    "l0.hysteresis": 2, "l0.min_dwell_rounds": 8, "l0.rebalance_interval": 8,
-    "l1.enabled": true, "l2.enabled": true, "aux.topic_stack": true,
-    "aux.compression": true, "aux.rhythm": true, "aux.style": true,
-    "aux.lexicon": true, "aux.open_loops": true, "l1.wake_cooldown_rounds": 8,
-    "memory.enabled": true, "memory.top_k": 3, "memory.min_score": 0.3,
-    "style_learning.enabled": true, "style_learning.learn_user": true,
-    "style_learning.online": true, "proactive.enabled": false
-  };
-  function applyValues(values) {
-    Object.keys(values).forEach((path) => {
-      const parts = String(path).split(".");
-      let cur = state.config;
-      for (let i = 0; i < parts.length - 1; i++) {
-        if (typeof cur[parts[i]] !== "object" || cur[parts[i]] == null) cur[parts[i]] = {};
-        cur = cur[parts[i]];
-      }
-      cur[parts[parts.length - 1]] = values[path];
-    });
-    bindConfig(); markDirty(); renderRealtime();
+  async function applyPreset(mode, force) {
+    const data = await callPost("page/preset", { mode, force: Boolean(force) });
+    if (data.needs_confirm) {
+      const lines = (data.issues || []).map((item) =>
+        "· " + (item.display || item.name) + "（" + (item.severity === "direct" ? "直接冲突" : "需注意") + "）：" +
+        (item.reasons || []).join("；")
+      );
+      const ok = await askConfirm("检测到以下插件可能冲突：\n\n" + lines.join("\n") +
+        "\n\n仍然让真心接管对话？接管后可能出现记忆重复或回复变慢。");
+      if (!ok) return false;
+      return applyPreset(mode, true);
+    }
+    state.config = (data && data.config) || state.config;
+    bindConfig();
+    renderRealtime();
+    if (state.proactive) loadProactive();
+    const message = ((data && data.messages) || []).join("；") || "设置已应用";
+    $("#preset-hint").textContent = message;
+    toast(message);
+    loadStatus(true).catch(() => {});
+    return true;
   }
-  $("#takeover").addEventListener("click", async () => {
-    if (!(await askConfirm("让真心真正接管对话？\n\n这会关闭观察模式，并用真心的最近窗口替换 AstrBot 的上下文。建议先在“实时状态”里确认已观察过至少 50 轮。"))) return;
-    applyValues({ shadow_mode: false, "l3.host_context_mode": "replace" });
-    $("#preset-hint").textContent = "已切到接管模式：关闭观察、最近窗口由真心接管。确认后点底部保存。";
-    toast("已切到接管模式，记得保存");
-  });
-  $("#preset").addEventListener("click", () => {
-    applyValues(RECOMMENDED);
-    state.defaultsApplied = false;
-    $("#preset-hint").textContent = "已套用推荐设置（含接管），确认后点底部“保存并生效”。";
-    toast("已套用推荐设置，记得保存");
-  });
-  $("#defaults").addEventListener("click", () => {
-    const values = Object.keys(state.defaults || {}).length ? state.defaults : RECOMMENDED;
-    applyValues(values);
-    state.defaultsApplied = true;
-    $("#preset-hint").textContent = "已填回出厂默认值（观察模式），确认后点底部“保存并生效”。";
-    toast("已填回默认配置，记得保存");
-  });
+  async function runPreset(mode, btn) {
+    if (btn) btn.disabled = true;
+    try { await applyPreset(mode, false); }
+    catch (e) { toast("应用失败：" + e.message); }
+    finally { if (btn) btn.disabled = false; }
+  }
+  $("#takeover").addEventListener("click", (e) => runPreset("takeover", e.currentTarget));
+  $("#preset").addEventListener("click", (e) => runPreset("recommended", e.currentTarget));
+  $("#defaults").addEventListener("click", (e) => runPreset("defaults", e.currentTarget));
 
   // ------------------------------------------------------------- memory
   function poolLabel(pool) {
@@ -1777,8 +1759,8 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
     $("#scan-list").innerHTML = "";
     try {
       const data = await callGet("page/health", {});
-      state.scanDone = true;
       state.lastScan = data;
+      if (data && data.alert) renderConflictAlert(data.alert);
       const s = (data && data.summary) || {};
       $("#scan-summary").innerHTML = (data && data.ok === false)
         ? '<span class="sev direct">扫描失败</span> ' + esc(data.message || "")
@@ -1941,10 +1923,6 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
     const data = await callGet("page/status", {});
     renderStatus(data);
     if (!silent) {
-      try {
-        const defaults = await callGet("page/defaults", {});
-        state.defaults = (defaults && defaults.defaults) || {};
-      } catch (e) { state.defaults = {}; }
       await loadMemory();
       await loadStyle();
       await loadProactive();

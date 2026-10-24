@@ -190,6 +190,40 @@ _CONVERSATION_TABLES = (
 _SCHEMA_PATH = Path(__file__).resolve().parents[2] / "_conf_schema.json"
 _DEFAULT_CACHE: dict[str, Any] | None = None
 
+# "Recommended" is the tested combination: real takeover + stable prefix.
+# It is adapted at runtime when other memory/context plugins are installed.
+RECOMMENDED_VALUES = {
+    "shadow_mode": False,
+    "l3.host_context_mode": "replace",
+    "l0.inject": 3,
+    "l0.max_inject_chars": 260,
+    "l0.tail_injection": True,
+    "l3.recent_turns": 8,
+    "l3.window_grow_turns": 4,
+    "l3.recent_char_low_water": 0.7,
+    "l0.hysteresis": 2,
+    "l0.min_dwell_rounds": 8,
+    "l0.rebalance_interval": 8,
+    "l1.enabled": True,
+    "l2.enabled": True,
+    "aux.topic_stack": True,
+    "aux.compression": True,
+    "aux.rhythm": True,
+    "aux.style": True,
+    "aux.lexicon": True,
+    "aux.open_loops": True,
+    "l1.wake_cooldown_rounds": 8,
+    "memory.enabled": True,
+    "memory.top_k": 3,
+    "memory.min_score": 0.3,
+    "style_learning.enabled": True,
+    "style_learning.learn_user": True,
+    "style_learning.online": True,
+    "proactive.enabled": False,
+    "shortcircuit.enabled": False,
+}
+TAKEOVER_VALUES = {"shadow_mode": False, "l3.host_context_mode": "replace"}
+
 
 def schema_defaults() -> dict[str, Any]:
     """Return the shipped default for every allow-listed config path.
@@ -253,7 +287,7 @@ class PluginPageAPI:
         routes = (
             ("status", self.status, ["GET"], "Zhenxin page status"),
             ("config", self.save_config, ["POST"], "Zhenxin page config"),
-            ("defaults", self.defaults, ["GET"], "Zhenxin page defaults"),
+            ("preset", self.preset, ["POST"], "Zhenxin apply a preset"),
             ("reset", self.reset, ["POST"], "Zhenxin page reset"),
             ("memory", self.memory_list, ["GET"], "Zhenxin memory list"),
             ("memory/rebuild", self.memory_rebuild, ["POST"], "Zhenxin memory rebuild"),
@@ -312,10 +346,6 @@ class PluginPageAPI:
             return default
 
     # ---------------------------------------------------------------- basics
-    async def defaults(self) -> dict[str, Any]:
-        """Config values a fresh install starts with (for the 恢复默认 button)."""
-        return {"ok": True, "defaults": schema_defaults()}
-
     async def _persist_config(self) -> None:
         for name in ("save_config_async", "save_config"):
             save = getattr(self.config, name, None)
@@ -387,6 +417,146 @@ class PluginPageAPI:
             self.engine.facts.cfg.enabled = bool(value)
         elif path == "style_learning.enabled":
             self.engine.style_learning.cfg.enabled = bool(value)
+
+    # ------------------------------------------------------------- presets
+    @staticmethod
+    def _enabled_conflicts(scan: dict[str, Any]) -> list[dict[str, Any]]:
+        return [
+            item
+            for item in scan.get("plugins", [])
+            if item.get("enabled", True) and item.get("severity") in ("direct", "warning")
+        ]
+
+    def _health_issues(self) -> list[dict[str, Any]]:
+        health = self._health()
+        issues: list[dict[str, Any]] = []
+        if not health.get("db_ok"):
+            issues.append(
+                {
+                    "name": "__database__",
+                    "display": "记忆数据库",
+                    "severity": "direct",
+                    "reasons": ["数据库不可用，接管后可能丢记忆"],
+                }
+            )
+        elif int(health.get("errors") or 0) > 0:
+            issues.append(
+                {
+                    "name": "__errors__",
+                    "display": "运行错误",
+                    "severity": "warning",
+                    "reasons": [
+                        f"已累计 {health.get('errors')} 次错误"
+                        + (f"：{health.get('last_error')}" if health.get("last_error") else "")
+                    ],
+                }
+            )
+        return issues
+
+    async def _apply_preset(self, values: dict[str, Any]) -> dict[str, Any]:
+        clean = {
+            path: value
+            for path, value in values.items()
+            if path in ALLOWED_PATHS
+        }
+        for path, value in clean.items():
+            self._apply(path, value)
+        await self._persist_config()
+        return clean
+
+    async def preset(self) -> dict[str, Any]:
+        """Apply takeover / recommended / factory defaults in one click.
+
+        ``takeover`` is a dry run unless ``force`` is true: the page first gets
+        the conflict list, asks the user, then retries with ``force``.
+        ``recommended`` adapts to the installed plugins and applies silently.
+        ``defaults`` restores the shipped fresh-install values.
+        """
+        payload = await self._json_body()
+        mode = str(payload.get("mode") or "").strip()
+        force = bool(payload.get("force", False))
+        if mode not in ("takeover", "recommended", "defaults"):
+            return {"ok": False, "message": "未知的设置模式"}
+        try:
+            scan = await asyncio.to_thread(self._scan_plugins, True)
+        except Exception as exc:  # noqa: BLE001
+            return {"ok": False, "message": f"插件检查失败：{exc}"}
+        conflicts = self._enabled_conflicts(scan)
+        health_issues = self._health_issues()
+
+        if mode == "takeover":
+            issues = conflicts + health_issues
+            if issues and not force:
+                return {
+                    "ok": True,
+                    "needs_confirm": True,
+                    "issues": issues,
+                    "values": dict(TAKEOVER_VALUES),
+                    "message": "检测到可能冲突的插件，请确认是否继续接管",
+                }
+            values = dict(TAKEOVER_VALUES)
+            messages = ["已由真心接管最近窗口（观察模式已关闭）"]
+            if issues:
+                messages.append("你已确认在冲突环境下继续接管")
+        elif mode == "recommended":
+            values = dict(RECOMMENDED_VALUES)
+            messages = []
+            direct = [item for item in conflicts if item.get("severity") == "direct"]
+            if direct:
+                values.update(
+                    {
+                        "shadow_mode": True,
+                        "l3.host_context_mode": "off",
+                        "l2.enabled": False,
+                        "aux.compression": False,
+                    }
+                )
+                messages.append(
+                    "检测到直接冲突（"
+                    + "、".join(item.get("display") or item.get("name") for item in direct)
+                    + "），推荐改为只观察，并关闭摘要/压缩，避免重复接管上下文"
+                )
+            else:
+                messages.append("未发现直接冲突，推荐由真心接管最近窗口")
+            proactive = [
+                item for item in conflicts if "proactive" in str(item.get("name") or "").lower()
+            ]
+            if proactive:
+                values["proactive.enabled"] = False
+                messages.append("已有主动消息插件，推荐关闭真心的主动消息")
+            memoryish = [item for item in conflicts if item.get("memoryish")]
+            if memoryish:
+                values["memory.top_k"] = 2
+                values["memory.min_score"] = 0.35
+                messages.append("有记忆功能相近的插件，推荐每轮只带 2 条高相关记忆")
+            if health_issues:
+                values["shadow_mode"] = True
+                values["l3.host_context_mode"] = "off"
+                messages.append("检测到运行错误/数据库异常，推荐先只观察")
+        else:
+            values = schema_defaults()
+            messages = ["已恢复出厂默认：观察模式，只启用必要功能"]
+
+        try:
+            applied = await self._apply_preset(values)
+        except Exception as exc:  # noqa: BLE001
+            return {"ok": False, "message": f"应用设置失败：{exc}"}
+        return {
+            "ok": True,
+            "applied": True,
+            "mode": mode,
+            "values": applied,
+            "config": self.engine.cfg.to_dict(),
+            "messages": messages,
+            "conflicts": [
+                {
+                    "name": item.get("name"),
+                    "display": item.get("display"),
+                    "severity": item.get("severity"),
+                }
+                for item in conflicts
+            ],
+        }
 
     def _coerce(self, path: str, raw: Any) -> Any:
         if path == "live_allowlist":
@@ -780,7 +950,9 @@ class PluginPageAPI:
     # --------------------------------------------------------------- health
     async def health_scan(self) -> dict[str, Any]:
         try:
-            return await asyncio.to_thread(self._scan_plugins, True)
+            payload = await asyncio.to_thread(self._scan_plugins, True)
+            alert = await asyncio.to_thread(self._update_conflict_alert, payload)
+            return {**payload, "alert": alert}
         except Exception as exc:  # noqa: BLE001
             return {"ok": False, "message": f"插件体检失败：{exc}", "plugins": []}
 
@@ -829,39 +1001,50 @@ class PluginPageAPI:
         self._scan_cache = (now, payload)
         return payload
 
-    def poll_conflicts(self) -> dict[str, Any] | None:
-        """Detect newly enabled conflicting plugins in the background.
+    def _update_conflict_alert(
+        self, payload: dict[str, Any], *, baseline: bool = False
+    ) -> dict[str, Any] | None:
+        """Compare enabled direct/warning plugins with the last scan.
 
-        Called by the plugin's low-frequency loop.  A first run only records a
-        baseline, so an existing installation does not get an alert storm.
+        The first scan only records a baseline, so an existing installation
+        does not get an alert storm.  Both the background poll and the health
+        page call this, so opening 体检与反馈 catches a plugin enabled since the
+        last poll instead of waiting for the next 60s tick.
         """
-        try:
-            payload = self._scan_plugins(True)
-            current = [item for item in payload.get("plugins", []) if item.get("severity") in ("direct", "warning")]
-            names = [item["name"] for item in current]
-            known_raw = self.engine.db.get_state("__global__", "health_known_plugins", None)
-            if known_raw is None:
-                self.engine.db.set_state("__global__", "health_known_plugins", names)
-                return None
-            known = set(str(x) for x in (known_raw or []))
-            fresh = [item for item in current if item["name"] not in known]
+        current = [
+            item
+            for item in payload.get("plugins", [])
+            if item.get("enabled", True) and item.get("severity") in ("direct", "warning")
+        ]
+        names = [item["name"] for item in current]
+        known_raw = self.engine.db.get_state("__global__", "health_known_plugins", None)
+        if known_raw is None or baseline:
             self.engine.db.set_state("__global__", "health_known_plugins", names)
-            if not fresh:
-                return None
-            alert = {
-                "at": time.time(),
-                "items": [
-                    {
-                        "name": item["name"],
-                        "display": item.get("display") or item["name"],
-                        "severity": item["severity"],
-                        "reasons": item.get("reasons", [])[:2],
-                    }
-                    for item in fresh
-                ],
-            }
-            self.engine.db.set_state("__global__", "conflict_alert", alert)
-            return alert
+            return None
+        known = set(str(x) for x in (known_raw or []))
+        fresh = [item for item in current if item["name"] not in known]
+        self.engine.db.set_state("__global__", "health_known_plugins", names)
+        if not fresh:
+            return None
+        alert = {
+            "at": time.time(),
+            "items": [
+                {
+                    "name": item["name"],
+                    "display": item.get("display") or item["name"],
+                    "severity": item["severity"],
+                    "reasons": item.get("reasons", [])[:2],
+                }
+                for item in fresh
+            ],
+        }
+        self.engine.db.set_state("__global__", "conflict_alert", alert)
+        return alert
+
+    def poll_conflicts(self) -> dict[str, Any] | None:
+        """Background entry point: alert when a conflicting plugin appears."""
+        try:
+            return self._update_conflict_alert(self._scan_plugins(True))
         except Exception:  # noqa: BLE001 - health polling is best effort
             return None
 

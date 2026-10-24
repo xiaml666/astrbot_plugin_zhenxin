@@ -28,7 +28,7 @@ class PageApiTests(unittest.TestCase):
         api.register()
         self.assertEqual(len(context.routes), 18)
         self.assertTrue(context.routes[0][0].endswith("/page/status"))
-        self.assertTrue(any(r[0].endswith("/page/defaults") for r in context.routes))
+        self.assertTrue(any(r[0].endswith("/page/preset") for r in context.routes))
         self.assertTrue(any(r[0].endswith("/page/reset") for r in context.routes))
         self.assertTrue(any(r[0].endswith("/page/memory") for r in context.routes))
         self.assertEqual(api._coerce("shadow_mode", "true"), True)
@@ -93,6 +93,15 @@ class PageApiTests(unittest.TestCase):
         # The bridge arrives after this script, so it must be looked up lazily.
         self.assertNotIn("const bridge = window.AstrBotPluginView", script)
         self.assertIn("waitForBridge", script)
+        # The preset card sits above the takeover card and is applied by the
+        # backend (conflict-aware), not by a client-side constant.
+        self.assertLess(page.index("推荐设置"), page.index("对话接管"))
+        self.assertIn("page/preset", script)
+        self.assertNotIn("const RECOMMENDED", script)
+        # The health button lives in the maintenance nav, not #nav.
+        self.assertIn('button[data-tab="health"]', script)
+        self.assertNotIn("#nav button[data-tab=\"health\"]", script)
+        self.assertIn('id="conflict-alert"', page)
         # Memory colour is the importance scale (5 blended tiers), and the
         # search box actually filters instead of being a dead input.
         self.assertIn("tone-legend", page)
@@ -134,14 +143,10 @@ class PageApiTests(unittest.TestCase):
         self.assertTrue(trace["keywords"])
         self.assertNotIn("今天天气不错", trace["keywords"])
 
-    def test_defaults_endpoint_reads_the_shipped_schema(self):
-        import asyncio
+    def test_defaults_preset_uses_the_shipped_schema(self):
+        from zhenxin.page_api import schema_defaults
 
-        engine, _ = make_engine()
-        api = PluginPageAPI(FakePlugin(FakeContext()), engine, {})
-        data = asyncio.run(api.defaults())
-        self.assertTrue(data["ok"])
-        defaults = data["defaults"]
+        defaults = schema_defaults()
         self.assertEqual(defaults["l3.host_context_mode"], "replace")
         self.assertEqual(defaults["shadow_mode"], True)
         self.assertEqual(defaults["l0.inject"], 3)
@@ -228,6 +233,149 @@ class PageApiTests(unittest.TestCase):
         data = asyncio.run(api.status())
         self.assertEqual(1, data["health"]["errors"])
         self.assertIn("boom", data["health"]["last_error"])
+
+    @staticmethod
+    def _scan(*plugins):
+        return {"ok": True, "plugins": list(plugins), "summary": {}}
+
+    def test_takeover_preset_asks_before_conflicts_then_applies(self):
+        import asyncio
+
+        engine, _ = make_engine()
+        engine.cfg.shadow_mode = True
+        api = PluginPageAPI(FakePlugin(FakeContext()), engine, {})
+        api._scan_plugins = lambda force=False: self._scan(
+            {
+                "name": "astrbot_plugin_splitter",
+                "display": "分段",
+                "severity": "warning",
+                "enabled": True,
+                "reasons": ["改写 system_prompt"],
+            }
+        )
+        api._payload_override = {"mode": "takeover"}
+        first = asyncio.run(api.preset())
+        self.assertTrue(first["needs_confirm"])
+        self.assertTrue(engine.cfg.shadow_mode)
+        self.assertTrue(first["issues"])
+
+        api._payload_override = {"mode": "takeover", "force": True}
+        second = asyncio.run(api.preset())
+        self.assertTrue(second["applied"])
+        self.assertFalse(engine.cfg.shadow_mode)
+        self.assertEqual("replace", engine.cfg.l3.host_context_mode)
+
+    def test_recommended_preset_adapts_to_conflicts(self):
+        import asyncio
+
+        engine, _ = make_engine()
+        api = PluginPageAPI(FakePlugin(FakeContext()), engine, {})
+        api._scan_plugins = lambda force=False: self._scan(
+            {
+                "name": "mem0",
+                "display": "mem0",
+                "severity": "direct",
+                "enabled": True,
+                "memoryish": True,
+                "reasons": ["改写 req.contexts"],
+            },
+            {
+                "name": "astrbot_plugin_proactive_chat",
+                "display": "主动消息",
+                "severity": "warning",
+                "enabled": True,
+                "memoryish": False,
+                "reasons": ["功能重复"],
+            },
+        )
+        api._payload_override = {"mode": "recommended"}
+        result = asyncio.run(api.preset())
+        self.assertTrue(result["applied"])
+        self.assertTrue(engine.cfg.shadow_mode)
+        self.assertEqual("off", engine.cfg.l3.host_context_mode)
+        self.assertFalse(engine.cfg.l2.enabled)
+        self.assertFalse(engine.cfg.aux.compression)
+        self.assertFalse(engine.cfg.proactive.enabled)
+        self.assertEqual(2, engine.cfg.memory.top_k)
+        self.assertAlmostEqual(0.35, engine.cfg.memory.min_score)
+
+    def test_defaults_preset_restores_fresh_install(self):
+        import asyncio
+
+        engine, _ = make_engine()
+        engine.cfg.shadow_mode = False
+        engine.cfg.l3.host_context_mode = "off"
+        engine.cfg.proactive.enabled = True
+        api = PluginPageAPI(FakePlugin(FakeContext()), engine, {})
+        api._scan_plugins = lambda force=False: self._scan()
+        api._payload_override = {"mode": "defaults"}
+        result = asyncio.run(api.preset())
+        self.assertTrue(result["applied"])
+        self.assertTrue(engine.cfg.shadow_mode)
+        self.assertEqual("replace", engine.cfg.l3.host_context_mode)
+        self.assertFalse(engine.cfg.proactive.enabled)
+
+    def test_health_scan_alerts_on_a_newly_enabled_plugin(self):
+        import asyncio
+
+        engine, _ = make_engine()
+        engine.db.set_state("__global__", "health_known_plugins", [])
+        api = PluginPageAPI(FakePlugin(FakeContext()), engine, {})
+        api._scan_plugins = lambda force=False: self._scan(
+            {
+                "name": "astrbot_plugin_proactive_chat",
+                "display": "主动消息",
+                "severity": "warning",
+                "enabled": True,
+                "reasons": ["功能重复"],
+            }
+        )
+        data = asyncio.run(api.health_scan())
+        self.assertEqual(1, len(data["alert"]["items"]))
+        self.assertEqual("astrbot_plugin_proactive_chat", data["alert"]["items"][0]["name"])
+        self.assertIsNotNone(engine.db.get_state("__global__", "conflict_alert"))
+
+    def test_conflict_alert_first_scan_is_only_a_baseline(self):
+        import asyncio
+
+        engine, _ = make_engine()
+        api = PluginPageAPI(FakePlugin(FakeContext()), engine, {})
+        api._scan_plugins = lambda force=False: self._scan(
+            {
+                "name": "astrbot_plugin_splitter",
+                "display": "分段",
+                "severity": "warning",
+                "enabled": True,
+                "reasons": ["改写 system_prompt"],
+            }
+        )
+        data = asyncio.run(api.health_scan())
+        self.assertIsNone(data["alert"])
+        self.assertEqual(
+            ["astrbot_plugin_splitter"],
+            engine.db.get_state("__global__", "health_known_plugins", []),
+        )
+
+    def test_conflict_alert_fires_again_after_off_and_on(self):
+        import asyncio
+
+        engine, _ = make_engine()
+        engine.db.set_state("__global__", "health_known_plugins", [])
+        api = PluginPageAPI(FakePlugin(FakeContext()), engine, {})
+        enabled = {
+            "name": "astrbot_plugin_proactive_chat",
+            "display": "主动消息",
+            "severity": "warning",
+            "enabled": True,
+            "reasons": ["功能重复"],
+        }
+        disabled = {**enabled, "enabled": False, "severity": "info"}
+        api._scan_plugins = lambda force=False: self._scan(enabled)
+        self.assertIsNotNone(asyncio.run(api.health_scan())["alert"])
+        api._scan_plugins = lambda force=False: self._scan(disabled)
+        self.assertIsNone(asyncio.run(api.health_scan())["alert"])
+        api._scan_plugins = lambda force=False: self._scan(enabled)
+        self.assertIsNotNone(asyncio.run(api.health_scan())["alert"])
 
 
 if __name__ == "__main__":

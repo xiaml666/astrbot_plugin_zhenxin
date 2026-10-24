@@ -449,10 +449,9 @@ class ConfigRoundTripTests(unittest.TestCase):
         self.assertTrue(engine.style_learning.cfg.enabled)
 
     def test_defaults_include_new_sections(self):
-        engine, _ = make_engine()
-        api = PluginPageAPI(FakePlugin(FakeContext()), engine, {})
-        data = asyncio.run(api.defaults())
-        defaults = data["defaults"]
+        from zhenxin.page_api import schema_defaults
+
+        defaults = schema_defaults()
         for path in (
             "memory.top_k",
             "memory.weight_semantic",
