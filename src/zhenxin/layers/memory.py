@@ -300,10 +300,19 @@ class FactBank:
             return 0
         now = self.clock()
         removed = 0
-        for row in self._rows(user_key, include_trash=False):
+        rows = self._rows(user_key, include_trash=False)
+        for row in rows:
             if zero_value.matches(row["text"], row.get("kind", "fact"), text, reason):
                 if self._trash_row(row, reason, now):
                     removed += 1
+        # "不想弄这个了" has no lexical overlap.  If there is exactly one
+        # unfinished item, a vague cancellation can safely target it; do not
+        # guess when several loops are open.
+        vague = any(word in text for word in ("这个", "那个", "它", "这事", "那事"))
+        if removed == 0 and vague and reason in ("cancelled", "done"):
+            loops = [row for row in rows if row.get("kind") == "unclosed"]
+            if len(loops) == 1 and self._trash_row(loops[0], reason, now):
+                removed = 1
         return removed
 
     def cycle(
