@@ -216,13 +216,68 @@ RECOMMENDED_VALUES = {
     "memory.enabled": True,
     "memory.top_k": 3,
     "memory.min_score": 0.3,
+    "memory.weight_semantic": 0.5,
+    "memory.weight_importance": 0.18,
+    "memory.weight_recency": 0.12,
+    "memory.weight_usage": 0.1,
+    "memory.weight_kind": 0.05,
+    "memory.exact_boost": 0.12,
+    "memory.address_boost": 0.22,
     "style_learning.enabled": True,
     "style_learning.learn_user": True,
     "style_learning.online": True,
     "proactive.enabled": False,
+    "proactive.min_idle_minutes": 180,
+    "proactive.min_interval_hours": 12,
+    "proactive.max_per_day": 2,
+    "proactive.max_chars": 80,
+    "proactive.quiet_start": 23,
+    "proactive.quiet_end": 8,
     "shortcircuit.enabled": False,
 }
-TAKEOVER_VALUES = {"shadow_mode": False, "l3.host_context_mode": "replace"}
+# Takeover is deliberately the cheap end of the spectrum: fewer memories per
+# turn and a more conservative proactive cadence.  It does not shorten the
+# recent window (that hurts conversation continuity), and it does not raise
+# any token budget.
+TAKEOVER_VALUES = {
+    "shadow_mode": False,
+    "l3.host_context_mode": "replace",
+    "l0.inject": 3,
+    "l0.max_inject_chars": 260,
+    "l0.max_seed_chars": 30,
+    "l0.tail_injection": True,
+    "l3.recent_turns": 8,
+    "l3.window_grow_turns": 4,
+    "l3.recent_char_low_water": 0.7,
+    "memory.enabled": True,
+    "memory.top_k": 2,
+    "memory.min_score": 0.32,
+    "memory.weight_semantic": 0.55,
+    "memory.weight_importance": 0.22,
+    "memory.weight_recency": 0.1,
+    "memory.weight_usage": 0.08,
+    "memory.weight_kind": 0.05,
+    "memory.exact_boost": 0.12,
+    "memory.address_boost": 0.22,
+    "style_learning.enabled": True,
+    "style_learning.learn_user": True,
+    "style_learning.online": True,
+    "proactive.enabled": False,
+    "proactive.min_idle_minutes": 240,
+    "proactive.min_interval_hours": 24,
+    "proactive.max_per_day": 1,
+    "proactive.max_chars": 60,
+    "proactive.quiet_start": 23,
+    "proactive.quiet_end": 8,
+    "l1.enabled": True,
+    "l2.enabled": True,
+    "aux.topic_stack": True,
+    "aux.compression": True,
+    "aux.rhythm": True,
+    "aux.style": True,
+    "aux.lexicon": True,
+    "aux.open_loops": True,
+}
 
 
 def schema_defaults() -> dict[str, Any]:
@@ -495,7 +550,10 @@ class PluginPageAPI:
                     "message": "检测到可能冲突的插件，请确认是否继续接管",
                 }
             values = dict(TAKEOVER_VALUES)
-            messages = ["已由真心接管最近窗口（观察模式已关闭）"]
+            messages = [
+                "已接管：每轮 3 条线索、最多 2 条记忆；"
+                "主动消息改为每日 1 条 / 24 小时间隔（默认关闭）"
+            ]
             if issues:
                 messages.append("你已确认在冲突环境下继续接管")
         elif mode == "recommended":
@@ -533,9 +591,19 @@ class PluginPageAPI:
                 values["shadow_mode"] = True
                 values["l3.host_context_mode"] = "off"
                 messages.append("检测到运行错误/数据库异常，推荐先只观察")
+            messages.append(
+                f"记忆：每轮最多 {values['memory.top_k']} 条、最低分 {values['memory.min_score']}；"
+                f"主动消息：每日 {values['proactive.max_per_day']} 条 / "
+                f"{values['proactive.min_interval_hours']} 小时间隔（默认关闭）"
+            )
         else:
             values = schema_defaults()
-            messages = ["已恢复出厂默认：观察模式，只启用必要功能"]
+            messages = [
+                "已恢复出厂默认：观察模式，只启用必要功能；"
+                f"记忆每轮 {values.get('memory.top_k', 3)} 条，"
+                f"主动消息每日 {values.get('proactive.max_per_day', 2)} 条 / "
+                f"{values.get('proactive.min_interval_hours', 12)} 小时间隔（默认关闭）"
+            ]
 
         try:
             applied = await self._apply_preset(values)

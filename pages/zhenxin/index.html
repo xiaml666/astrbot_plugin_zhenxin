@@ -382,11 +382,11 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
         <h2>推荐设置</h2>
         <p class="lead">“接管”会先检查插件冲突；“推荐设置”会读取当前已装插件，自动启用/停用最合适的项；“恢复默认”回到刚装好时的观察模式。</p>
         <div class="tools">
-          <button class="btn primary" id="takeover">由真心接管对话</button>
-          <button class="btn" id="preset">恢复推荐设置</button>
-          <button class="btn" id="defaults">恢复默认配置</button>
+          <button class="btn" id="takeover" data-preset="takeover">由真心接管对话</button>
+          <button class="btn" id="preset" data-preset="recommended">恢复推荐设置</button>
+          <button class="btn" id="defaults" data-preset="defaults">恢复默认配置</button>
         </div>
-        <p class="hintline" id="preset-hint">三个按钮都会立即写入配置；接管前会先检查冲突插件。</p>
+        <p class="hintline" id="preset-hint">三个按钮都会立即写入配置；点击后会高亮当前选择，接管前会先检查冲突插件。</p>
       </div>
 
       <div class="card">
@@ -865,6 +865,7 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
       cur = cur[parts[i]];
     }
     cur[parts[parts.length - 1]] = value;
+    setPresetActive("");
     markDirty();
   }
   function markDirty() {
@@ -1114,10 +1115,19 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
     loadStatus(true).catch(() => {});
     return true;
   }
+  function setPresetActive(mode) {
+    $$("#takeover, #preset, #defaults").forEach((btn) => {
+      const on = btn.dataset.preset === mode;
+      btn.classList.toggle("primary", on);
+      btn.setAttribute("aria-pressed", on ? "true" : "false");
+    });
+  }
   async function runPreset(mode, btn) {
     if (btn) btn.disabled = true;
-    try { await applyPreset(mode, false); }
-    catch (e) { toast("应用失败：" + e.message); }
+    try {
+      const ok = await applyPreset(mode, false);
+      if (ok) setPresetActive(mode);
+    } catch (e) { toast("应用失败：" + e.message); }
     finally { if (btn) btn.disabled = false; }
   }
   $("#takeover").addEventListener("click", (e) => runPreset("takeover", e.currentTarget));

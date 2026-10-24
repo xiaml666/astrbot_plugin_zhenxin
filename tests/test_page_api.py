@@ -98,6 +98,11 @@ class PageApiTests(unittest.TestCase):
         self.assertLess(page.index("推荐设置"), page.index("对话接管"))
         self.assertIn("page/preset", script)
         self.assertNotIn("const RECOMMENDED", script)
+        # All three preset buttons start neutral; only the clicked one turns
+        # green (no premature "already taking over" signal).
+        self.assertIn('data-preset="takeover"', page)
+        self.assertNotIn('class="btn primary" id="takeover"', page)
+        self.assertIn("setPresetActive", script)
         # The health button lives in the maintenance nav, not #nav.
         self.assertIn('button[data-tab="health"]', script)
         self.assertNotIn("#nav button[data-tab=\"health\"]", script)
@@ -264,6 +269,13 @@ class PageApiTests(unittest.TestCase):
         self.assertTrue(second["applied"])
         self.assertFalse(engine.cfg.shadow_mode)
         self.assertEqual("replace", engine.cfg.l3.host_context_mode)
+        # Takeover is the budget-conscious profile, not just a mode switch.
+        self.assertEqual(2, engine.cfg.memory.top_k)
+        self.assertAlmostEqual(0.32, engine.cfg.memory.min_score)
+        self.assertAlmostEqual(0.55, engine.cfg.memory.weight_semantic)
+        self.assertEqual(1, engine.cfg.proactive.max_per_day)
+        self.assertAlmostEqual(24, engine.cfg.proactive.min_interval_hours)
+        self.assertEqual(240, engine.cfg.proactive.min_idle_minutes)
 
     def test_recommended_preset_adapts_to_conflicts(self):
         import asyncio
@@ -298,6 +310,9 @@ class PageApiTests(unittest.TestCase):
         self.assertFalse(engine.cfg.proactive.enabled)
         self.assertEqual(2, engine.cfg.memory.top_k)
         self.assertAlmostEqual(0.35, engine.cfg.memory.min_score)
+        self.assertAlmostEqual(0.5, engine.cfg.memory.weight_semantic)
+        self.assertAlmostEqual(12, engine.cfg.proactive.min_interval_hours)
+        self.assertEqual(2, engine.cfg.proactive.max_per_day)
 
     def test_defaults_preset_restores_fresh_install(self):
         import asyncio
@@ -314,6 +329,8 @@ class PageApiTests(unittest.TestCase):
         self.assertTrue(engine.cfg.shadow_mode)
         self.assertEqual("replace", engine.cfg.l3.host_context_mode)
         self.assertFalse(engine.cfg.proactive.enabled)
+        self.assertEqual(3, engine.cfg.memory.top_k)
+        self.assertEqual(2, engine.cfg.proactive.max_per_day)
 
     def test_health_scan_alerts_on_a_newly_enabled_plugin(self):
         import asyncio
