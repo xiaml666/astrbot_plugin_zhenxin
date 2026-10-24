@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+.pytest_cache/
+.ruff_cache/
+
+# Local/experiment artifacts
+build/
+dist/
+logs/
+models/
+data/*.sqlite3
+data/*.sqlite3-*
+reports/*
+!reports/shadow_report.md
+!reports/comparison.md
+.astrbot_cookies.txt
+# Internal handover notes contain local console credentials.
+docs/HANDOVER.md
+
+# OS
+.DS_Store
+Thumbs.db
