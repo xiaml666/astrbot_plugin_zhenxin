@@ -10,7 +10,7 @@ desc: >-
   自带控制中心，可先 shadow 观察再一键接管。
   不建议与其他接管上下文的记忆插件、每轮自动压缩/总结插件、每轮动态改
   system_prompt 的插件同时开启；共存时把 l3.host_context_mode 设为 off。
-version: 0.4.0
+version: 0.4.1
 author: xiaml666
 repo: https://github.com/xiaml666/astrbot_plugin_zhenxin
 social_link: https://github.com/xiaml666
@@ -30,6 +30,7 @@ support_platforms:
   - dingtalk
   - discord
   - slack
+
 
 
 

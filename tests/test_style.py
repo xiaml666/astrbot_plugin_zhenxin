@@ -35,6 +35,7 @@ class StyleLearnerTests(unittest.TestCase):
         adjusted = self.learner.adjust("u1", rhythm())
         self.assertLessEqual(adjusted.max_chars, 46)
         self.assertIn("短句", self.learner.hint("u1", adjusted))
+        self.assertIn("46字内", adjusted.hint)
         self.assertIn("短句", self.learner.describe("u1"))
 
     def test_formal_user_gets_formal_hint(self):

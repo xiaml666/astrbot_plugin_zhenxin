@@ -14,7 +14,7 @@
 
 <p align="center"><img src="docs/control-center.png" width="860" alt="真心控制中心"></p>
 
-> 0.4.0 · 82 个测试 · AstrBot 4.29.1 实测 · MIT
+> 0.4.1 · 82 个测试 · AstrBot 4.29.1 实测 · MIT
 
 ## 一句话
 
@@ -279,7 +279,7 @@ pip install -r astrbot_plugin_zhenxin/requirements.txt
 **方式三：从 Release 安装**
 
 下载 [最新 Release](https://github.com/xiaml666/astrbot_plugin_zhenxin/releases/latest) 里的
-`astrbot_plugin_zhenxin-0.4.0.zip`，AstrBot 面板 → 插件 → 安装插件 → 从文件安装。插件卡片会使用 [`logo.png`](logo.png)。
+`astrbot_plugin_zhenxin-0.4.1.zip`，AstrBot 面板 → 插件 → 安装插件 → 从文件安装。插件卡片会使用 [`logo.png`](logo.png)。
 
 > 0.3.1 起包目录为 `src/zhenxin/_aux`（`aux` 是 Windows 保留名），从 zip 安装不会再被系统改写。
 
@@ -566,7 +566,7 @@ python scripts/quality_sheet.py --pairs data/quality_pairs.example.jsonl
 ├── docs/astrbot-install.md     # 4.29.1 面板安装/新建验证对话
 ├── docs/astrbot-live-report.md # 4.29.1 实机验证记录
 ├── docs/cache-layout-rollout.md # 0.1.1 缓存布局改动：上线/验证/回滚
-└── dist/astrbot_plugin_zhenxin-0.4.0.zip
+└── dist/astrbot_plugin_zhenxin-0.4.1.zip
 ```
 
 ---
@@ -578,7 +578,7 @@ python scripts/quality_sheet.py --pairs data/quality_pairs.example.jsonl
 
 1. 仓库根目录保留 `main.py`、`metadata.yaml`、`_conf_schema.json`、`requirements.txt`、`logo.png`。
 2. `metadata.yaml` 的 `name` 用 `astrbot_plugin_zhenxin`，`repo` 指向本仓库，版本号与 Release 一致。
-3. 打 tag（如 `v0.4.0`）并上传 Release zip；zip 不超过 16MB（当前约 150KB）。
+3. 打 tag（如 `v0.4.1`）并上传 Release zip；zip 不超过 16MB（当前约 150KB）。
 4. 登录 [AstrBot Cloud](https://cloud.astrbot.app/) 的插件发布页，提交本仓库；审核通过后即可在
    AstrBot 面板「插件 → 安装插件」里搜索到。
 5. 不要提交 `data/*.sqlite3`、`logs/`、`.venv/`、`models/`、`reports/`、`.astrbot_cookies.txt`。
@@ -602,6 +602,7 @@ python scripts/quality_sheet.py --pairs data/quality_pairs.example.jsonl
 ## License
 
 MIT。见 [`LICENSE`](LICENSE)。
+
 
 
 

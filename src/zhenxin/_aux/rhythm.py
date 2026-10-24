@@ -32,6 +32,25 @@ class Rhythm:
     hint: str
 
 
+def render_hint(rhythm: Rhythm) -> str:
+    """Build the tail hint from the (possibly adjusted) rhythm fields."""
+    bits = [
+        f"{rhythm.max_chars}字内",
+        {
+            "steady": "少追问",
+            "soft": "先接情绪",
+            "warm": "自然收住",
+            "bright": "轻快",
+            "neutral": "简洁",
+        }[rhythm.tone],
+    ]
+    if not rhythm.followup_allowed:
+        bits.append("不追问")
+    if not rhythm.emoji_allowed:
+        bits.append("少表情")
+    return "〔节奏：" + "，".join(bits) + "〕"
+
+
 class RhythmController:
     def __init__(self, db: Database, enabled: bool = True, postprocess: bool = True) -> None:
         self.db = db
@@ -108,12 +127,9 @@ class RhythmController:
             max_chars = min(max_chars, 38)
             follow = False
             emoji = False
-        bits = [f"{max_chars}字内", {"steady": "少追问", "soft": "先接情绪", "warm": "自然收住", "bright": "轻快", "neutral": "简洁"}[tone]]
-        if not follow:
-            bits.append("不追问")
-        if not emoji:
-            bits.append("少表情")
-        return Rhythm(max_chars, follow, emoji, tone, warmth, topic, "〔节奏：" + "，".join(bits) + "〕")
+        result = Rhythm(max_chars, follow, emoji, tone, warmth, topic, "")
+        result.hint = render_hint(result)
+        return result
 
     def postprocess(self, reply: str, rhythm: Rhythm) -> str:
         if not self.enabled or not self.postprocess_enabled or not reply:

@@ -19,7 +19,7 @@ from dataclasses import dataclass, replace
 from typing import Any, Callable
 
 from ..db import Database
-from .rhythm import Rhythm
+from .rhythm import Rhythm, render_hint
 
 _EMOJI_RE = re.compile(
     "[\U0001f300-\U0001faff\U00002600-\U000027bf\U0001f1e6-\U0001f1ff\u2b00-\u2bff\ufe0f]+"
@@ -173,12 +173,14 @@ class StyleLearner:
         emoji = rhythm.emoji_allowed and not (
             style.no_emoji or (style.samples >= 8 and style.emoji_rate < 0.03)
         )
-        return replace(
+        adjusted = replace(
             rhythm,
             max_chars=max_chars,
             followup_allowed=follow,
             emoji_allowed=emoji,
         )
+        adjusted.hint = render_hint(adjusted)
+        return adjusted
 
     def hint(self, user_key: str, rhythm: Rhythm | None = None) -> str:
         """One short tail block describing the learned style."""
