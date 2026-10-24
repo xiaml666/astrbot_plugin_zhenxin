@@ -42,6 +42,74 @@ class VersionSourceTests(unittest.TestCase):
         self.assertFalse(info["mismatch"])
 
 
+class ConflictScanTests(unittest.TestCase):
+    def test_media_plugins_are_not_conflicts(self):
+        import tempfile
+        from pathlib import Path
+
+        from zhenxin.page_api import PluginPageAPI
+
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp) / "astrbot_plugin_bilibili"
+            base.mkdir()
+            (base / "metadata.yaml").write_text(
+                "name: astrbot_plugin_bilibili\ndisplay_name: 哔哩哔哩\ndesc: B站视频链接\n",
+                encoding="utf-8",
+            )
+            (base / "main.py").write_text(
+                "from astrbot.api.event import filter\n"
+                "@filter.on_llm_request()\n"
+                "async def x(event, req):\n"
+                "    req.contexts = []\n    req.system_prompt = ''\n",
+                encoding="utf-8",
+            )
+            self.assertIsNone(PluginPageAPI._inspect_plugin(base, set()))
+
+    def test_enabled_memory_plugin_is_direct_from_context_or_prompt(self):
+        import tempfile
+        from pathlib import Path
+
+        from zhenxin.page_api import PluginPageAPI
+
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp) / "astrbot_plugin_memory_x"
+            base.mkdir()
+            (base / "metadata.yaml").write_text(
+                "name: astrbot_plugin_memory_x\ndisplay_name: 记忆X\ndesc: 长期记忆与上下文摘要\n",
+                encoding="utf-8",
+            )
+            (base / "main.py").write_text(
+                "from astrbot.api.event import filter\n"
+                "@filter.on_llm_request()\n"
+                "async def x(event, req):\n"
+                "    req.contexts = []\n",
+                encoding="utf-8",
+            )
+            item = PluginPageAPI._inspect_plugin(base, set())
+            self.assertIsNotNone(item)
+            self.assertEqual("direct", item["severity"])
+
+    def test_poll_conflicts_alerts_only_on_newly_enabled_plugin(self):
+        engine, _ = make_engine()
+        api = PluginPageAPI(FakePlugin(FakeContext()), engine, {})
+
+        def payload(names):
+            return {
+                "plugins": [
+                    {"name": n, "display": n, "severity": "direct", "reasons": ["x"]}
+                    for n in names
+                ]
+            }
+
+        api._scan_plugins = lambda force=False: payload(["old_memory"])
+        self.assertIsNone(api.poll_conflicts())  # baseline, no alert
+        self.assertIsNone(api.poll_conflicts())  # unchanged, no alert
+        api._scan_plugins = lambda force=False: payload(["old_memory", "new_memory"])
+        alert = api.poll_conflicts()
+        self.assertIsNotNone(alert)
+        self.assertEqual("new_memory", alert["items"][0]["name"])
+
+
 class MigrationTests(unittest.TestCase):
     def test_old_database_gets_new_columns_before_new_index(self):
         import sqlite3
@@ -103,6 +171,48 @@ class MemoryV2Tests(unittest.TestCase):
         self.assertTrue(zero_value.matches("称呼我“阿岚”", "address", "不要这样称呼我了", "address_cancel"))
         self.assertEqual("cancelled", zero_value.cue("不要叫外卖了"))
         self.assertFalse(zero_value.matches("称呼我“阿岚”", "address", "不要叫外卖了", "cancelled"))
+
+    def test_backfill_recovers_identity_from_history(self):
+        engine, _ = make_engine()
+        engine.db.append_turn("u1", 1, "user", "你以后就叫我老大", 1.0)
+        engine.db.append_turn("u1", 2, "user", "记住，我不吃香菜", 1.1)
+        engine.db.append_turn("u1", 3, "user", "你以后叫小满吧", 1.2)
+        added = engine.facts.backfill_from_turns("u1")
+        self.assertGreaterEqual(added, 3)
+        self.assertIn("老大", engine.facts.address("u1"))
+        self.assertIn("小满", engine.facts.assistant_name("u1"))
+        self.assertTrue(any("香菜" in row["text"] for row in engine.facts.list_facts(pool="cycle")))
+
+    def test_backfill_is_idempotent(self):
+        engine, _ = make_engine()
+        engine.db.append_turn("u1", 1, "user", "你以后就叫我老大", 1.0)
+        engine.facts.backfill_from_turns("u1")
+        before = engine.facts.list_facts()[0]
+        engine.facts.backfill_from_turns("u1")
+        after = engine.facts.list_facts()[0]
+        self.assertEqual(before["mentions"], after["mentions"])
+        self.assertEqual(before["importance"], after["importance"])
+
+    def test_backfill_does_not_resurrect_a_rejected_address(self):
+        engine, _ = make_engine()
+        engine.db.append_turn("u1", 1, "user", "叫我阿岚", 1.0)
+        engine.db.append_turn("u1", 2, "user", "别叫我阿岚了", 1.1)
+        engine.facts.backfill_from_turns("u1")
+        self.assertEqual("", engine.facts.address("u1"))
+
+    def test_conflict_alert_is_mentioned_once_to_the_model(self):
+        engine, _ = make_engine(**{"shortcircuit.enabled": False})
+        engine.db.set_state("__global__", "conflict_alert", {
+            "at": 1.0,
+            "items": [{"name": "memory_x", "display": "记忆X", "severity": "direct", "reasons": ["contexts"]}],
+        })
+        plan = engine.begin_turn("u1", "在吗", round_no=1)
+        self.assertIn("〔插件提醒〕", plan.ephemeral_tail)
+        self.assertIn("记忆X", plan.ephemeral_tail)
+        alert = engine.db.get_state("__global__", "conflict_alert", {})
+        self.assertTrue(alert.get("injected"))
+        plan2 = engine.begin_turn("u1", "在吗", round_no=2)
+        self.assertNotIn("〔插件提醒〕", plan2.ephemeral_tail)
 
     def test_manual_boost_deepens_weight_and_pool(self):
         engine, _ = make_engine()

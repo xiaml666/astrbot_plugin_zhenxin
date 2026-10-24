@@ -48,6 +48,13 @@ class _Filter:
 
         return deco
 
+    @staticmethod
+    def on_astrbot_loaded(*args, **kwargs):
+        def deco(fn):
+            return fn
+
+        return deco
+
 
 class MainEntryTests(unittest.TestCase):
     def test_version_matches_metadata(self):
