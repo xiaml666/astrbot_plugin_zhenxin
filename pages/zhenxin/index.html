@@ -341,7 +341,7 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
           <div class="ctl"><input type="number" min="20" max="200" step="10" data-path="proactive.max_chars"></div></div>
         <div class="row"><div class="txt"><b>自定义话术（可留空）</b>
           <p>可用 <code>{loop}</code> 表示未完成事项、<code>{fact}</code> 表示一条记忆；留空用内置自然话术。</p></div>
-          <div class="ctl" style="flex:1 1 320px"><input type="text" data-path="proactive.template" placeholder="例如：突然想起，{fact}。" style="width:100%"></div></div>
+          <div class="ctl" style="flex:1 1 320px"><input type="text" data-path="proactive.template" maxlength="200" placeholder="例如：突然想起，{fact}。" style="width:100%"></div></div>
         <div class="tools" style="margin-top:12px">
           <button class="btn small" id="proactive-preview">刷新候选预览</button>
           <button class="btn small primary" id="proactive-test">立即试发一条</button>

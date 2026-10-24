@@ -377,7 +377,6 @@ class PluginPageAPI:
             self.engine.rhythm.enabled = bool(value)
         elif path == "aux.style":
             self.engine.style.enabled = bool(value)
-            self.engine.style_learning.cfg.enabled = bool(value) and self.engine.cfg.style_learning.enabled
         elif path == "aux.lexicon":
             self.engine.lexicon.enabled = bool(value)
         elif path == "aux.open_loops":
