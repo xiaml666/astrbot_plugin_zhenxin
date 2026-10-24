@@ -1,0 +1,1296 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>真心 · 控制中心</title>
+<style>
+:root{
+  --bg:#f4f7f6; --bg2:#e9f1ef; --card:#ffffff; --ink:#10201d; --muted:#64756f;
+  --line:#dbe6e2; --acc:#0f766e; --acc2:#14b8a6; --acc-soft:#d7f3ee;
+  --bad:#b42318; --bad-soft:#fee4e2; --good:#067647; --good-soft:#dcfae6;
+  --warn:#b54708; --warn-soft:#fef0c7;
+  --radius:18px; --shadow:0 1px 2px rgba(16,32,29,.05),0 12px 32px rgba(16,32,29,.07);
+}
+@media (prefers-color-scheme:dark){
+  :root{ --bg:#08110f; --bg2:#0d1a17; --card:#111d1a; --ink:#e6f2ee; --muted:#95a9a2;
+    --line:#233530; --acc:#2dd4bf; --acc2:#5eead4; --acc-soft:#123b35;
+    --bad:#fda29b; --bad-soft:#3b1512; --good:#75e0a7; --good-soft:#0f2e1f;
+    --warn:#fec84b; --warn-soft:#33260a; --shadow:0 1px 2px rgba(0,0,0,.4);}
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{scroll-behavior:smooth}
+body{margin:0;background:
+  radial-gradient(1200px 600px at 100% -10%, color-mix(in srgb,var(--acc-soft) 55%,transparent), transparent 60%),
+  var(--bg);
+  color:var(--ink);font:15px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans SC",sans-serif}
+button,input,select,textarea{font:inherit;color:inherit}
+.app{display:grid;grid-template-columns:228px 1fr;min-height:100vh}
+@media(max-width:920px){.app{grid-template-columns:1fr}}
+
+/* ---------- sidebar ---------- */
+aside{background:color-mix(in srgb,var(--card) 92%,transparent);border-right:1px solid var(--line);
+  padding:20px 14px;position:sticky;top:0;height:100vh;overflow:auto;backdrop-filter:blur(12px)}
+@media(max-width:920px){aside{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line)}}
+.brand{display:flex;align-items:center;gap:11px;margin:2px 5px 18px}
+.brand .logo{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;color:#fff;font-weight:800;
+  background:linear-gradient(135deg,var(--acc),var(--acc2));box-shadow:0 8px 18px color-mix(in srgb,var(--acc) 30%,transparent)}
+.brand b{font-size:17px;letter-spacing:.5px}
+.brand small{display:block;color:var(--muted);font-size:11px;font-weight:500}
+nav{display:flex;flex-direction:column;gap:5px}
+nav button{display:flex;align-items:center;gap:9px;width:100%;text-align:left;border:0;background:transparent;
+  color:var(--muted);font:inherit;padding:10px 12px;border-radius:12px;cursor:pointer;transition:.15s}
+nav button:hover{background:color-mix(in srgb,var(--acc-soft) 55%,transparent);color:var(--ink)}
+nav button.on{background:linear-gradient(135deg,var(--acc),color-mix(in srgb,var(--acc),#000 8%));color:#fff;font-weight:650;
+  box-shadow:0 8px 18px color-mix(in srgb,var(--acc) 24%,transparent)}
+nav .ico{width:18px;text-align:center;opacity:.92}
+nav .pill{margin-left:auto;font-size:11px;background:var(--acc-soft);color:var(--acc);padding:1px 7px;border-radius:999px}
+nav button.on .pill{background:#ffffff2e;color:#fff}
+.side-foot{margin-top:20px;padding:12px 12px;border-top:1px dashed var(--line);color:var(--muted);font-size:12px;line-height:1.8}
+.side-foot b{color:var(--ink);font-weight:600}
+
+/* ---------- main ---------- */
+main{padding:24px 26px 130px;max-width:1180px;min-width:0}
+@media(max-width:920px){main{padding:16px 14px 130px}}
+h1{font-size:25px;margin:4px 0 3px;letter-spacing:.2px}
+.sub{color:var(--muted);margin:0 0 16px;font-size:13.5px}
+section{display:none;animation:fade .18s ease}
+section.on{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px;margin-bottom:16px;box-shadow:var(--shadow)}
+.card h2{font-size:16px;margin:0 0 3px}
+.card .lead{color:var(--muted);font-size:12.8px;margin:0 0 14px;line-height:1.65}
+.card.tight{padding:14px 18px}
+
+/* ---------- realtime strip ---------- */
+.realtime{background:linear-gradient(135deg,color-mix(in srgb,var(--card) 92%,var(--acc-soft)),var(--card));
+  border:1px solid var(--line);border-radius:22px;padding:18px 20px;margin-bottom:18px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+.realtime:before{content:"";position:absolute;inset:0;background:radial-gradient(500px 180px at 100% 0%,color-mix(in srgb,var(--acc2) 16%,transparent),transparent 70%);pointer-events:none}
+.rt-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;position:relative}
+.rt-head h2{margin:0;font-size:16px}
+.rt-dot{width:9px;height:9px;border-radius:50%;background:var(--good);box-shadow:0 0 0 5px color-mix(in srgb,var(--good) 15%,transparent)}
+.rt-dot.shadow{background:var(--warn);box-shadow:0 0 0 5px color-mix(in srgb,var(--warn) 16%,transparent)}
+.rt-time{color:var(--muted);font-size:12px;margin-left:auto}
+.refresh{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--card);color:var(--ink);
+  padding:7px 12px;border-radius:11px;cursor:pointer;font-size:13px}
+.refresh:hover{border-color:var(--acc);color:var(--acc)}
+.refresh.spin .r{animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:14px;position:relative}
+@media(max-width:980px){.kpis{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:560px){.kpis{grid-template-columns:repeat(2,1fr)}}
+.kpi{background:color-mix(in srgb,var(--card) 74%,var(--bg2));border:1px solid var(--line);border-radius:14px;padding:10px 12px}
+.kpi .k{color:var(--muted);font-size:11px;display:flex;gap:5px;align-items:center}
+.kpi .v{font-size:21px;font-weight:760;font-variant-numeric:tabular-nums;margin-top:2px;letter-spacing:-.3px}
+.kpi .v small{font-size:11px;color:var(--muted);font-weight:500;letter-spacing:0}
+.badge{display:inline-block;font-size:10px;padding:0 6px;border-radius:999px;background:var(--acc-soft);color:var(--acc);font-weight:650}
+.badge.warn{background:var(--warn-soft);color:var(--warn)}
+.badge.bad{background:var(--bad-soft);color:var(--bad)}
+.chart-wrap{margin-top:14px;position:relative}
+.chart{width:100%;height:74px;display:block;border-radius:10px;background:color-mix(in srgb,var(--bg2) 55%,transparent)}
+.chart-empty{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);font-size:12px}
+.legend{color:var(--muted);font-size:12px;margin-top:7px;display:flex;gap:12px;flex-wrap:wrap}
+.dot-key{display:inline-flex;align-items:center;gap:5px}
+.dot-key i{width:9px;height:9px;border-radius:3px;display:inline-block}
+.health{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);font-size:12.3px;color:var(--muted)}
+.health .bad{color:var(--bad);font-weight:650}
+.health .good{color:var(--good);font-weight:650}
+
+/* ---------- rows / controls ---------- */
+.row{display:flex;gap:18px;align-items:flex-start;justify-content:space-between;padding:14px 0;border-bottom:1px dashed var(--line)}
+.row:last-child{border-bottom:0;padding-bottom:2px}
+.row .txt{flex:1;min-width:0}
+.row .txt b{font-weight:650}
+.row .txt p{margin:3px 0 0;color:var(--muted);font-size:12.6px;line-height:1.6}
+.row .ctl{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding-top:2px;flex-wrap:wrap;justify-content:flex-end}
+.row.disabled{opacity:.5}
+.switch{position:relative;display:inline-block;width:46px;height:26px;flex:0 0 auto}
+.switch input{opacity:0;width:0;height:0}
+.switch span{position:absolute;inset:0;background:#cbd5d1;border-radius:999px;cursor:pointer;transition:.18s}
+.switch span:before{content:"";position:absolute;width:20px;height:20px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.18s;box-shadow:0 1px 2px #0003}
+.switch input:checked+span{background:linear-gradient(135deg,var(--acc),var(--acc2))}
+.switch input:checked+span:before{transform:translateX(20px)}
+input[type=number],select,input[type=text],input[type=datetime-local],textarea{
+  padding:7px 10px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);min-width:90px;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--acc);box-shadow:0 0 0 3px color-mix(in srgb,var(--acc) 14%,transparent)}
+textarea{width:100%;min-height:88px;resize:vertical;line-height:1.6}
+input[type=range]{width:190px;accent-color:var(--acc)}
+.val{min-width:38px;text-align:right;font-variant-numeric:tabular-nums;font-weight:650;color:var(--acc)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:11px;overflow:hidden;background:var(--bg2)}
+.seg button{border:0;background:transparent;color:var(--muted);font:inherit;padding:7px 13px;cursor:pointer;transition:.15s}
+.seg button.on{background:var(--acc);color:#fff;font-weight:650}
+.btn{font:inherit;padding:8px 14px;border:1px solid var(--line);border-radius:11px;background:var(--card);color:var(--ink);cursor:pointer;transition:.15s}
+.btn:hover{border-color:var(--acc);color:var(--acc)}
+.btn.primary{border:0;background:linear-gradient(135deg,var(--acc),var(--acc2));color:#fff;font-weight:650;
+  box-shadow:0 8px 18px color-mix(in srgb,var(--acc) 22%,transparent)}
+.btn.primary:hover{filter:brightness(1.05);color:#fff}
+.btn.danger{border-color:color-mix(in srgb,var(--bad) 55%,var(--line));color:var(--bad)}
+.btn.danger:hover{background:var(--bad-soft)}
+.btn.small{padding:5px 10px;font-size:12.3px;border-radius:9px}
+.btn:disabled{opacity:.45;cursor:default}
+.tools{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
+.tools input[type=search]{flex:1;min-width:180px;padding:9px 12px;border:1px solid var(--line);border-radius:11px;background:var(--card)}
+.hintline{color:var(--muted);font-size:12.3px;margin:8px 0 0}
+.note{border:1px dashed var(--line);border-radius:12px;padding:10px 12px;color:var(--muted);font-size:12.4px;background:color-mix(in srgb,var(--bg2) 50%,transparent)}
+.note b{color:var(--ink)}
+
+/* ---------- memory garden ---------- */
+.mem-top{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+.chips{display:flex;gap:7px;flex-wrap:wrap}
+.chip{border:1px solid var(--line);background:var(--card);color:var(--muted);padding:5px 11px;border-radius:999px;cursor:pointer;font-size:12.5px;transition:.15s}
+.chip:hover{border-color:var(--acc);color:var(--acc)}
+.chip.on{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:650}
+.chip .n{opacity:.75;margin-left:3px}
+.dates{display:flex;gap:7px;overflow:auto;padding:8px 2px 2px;margin:6px 0 12px;scrollbar-width:thin}
+.date{border:1px solid var(--line);background:var(--card);color:var(--muted);padding:5px 11px;border-radius:10px;white-space:nowrap;cursor:pointer;font-size:12.3px}
+.date.on{background:var(--acc-soft);color:var(--acc);border-color:color-mix(in srgb,var(--acc) 40%,var(--line));font-weight:650}
+.garden{min-height:210px;display:flex;flex-wrap:wrap;gap:18px 22px;align-items:center;
+  justify-content:space-evenly;align-content:center;
+  padding:22px;border:1px solid var(--line);border-radius:16px;background:
+  radial-gradient(circle at 1px 1px,color-mix(in srgb,var(--line) 60%,transparent) 1px,transparent 0) 0 0/18px 18px,
+  color-mix(in srgb,var(--bg2) 55%,transparent)}
+.dot{--c:#94c5be;--s:26px;width:var(--s);height:var(--s);border-radius:50%;border:0;cursor:pointer;position:relative;
+  background:radial-gradient(circle at 34% 28%,#ffffffb8,transparent 38%),var(--c);
+  box-shadow:0 0 0 4px color-mix(in srgb,var(--c) 16%,transparent),0 3px 9px color-mix(in srgb,var(--c) 35%,transparent);
+  transition:transform .15s,box-shadow .15s;margin:0}
+.dot:hover{transform:scale(1.18);box-shadow:0 0 0 6px color-mix(in srgb,var(--c) 24%,transparent),0 6px 16px color-mix(in srgb,var(--c) 48%,transparent)}
+.dot.trash{opacity:.45;filter:grayscale(.25)}
+.dot.pulse{animation:pulse .35s ease}
+@keyframes pulse{50%{transform:scale(1.35);filter:brightness(1.12)}}
+.mem-detail{border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-top:12px;background:color-mix(in srgb,var(--card) 80%,var(--bg2))}
+.mem-detail .t{font-weight:700;font-size:15px;word-break:break-word}
+.mem-detail .meta{color:var(--muted);font-size:12.3px;margin:5px 0 10px;line-height:1.8}
+.mem-detail .actions{display:flex;gap:8px;flex-wrap:wrap}
+.mem-list{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:12px}
+@media(max-width:760px){.mem-list{grid-template-columns:1fr}}
+.mem-item{border:1px solid var(--line);border-radius:13px;padding:10px 12px;background:var(--card);display:flex;gap:10px;align-items:flex-start}
+.mem-item .body{flex:1;min-width:0}
+.mem-item .t{font-weight:650;word-break:break-word;font-size:13.6px}
+.mem-item .m{color:var(--muted);font-size:11.5px;margin-top:3px;line-height:1.7}
+.mem-item .tag{display:inline-block;font-size:10.5px;padding:0 6px;border-radius:999px;margin-right:5px;
+  background:var(--acc-soft);color:var(--acc);font-weight:650}
+.mem-item .tag.low{background:color-mix(in srgb,var(--muted) 15%,transparent);color:var(--muted)}
+.mem-item .tag.bad{background:var(--bad-soft);color:var(--bad)}
+.mem-item .del{border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:17px;line-height:1;padding:2px 4px}
+.mem-item .del:hover{color:var(--bad)}
+.empty{color:var(--muted);font-size:13px;padding:28px 0;text-align:center}
+details.adv{border-top:1px dashed var(--line);padding-top:12px;margin-top:6px}
+details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
+
+/* ---------- style / health ---------- */
+.kb{white-space:pre-wrap;word-break:break-word;background:color-mix(in srgb,var(--bg2) 55%,transparent);
+  border:1px solid var(--line);border-radius:13px;padding:13px 14px;font-size:13px;line-height:1.8;min-height:96px}
+.progress{height:8px;border-radius:999px;background:var(--bg2);overflow:hidden;margin:10px 0 4px}
+.progress i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--acc),var(--acc2));border-radius:999px;transition:width .3s}
+.src{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.src .tag{font-size:11.5px;padding:3px 9px;border-radius:999px;background:var(--acc-soft);color:var(--acc);font-weight:650}
+.src .tag.web{background:var(--warn-soft);color:var(--warn)}
+.sev{display:inline-block;font-size:10.5px;padding:2px 7px;border-radius:999px;font-weight:700}
+.sev.direct{background:var(--bad-soft);color:var(--bad)}
+.sev.warning{background:var(--warn-soft);color:var(--warn)}
+.sev.info{background:var(--acc-soft);color:var(--acc)}
+.plug{border:1px solid var(--line);border-radius:13px;padding:11px 13px;margin-top:9px;background:var(--card)}
+.plug .top{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+.plug .top b{font-size:13.6px}
+.plug .why{color:var(--muted);font-size:12.2px;margin-top:5px;line-height:1.7}
+.plug .why li{margin:2px 0}
+.feedback-actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:10px}
+.fb-item{border-bottom:1px dashed var(--line);padding:8px 0;font-size:12.4px;color:var(--muted)}
+.fb-item b{color:var(--ink)}
+
+/* ---------- dock / toast / modal ---------- */
+.dock{position:fixed;left:0;right:0;bottom:0;background:color-mix(in srgb,var(--card) 92%,transparent);
+  backdrop-filter:blur(12px);border-top:1px solid var(--line);padding:11px 16px;display:flex;gap:12px;align-items:center;justify-content:center;z-index:8}
+.dock .hint{color:var(--muted);font-size:12.5px;max-width:70vw}
+.dock button{font:inherit;padding:10px 20px;border-radius:11px;border:0;background:linear-gradient(135deg,var(--acc),var(--acc2));color:#fff;cursor:pointer;font-weight:650}
+.dock button:disabled{opacity:.4;cursor:default}
+.toast{position:fixed;left:50%;bottom:78px;transform:translateX(-50%) translateY(8px);opacity:0;
+  background:#10201d;color:#fff;padding:9px 16px;border-radius:11px;font-size:13px;transition:.18s;pointer-events:none;z-index:9;max-width:80vw}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+.modal-mask{position:fixed;inset:0;background:rgba(8,17,15,.5);display:flex;align-items:center;
+  justify-content:center;padding:18px;z-index:20}
+.modal-mask[hidden]{display:none}
+.modal-box{background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:16px;
+  box-shadow:var(--shadow);max-width:430px;width:100%;padding:18px 20px}
+.modal-box p{margin:0;font-size:14px;line-height:1.75;white-space:pre-wrap}
+.modal-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:16px}
+.modal-actions button{font:inherit;padding:8px 16px;border-radius:10px;cursor:pointer;border:1px solid var(--line);
+  background:var(--card);color:var(--ink)}
+.modal-actions button.danger{border-color:var(--bad);background:var(--bad);color:#fff}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <div class="brand">
+      <div class="logo">真</div>
+      <div><b>真心</b><small id="ver">v--</small></div>
+    </div>
+    <nav id="nav">
+      <button data-tab="behavior" class="on"><span class="ico">◎</span>行为与状态</button>
+      <button data-tab="memory"><span class="ico">✦</span>记忆<span class="pill" id="memcount">0</span></button>
+      <button data-tab="voice"><span class="ico">◌</span>说话习惯</button>
+      <button data-tab="health"><span class="ico">✓</span>体检与反馈</button>
+      <button data-tab="advanced"><span class="ico">⚙</span>高级</button>
+      <button data-tab="reset"><span class="ico">↺</span>重置</button>
+    </nav>
+    <div class="side-foot" id="side-status">正在连接 AstrBot…</div>
+  </aside>
+
+  <main>
+    <!-- always-on realtime strip: replaces the old 概览 + 花费 pages -->
+    <div class="realtime" id="realtime">
+      <div class="rt-head">
+        <span class="rt-dot shadow" id="rt-dot"></span>
+        <h2>实时状态</h2>
+        <span class="badge" id="rt-mode">观察模式</span>
+        <span class="badge" id="rt-usage">用量：--</span>
+        <span class="rt-time" id="rt-time">尚未刷新</span>
+        <button class="refresh" id="refresh" title="重新读取数据库里的实时状态"><span class="r">⟳</span>刷新</button>
+      </div>
+      <div class="kpis">
+        <div class="kpi"><div class="k">已记录轮次</div><div class="v" id="k-rounds">--</div></div>
+        <div class="kpi"><div class="k">缓存命中</div><div class="v" id="k-hit">--</div></div>
+        <div class="kpi"><div class="k">长期记忆</div><div class="v" id="k-facts">--</div></div>
+        <div class="kpi"><div class="k">累计花费 <span class="badge" id="k-cost-kind">真实</span></div><div class="v" id="k-cost">--</div></div>
+        <div class="kpi"><div class="k">L0 / 近窗</div><div class="v" id="k-window">--</div></div>
+      </div>
+      <div class="chart-wrap">
+        <svg class="chart" id="chart" viewBox="0 0 900 74" preserveAspectRatio="none"></svg>
+        <div class="chart-empty" id="chart-empty" hidden>还没有轮次数据，先聊几句；这里会自动出现每轮消耗。</div>
+      </div>
+      <div class="legend" id="legend"></div>
+      <div class="health" id="health"></div>
+    </div>
+
+    <section id="tab-behavior" class="on">
+      <h1>行为与状态</h1>
+      <p class="sub">只有这里和“说话习惯”里的开关真的会改变回复。改完点底部保存，下一轮生效，不用重启。</p>
+
+      <div class="card">
+        <h2>对话接管</h2>
+        <p class="lead">真心不换模型，只决定每一轮把哪些上下文交给模型。</p>
+        <div class="row"><div class="txt"><b>只观察，不改回复</b>
+          <p>开启后只记录数据，不碰 AstrBot 的上下文。第一次装建议先观察 50 轮。</p></div>
+          <div class="ctl"><label class="switch"><input type="checkbox" data-path="shadow_mode"><span></span></label></div></div>
+        <div class="row"><div class="txt"><b>由真心接管最近对话</b>
+          <p>接管后只发最近几轮 + 少量长期线索，这是省钱的主要来源；和别的记忆插件共存时选“不接管”。</p></div>
+          <div class="ctl"><div class="seg" id="hostmode">
+            <button data-v="replace">接管</button><button data-v="off">不接管</button></div></div></div>
+        <div class="row"><div class="txt"><b>线索块放在请求末尾</b>
+          <p>保护缓存的关键：换线索时不会让整段系统提示失效。关闭仅用于对照实验。</p></div>
+          <div class="ctl"><label class="switch"><input type="checkbox" data-path="l0.tail_injection"><span></span></label><span class="hintline" id="tail-state"></span></div></div>
+      </div>
+
+      <div class="card">
+        <h2>长期线索</h2>
+        <p class="lead">像“养了猫叫团子”“不吃香菜”这种。条数越多越像记得住，但也越费 token。</p>
+        <div class="row"><div class="txt"><b>每轮带几条长期线索</b>
+          <p>上限已从 3 条放宽到 8 条。默认 3 条是实测性价比最高的档位。</p></div>
+          <div class="ctl"><input type="range" min="1" max="8" step="1" data-path="l0.inject"><span class="val" id="v-l0">3</span></div></div>
+        <div class="row"><div class="txt"><b>线索总字数上限</b>
+          <p>防止线索太长撑爆上下文。8 条全开时建议至少 260 字。</p></div>
+          <div class="ctl"><input type="number" min="60" max="600" step="10" data-path="l0.max_inject_chars"></div></div>
+        <div class="row"><div class="txt"><b>单条线索字数上限</b>
+          <p>超过就截断，避免一条长记忆挤掉其他线索。</p></div>
+          <div class="ctl"><input type="number" min="10" max="60" step="5" data-path="l0.max_seed_chars"></div></div>
+      </div>
+
+      <div class="card">
+        <h2>最近窗口</h2>
+        <p class="lead">决定模型还能看到多久的原文。太少接不上话，太多就贵。</p>
+        <div class="row"><div class="txt"><b>保留几轮对话</b>
+          <p>默认 8 轮；长对话建议 8–12 轮。</p></div>
+          <div class="ctl"><input type="range" min="2" max="20" step="1" data-path="l3.recent_turns"><span class="val" id="v-recent">8</span></div></div>
+        <div class="row"><div class="txt"><b>窗口回收步长（轮）</b>
+          <p>窗口先追加，涨到“保留轮数 + 步长”才一次回收，缓存更稳。0 表示每轮滑动。</p></div>
+          <div class="ctl"><input type="number" min="0" max="12" step="1" data-path="l3.window_grow_turns"></div></div>
+        <div class="row"><div class="txt"><b>超预算后回收到比例</b>
+          <p>0.7 表示一次砍到预算的 70%，避免每轮都砍。</p></div>
+          <div class="ctl"><input type="number" min="0.3" max="1" step="0.05" data-path="l3.recent_char_low_water"></div></div>
+      </div>
+
+      <div class="card">
+        <h2>主动消息</h2>
+        <p class="lead">让真心先开口。默认关闭；打开后只在最近活跃的私聊、非静默时段、满足空闲与间隔时发一条。</p>
+        <div class="row"><div class="txt"><b>启用主动消息</b>
+          <p>素材来自未完成事项或高价值记忆，默认零额外模型调用。</p></div>
+          <div class="ctl"><label class="switch"><input type="checkbox" data-path="proactive.enabled"><span></span></label></div></div>
+        <div class="row"><div class="txt"><b>对方多久没说话才发</b>
+          <p>单位：分钟。默认 180 分钟，避免对方刚走开就追消息。</p></div>
+          <div class="ctl"><input type="number" min="10" max="1440" step="10" data-path="proactive.min_idle_minutes"></div></div>
+        <div class="row"><div class="txt"><b>两次之间最短间隔</b>
+          <p>单位：小时。默认 12 小时。</p></div>
+          <div class="ctl"><input type="number" min="1" max="168" step="1" data-path="proactive.min_interval_hours"></div></div>
+        <div class="row"><div class="txt"><b>每个会话每天最多几条</b>
+          <p>重启也不会重置这个上限。0 表示当天不发。</p></div>
+          <div class="ctl"><input type="number" min="0" max="6" step="1" data-path="proactive.max_per_day"></div></div>
+        <div class="row"><div class="txt"><b>静默时段</b>
+          <p>这两个小时内绝不主动发消息（跨午夜也支持）。</p></div>
+          <div class="ctl">从 <input type="number" min="0" max="23" step="1" data-path="proactive.quiet_start" style="min-width:68px"> 点到
+            <input type="number" min="0" max="23" step="1" data-path="proactive.quiet_end" style="min-width:68px"> 点</div></div>
+        <div class="row"><div class="txt"><b>只发私聊</b>
+          <p>群聊里主动说话容易打扰，默认关闭群聊。</p></div>
+          <div class="ctl"><label class="switch"><input type="checkbox" data-path="proactive.only_private"><span></span></label></div></div>
+        <div class="row"><div class="txt"><b>用主模型润色</b>
+          <p>关闭时用本地模板；开启后会多一次模型调用，失败自动回退模板。</p></div>
+          <div class="ctl"><label class="switch"><input type="checkbox" data-path="proactive.use_llm"><span></span></label></div></div>
+        <div class="row"><div class="txt"><b>单条字数上限</b>
+          <p>主动消息越短越像真人。默认 80 字。</p></div>
+          <div class="ctl"><input type="number" min="20" max="200" step="10" data-path="proactive.max_chars"></div></div>
+        <div class="row"><div class="txt"><b>自定义话术（可留空）</b>
+          <p>可用 <code>{loop}</code> 表示未完成事项、<code>{fact}</code> 表示一条记忆；留空用内置自然话术。</p></div>
+          <div class="ctl" style="flex:1 1 320px"><input type="text" data-path="proactive.template" placeholder="例如：突然想起，{fact}。" style="width:100%"></div></div>
+        <div class="tools" style="margin-top:12px">
+          <button class="btn small" id="proactive-preview">刷新候选预览</button>
+          <button class="btn small primary" id="proactive-test">立即试发一条</button>
+        </div>
+        <div id="proactive-list" class="note" style="margin-top:10px">打开“主动消息”后，这里会显示最近可发送的会话与内容预览。</div>
+      </div>
+
+      <div class="card">
+        <h2>推荐设置</h2>
+        <p class="lead">“推荐”是实测比较稳的组合，并且会由真心接管对话；“恢复默认”回到刚装好时的原始配置（观察模式）。</p>
+        <div class="tools">
+          <button class="btn primary" id="takeover">由真心接管对话</button>
+          <button class="btn" id="preset">恢复推荐设置</button>
+          <button class="btn" id="defaults">恢复默认配置</button>
+        </div>
+        <p class="hintline" id="preset-hint">三个按钮都只改表单，确认无误后再点底部“保存并生效”。</p>
+      </div>
+    </section>
+
+    <section id="tab-memory">
+      <h1>记忆花园</h1>
+      <p class="sub">每颗点是一条记忆：颜色越深越重要、越不容易忘，点一下可以继续加深。记忆按时间自动排序，默认只看今天，也可以切换日期或看全部。</p>
+      <div class="card">
+        <div class="mem-top">
+          <div class="chips" id="pool-chips"></div>
+          <div class="tools" style="margin:0">
+            <input type="search" id="memsearch" placeholder="搜索记忆内容，例如：香菜 / 海盐 / 团子">
+            <button class="btn small danger" id="memclear">清空全部</button>
+          </div>
+        </div>
+        <div class="dates" id="dates"></div>
+        <div class="garden" id="garden"></div>
+        <div id="mem-detail"></div>
+        <div class="mem-list" id="memlist"></div>
+        <details class="adv" id="traces-box">
+          <summary>已淡出的关键词痕迹（<span id="tracecount">0</span>）</summary>
+          <p class="lead" style="margin:8px 0 10px">这些记忆已经被彻底删除，只留关键词，不会再进入模型。</p>
+          <div class="mem-list" id="tracelist"></div>
+        </details>
+      </div>
+      <div class="card">
+        <h2>四个池子怎么工作</h2>
+        <p class="lead">周期结束后，记忆会按“艾宾浩斯式”的保持度分流；高价值加深，低价值优先遗忘，避免上下文越来越长。</p>
+        <div class="note">
+          <b>周期池</b>：刚记住、还在观察中；<b>珍藏池</b>：重要且常被提到，衰减更慢；<b>浅忆池</b>：低价值，只有强相关时才想起；<b>回收池</b>：你明确说“不用了/别叫我X”或手动移入，默认 7 天后彻底删除。<br>
+          被提到越多、点得越多，颜色越深，遗忘越慢；长时间不再被提到会自然变浅。
+        </div>
+      </div>
+    </section>
+
+    <section id="tab-voice">
+      <h1>说话习惯</h1>
+      <p class="sub">真心会慢慢学习真人怎么聊天：一边模仿你本人的句长、语气词、表情和追问习惯，一边周期性从网络补充聊天知识，最后压缩成一个小知识库。主动消息的开关在“行为与状态”。</p>
+      <div class="card">
+        <h2>像真人一样说话</h2>
+        <p class="lead">知识库最多 500 字，每轮只取其中约 110 字放进请求末尾，不会把上下文撑长；学习过程不调用主模型。</p>
+        <div class="row"><div class="txt"><b>启用说话学习</b>
+          <p>关闭后不再学习，也不再把“像真人”的提示带进请求。</p></div>
+          <div class="ctl"><label class="switch"><input type="checkbox" data-path="style_learning.enabled"><span></span></label></div></div>
+        <div class="row"><div class="txt"><b>基础风格自适应</b>
+          <p>老版的句长/表情/追问统计；关掉就只保留下面的真人知识库。</p></div>
+          <div class="ctl"><label class="switch"><input type="checkbox" data-path="aux.style"><span></span></label></div></div>
+        <div class="row"><div class="txt"><b>模仿用户本人</b>
+          <p>从你最近的消息里统计句长、口头禅、笑声、标点、表情和提问频率。</p></div>
+          <div class="ctl"><label class="switch"><input type="checkbox" data-path="style_learning.learn_user"><span></span></label></div></div>
+        <div class="row"><div class="txt"><b>周期性从网络学习</b>
+          <p>默认 7 天一次，搜索公开的聊天习惯资料，用规则提炼成短句；网络失败会保留上一次结果。</p></div>
+          <div class="ctl"><label class="switch"><input type="checkbox" data-path="style_learning.online"><span></span></label></div></div>
+        <div class="row"><div class="txt"><b>联网学习间隔</b>
+          <p>单位：天。太频繁没必要，7–14 天足够。</p></div>
+          <div class="ctl"><input type="number" min="1" max="30" step="1" data-path="style_learning.interval_days"></div></div>
+        <div class="row"><div class="txt"><b>知识库字数上限</b>
+          <p>超过会自动删减；默认 500 字。</p></div>
+          <div class="ctl"><input type="number" min="200" max="800" step="50" data-path="style_learning.max_chars"></div></div>
+        <div class="tools" style="margin-top:12px">
+          <select id="style-user" title="选择要查看的会话"></select>
+          <button class="btn" id="style-local">立即从本地对话学习</button>
+          <button class="btn primary" id="style-online">联网更新</button>
+        </div>
+        <div class="progress"><i id="kb-bar"></i></div>
+        <div class="hintline" id="kb-meta">还没有学习结果，先聊几句再点“立即学习”。</div>
+        <div class="kb" id="kb-box">（空）</div>
+        <div class="src" id="kb-src"></div>
+        <p class="hintline" id="kb-error"></p>
+      </div>
+    </section>
+
+    <section id="tab-health">
+      <h1>体检与反馈</h1>
+      <p class="sub">先看看有没有和别的插件重复/冲突，再把使用中遇到的问题直接发回来。</p>
+      <div class="card">
+        <h2>插件冲突扫描</h2>
+        <p class="lead">扫描 AstrBot 已安装插件里也会改写上下文、系统提示或做记忆/摘要的插件。扫描在本机完成，不会上传任何聊天内容。</p>
+        <div class="tools">
+          <button class="btn primary" id="scan">开始扫描</button>
+          <span class="hintline" id="scan-time"></span>
+        </div>
+        <div id="scan-summary" class="note">还没有扫描。点“开始扫描”即可。</div>
+        <div id="scan-list"></div>
+      </div>
+      <div class="card">
+        <h2>问题反馈</h2>
+        <p class="lead">反馈会先保存到插件自己的数据库；也可以点“打开 GitHub Issue”把它提交到仓库，方便跟进。</p>
+        <div class="row"><div class="txt"><b>类型</b><p>选一个最接近的。</p></div>
+          <div class="ctl"><select id="fb-category">
+            <option value="bug">功能异常 / Bug</option>
+            <option value="suggestion">功能建议</option>
+            <option value="conflict">与其他插件冲突</option>
+            <option value="other">其他</option>
+          </select></div></div>
+        <p class="lead" style="margin:10px 0 4px">问题描述</p>
+        <textarea id="fb-content" placeholder="尽量写清楚：你做了什么、预期是什么、实际发生了什么。可以附上报错文字。"></textarea>
+        <p class="lead" style="margin:10px 0 4px">联系方式（可选）</p>
+        <input type="text" id="fb-contact" placeholder="QQ / 邮箱 / GitHub 用户名" style="width:100%">
+        <div class="feedback-actions">
+          <button class="btn primary" id="fb-submit">保存反馈</button>
+          <button class="btn" id="fb-issue" disabled>打开 GitHub Issue</button>
+          <span class="hintline" id="fb-hint"></span>
+        </div>
+        <details class="adv" style="margin-top:12px">
+          <summary>最近的本地反馈</summary>
+          <div id="fb-list" class="hintline">还没有反馈。</div>
+        </details>
+      </div>
+    </section>
+
+    <section id="tab-advanced">
+      <h1>高级</h1>
+      <p class="sub">这些一般不用动。改坏了可以回“行为与状态”点恢复推荐设置。</p>
+      <div class="card">
+        <h2>换线索的节奏</h2>
+        <div class="row"><div class="txt"><b>切换线索的惰性</b>
+          <p>越高越不容易换线索，越稳定；越低越容易跟着情绪换。</p></div>
+          <div class="ctl"><input type="number" min="0.5" max="3" step="0.1" data-path="l0.hysteresis"></div></div>
+        <div class="row"><div class="txt"><b>最短换线索间隔（轮）</b>
+          <p>两次换线索之间至少隔几轮。</p></div>
+          <div class="ctl"><input type="number" min="1" max="30" step="1" data-path="l0.min_dwell_rounds"></div></div>
+        <div class="row"><div class="txt"><b>检查换线索的间隔（轮）</b>
+          <p>每隔几轮才重新排一次线索。</p></div>
+          <div class="ctl"><input type="number" min="1" max="30" step="1" data-path="l0.rebalance_interval"></div></div>
+        <div class="row"><div class="txt"><b>每轮亮度衰减</b>
+          <p>越大忘得越慢；0.99 是默认值。</p></div>
+          <div class="ctl"><input type="number" min="0.95" max="1" step="0.001" data-path="l0.decay"></div></div>
+      </div>
+      <div class="card">
+        <h2>记忆检索权重</h2>
+        <p class="lead">这几项决定“哪条记忆会被带进这一轮”。权重相加不必等于 1，插件会按得分排序；改完可以回记忆页看效果。</p>
+        <div class="row"><div class="txt"><b>语义相似</b><p>字面/向量有多接近。</p></div>
+          <div class="ctl"><input type="range" min="0" max="1" step="0.01" data-path="memory.weight_semantic"><span class="val" id="v-w-sem">0.50</span></div></div>
+        <div class="row"><div class="txt"><b>重要度</b><p>写入时判定的重要程度。</p></div>
+          <div class="ctl"><input type="range" min="0" max="1" step="0.01" data-path="memory.weight_importance"><span class="val" id="v-w-imp">0.18</span></div></div>
+        <div class="row"><div class="txt"><b>记忆保持度</b><p>艾宾浩斯式剩余强度，越新越强。</p></div>
+          <div class="ctl"><input type="range" min="0" max="1" step="0.01" data-path="memory.weight_recency"><span class="val" id="v-w-rec">0.12</span></div></div>
+        <div class="row"><div class="txt"><b>被用过次数</b><p>实际被检索到的次数。</p></div>
+          <div class="ctl"><input type="range" min="0" max="1" step="0.01" data-path="memory.weight_usage"><span class="val" id="v-w-use">0.10</span></div></div>
+        <div class="row"><div class="txt"><b>记忆类型</b><p>称呼/偏好/关系/未完成事项的优先级不同。</p></div>
+          <div class="ctl"><input type="range" min="0" max="1" step="0.01" data-path="memory.weight_kind"><span class="val" id="v-w-kind">0.05</span></div></div>
+        <div class="row"><div class="txt"><b>命中原文词的加分</b><p>提高“原话里出现同一个词”的记忆。</p></div>
+          <div class="ctl"><input type="number" min="0" max="0.5" step="0.01" data-path="memory.exact_boost"></div></div>
+        <div class="row"><div class="txt"><b>称呼/名字加分</b><p>“叫我X”这类记忆每轮都会带上。</p></div>
+          <div class="ctl"><input type="number" min="0" max="0.6" step="0.01" data-path="memory.address_boost"></div></div>
+        <div class="row"><div class="txt"><b>每轮最多带几条记忆</b><p>默认 3 条，最多 5 条。</p></div>
+          <div class="ctl"><input type="number" min="1" max="5" step="1" data-path="memory.top_k"></div></div>
+        <div class="row"><div class="txt"><b>检索最低分</b><p>越高越严格，越低越容易翻出旧事。</p></div>
+          <div class="ctl"><input type="number" min="0.1" max="0.8" step="0.01" data-path="memory.min_score"></div></div>
+      </div>
+      <div class="card">
+        <h2>遗忘周期</h2>
+        <div class="row"><div class="txt"><b>周期长度（天）</b><p>到点后重新评估进哪个池子。</p></div>
+          <div class="ctl"><input type="number" min="1" max="60" step="1" data-path="memory.cycle_days"></div></div>
+        <div class="row"><div class="txt"><b>记忆半衰期（天）</b><p>没有新提及时，强度衰减到一半所需时间。</p></div>
+          <div class="ctl"><input type="number" min="3" max="120" step="1" data-path="memory.decay_half_life_days"></div></div>
+        <div class="row"><div class="txt"><b>进珍藏池的强度线</b><p>高于它进珍藏池，衰减更慢。</p></div>
+          <div class="ctl"><input type="number" min="0.3" max="0.95" step="0.01" data-path="memory.treasure_threshold"></div></div>
+        <div class="row"><div class="txt"><b>进浅忆池的强度线</b><p>低于它进浅忆池，优先遗忘。</p></div>
+          <div class="ctl"><input type="number" min="0.05" max="0.6" step="0.01" data-path="memory.shallow_threshold"></div></div>
+        <div class="row"><div class="txt"><b>回收池保留天数</b><p>到期彻底删除，只留关键词痕迹。</p></div>
+          <div class="ctl"><input type="number" min="1" max="30" step="1" data-path="memory.trash_ttl_days"></div></div>
+      </div>
+      <div class="card">
+        <h2>按需回忆 / 写入 / 辅助模块</h2>
+        <details class="adv">
+          <summary>展开（默认就好）</summary>
+          <div class="row"><div class="txt"><b>启用按需回忆</b><p>出现“上次/之前”这类强指代时，才去翻旧记忆。</p></div>
+            <div class="ctl"><label class="switch"><input type="checkbox" data-path="l1.enabled"><span></span></label></div></div>
+          <div class="row"><div class="txt"><b>回忆冷却（轮）</b><p>同一条旧记忆多久内不重复翻。</p></div>
+            <div class="ctl"><input type="number" min="1" max="30" step="1" data-path="l1.wake_cooldown_rounds"></div></div>
+          <div class="row"><div class="txt"><b>启用零调用写入</b><p>用规则从对话里抽线索，不调用模型。</p></div>
+            <div class="ctl"><label class="switch"><input type="checkbox" data-path="l2.enabled"><span></span></label></div></div>
+          <div class="row"><div class="txt"><b>话题栈</b><p>切话题/回话题时把上一句带回来。</p></div>
+            <div class="ctl"><label class="switch"><input type="checkbox" data-path="aux.topic_stack"><span></span></label></div></div>
+          <div class="row"><div class="txt"><b>长消息压缩</b><p>超长消息只保留情绪和要点，不调用模型。</p></div>
+            <div class="ctl"><label class="switch"><input type="checkbox" data-path="aux.compression"><span></span></label></div></div>
+          <div class="row"><div class="txt"><b>回复节奏</b><p>约束字数、少追问、不加表情。</p></div>
+            <div class="ctl"><label class="switch"><input type="checkbox" data-path="aux.rhythm"><span></span></label></div></div>
+          <div class="row"><div class="txt"><b>用户词汇表</b><p>记住你习惯的叫法，回复时跟着用。</p></div>
+            <div class="ctl"><label class="switch"><input type="checkbox" data-path="aux.lexicon"><span></span></label></div></div>
+          <div class="row"><div class="txt"><b>未完成事项</b><p>“周五交稿”这类事没做完之前会提醒。</p></div>
+            <div class="ctl"><label class="switch"><input type="checkbox" data-path="aux.open_loops"><span></span></label></div></div>
+          <div class="row"><div class="txt"><b>负面模式黑名单</b><p>记住你不喜欢的表达方式。</p></div>
+            <div class="ctl"><label class="switch"><input type="checkbox" data-path="aux.negative_patterns"><span></span></label></div></div>
+        </details>
+      </div>
+    </section>
+
+    <section id="tab-reset">
+      <h1>重置</h1>
+      <p class="sub">换了模型、新开对话，或者真心学歪了的时候，可以在这里清掉学到的东西。</p>
+      <div class="card"><h2>对话状态</h2>
+        <p class="lead">清空最近窗口、长期线索、话题栈、未完成事项和短句固化路径。AstrBot 的聊天记录和长期记忆不受影响。</p>
+        <button class="btn danger" data-reset="conversation">重置对话状态</button></div>
+      <div class="card"><h2>长期记忆</h2>
+        <p class="lead">清空记忆库（“不吃香菜”“养了猫叫团子”这类），包括回收池和关键词痕迹。</p>
+        <button class="btn danger" data-reset="memory">清空记忆库</button></div>
+      <div class="card"><h2>说话习惯与主动消息记录</h2>
+        <p class="lead">清空学到的说话知识库和主动消息发送记录，下一条消息重新开始学。</p>
+        <button class="btn danger" data-reset="style">清空说话学习</button></div>
+      <div class="card"><h2>花费与错误统计</h2>
+        <p class="lead">清空花费曲线、轮次记录和错误计数，方便从今天重新观察。</p>
+        <button class="btn danger" data-reset="metrics">清空统计</button></div>
+      <div class="card"><h2>全部恢复初始</h2>
+        <p class="lead">把上面全部清空，并把配置恢复成刚装好时的默认值。不能撤销，建议先备份
+          <code>data/plugin_data/astrbot_plugin_zhenxin/zhenxin.sqlite3</code>。</p>
+        <button class="btn danger" data-reset="all">全部重置</button></div>
+    </section>
+  </main>
+</div>
+
+<div class="dock">
+  <span class="hint" id="dock-hint">改动会在下一轮生效，不需要重启</span>
+  <button id="save" disabled>保存并生效</button>
+</div>
+<div class="toast" id="toast"></div>
+<div class="modal-mask" id="confirm-mask" hidden>
+  <div class="modal-box" role="dialog" aria-modal="true">
+    <p id="confirm-text"></p>
+    <div class="modal-actions">
+      <button type="button" id="confirm-cancel">取消</button>
+      <button type="button" class="danger" id="confirm-ok">确定</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+  const state = {
+    config: {}, defaults: {}, defaultsApplied: false, metrics: {}, health: {},
+    series: [], facts: [], traces: [], archivedTotal: 0, pools: {}, dates: [],
+    mem: { view: "day", date: "", pool: "", user: "" },
+    style: { users: [], selected: "" }, dirty: false, build: {}, usage: {}, proactive: null
+  };
+  const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+  // AstrBot injects its bridge at the end of <body>, after this script. Resolve
+  // lazily; capturing it at parse time yields undefined and every save fails.
+  function getBridge() { return window.AstrBotPluginView || window.AstrBotPluginPage || null; }
+  async function waitForBridge(timeoutMs = 10000) {
+    const started = Date.now();
+    while (!getBridge()) {
+      if (Date.now() - started > timeoutMs) return null;
+      await new Promise((r) => setTimeout(r, 60));
+    }
+    return getBridge();
+  }
+  async function callGet(path, params) {
+    const bridge = await waitForBridge();
+    if (!bridge) throw new Error("没有检测到 AstrBot 页面桥，请从「插件 → 真心」重新打开本页");
+    const res = await bridge.apiGet(path, params || {});
+    return res && res.status === "ok" ? res.data : (res && res.data ? res.data : res);
+  }
+  async function callPost(path, body) {
+    const bridge = await waitForBridge();
+    if (!bridge) throw new Error("没有检测到 AstrBot 页面桥，请从「插件 → 真心」重新打开本页");
+    const res = await bridge.apiPost(path, body || {});
+    const data = res && res.status === "ok" ? res.data : (res && res.data ? res.data : res);
+    if (data && data.ok === false) throw new Error(data.message || "请求失败");
+    return data;
+  }
+  function toast(msg) {
+    const el = $("#toast");
+    el.textContent = msg; el.classList.add("on");
+    clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove("on"), 2200);
+  }
+  // The plugin page runs in a sandboxed iframe where window.confirm is blocked.
+  function askConfirm(message) {
+    return new Promise((resolve) => {
+      const mask = $("#confirm-mask"), ok = $("#confirm-ok"), cancel = $("#confirm-cancel");
+      $("#confirm-text").textContent = message;
+      mask.hidden = false;
+      const finish = (value) => {
+        mask.hidden = true; ok.onclick = null; cancel.onclick = null; mask.onclick = null;
+        document.removeEventListener("keydown", onKey); resolve(value);
+      };
+      const onKey = (e) => { if (e.key === "Escape") finish(false); if (e.key === "Enter") finish(true); };
+      ok.onclick = () => finish(true);
+      cancel.onclick = () => finish(false);
+      mask.onclick = (e) => { if (e.target === mask) finish(false); };
+      document.addEventListener("keydown", onKey);
+      setTimeout(() => ok.focus(), 0);
+    });
+  }
+  const fmt = (n) => n == null || isNaN(n) ? "--" : Number(n).toLocaleString("zh-CN");
+  const pct = (x) => x == null || isNaN(x) ? "--" : (Number(x) * 100).toFixed(1) + "%";
+  const num = (v, d) => { const n = Number(v); return isNaN(n) ? d : n; };
+  function when(ts) {
+    if (!ts) return "从未";
+    const d = new Date(Number(ts) * 1000);
+    return d.toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+  }
+  function dayLabel(date) {
+    const today = new Date(); const pad = (n) => String(n).padStart(2, "0");
+    const t = today.getFullYear() + "-" + pad(today.getMonth() + 1) + "-" + pad(today.getDate());
+    if (date === t) return "今天";
+    const y = new Date(today.getTime() - 86400000);
+    const ymd = y.getFullYear() + "-" + pad(y.getMonth() + 1) + "-" + pad(y.getDate());
+    if (date === ymd) return "昨天";
+    return date.slice(5);
+  }
+
+  // ------------------------------------------------------------- navigation
+  $("#nav").addEventListener("click", (e) => {
+    const btn = e.target.closest("button[data-tab]");
+    if (!btn) return;
+    $$("#nav button").forEach((b) => b.classList.toggle("on", b === btn));
+    $$("main section").forEach((s) => s.classList.toggle("on", s.id === "tab-" + btn.dataset.tab));
+    if (btn.dataset.tab === "memory") loadMemory();
+    if (btn.dataset.tab === "voice") loadStyle();
+    if (btn.dataset.tab === "health") { loadFeedback(); if (!state.scanDone) runScan(); }
+  });
+
+  // ------------------------------------------------------------- config
+  function get(path, def) {
+    return String(path).split(".").reduce((o, k) => (o == null ? o : o[k]), state.config) ?? def;
+  }
+  function setPath(path, value) {
+    const parts = String(path).split(".");
+    let cur = state.config;
+    for (let i = 0; i < parts.length - 1; i++) {
+      if (typeof cur[parts[i]] !== "object" || cur[parts[i]] == null) cur[parts[i]] = {};
+      cur = cur[parts[i]];
+    }
+    cur[parts[parts.length - 1]] = value;
+    markDirty();
+  }
+  function markDirty() {
+    state.dirty = true;
+    $("#save").disabled = false;
+    $("#dock-hint").textContent = "有未保存的改动，点右边保存后下一轮生效";
+  }
+  function bindConfig() {
+    $$("[data-path]").forEach((el) => {
+      const path = el.dataset.path;
+      const v = get(path);
+      if (el.type === "checkbox") el.checked = Boolean(v);
+      else el.value = v == null ? "" : v;
+      el.oninput = () => {
+        if (el.type === "checkbox") setPath(path, el.checked);
+        else if (el.type === "number" || el.type === "range") setPath(path, Number(el.value));
+        else setPath(path, el.value);
+        syncLabels();
+      };
+      el.onchange = el.oninput;
+    });
+    const mode = get("l3.host_context_mode", "replace");
+    $$("#hostmode button").forEach((b) => {
+      b.classList.toggle("on", b.dataset.v === mode);
+      b.onclick = () => {
+        $$("#hostmode button").forEach((x) => x.classList.toggle("on", x === b));
+        setPath("l3.host_context_mode", b.dataset.v);
+        syncLabels();
+      };
+    });
+    syncLabels();
+  }
+  function syncLabels() {
+    $("#v-l0").textContent = get("l0.inject", 3);
+    $("#v-recent").textContent = get("l3.recent_turns", 8);
+    $("#v-w-sem").textContent = num(get("memory.weight_semantic", .5), .5).toFixed(2);
+    $("#v-w-imp").textContent = num(get("memory.weight_importance", .18), .18).toFixed(2);
+    $("#v-w-rec").textContent = num(get("memory.weight_recency", .12), .12).toFixed(2);
+    $("#v-w-use").textContent = num(get("memory.weight_usage", .1), .1).toFixed(2);
+    $("#v-w-kind").textContent = num(get("memory.weight_kind", .05), .05).toFixed(2);
+    const tail = $("#tail-state");
+    if (tail) tail.textContent = get("l0.tail_injection", true) ? "已开启：缓存更稳" : "已关闭：仅用于对照";
+    const shadow = Boolean(get("shadow_mode", true));
+    const host = get("l3.host_context_mode", "replace");
+    $("#rt-dot").className = "rt-dot" + (shadow ? " shadow" : "");
+    $("#rt-mode").textContent = shadow ? "观察模式" : (host === "replace" ? "接管中" : "只补充线索");
+    $("#rt-mode").className = "badge" + (shadow ? " warn" : "");
+  }
+
+  function renderStatus(data) {
+    state.config = data.config || {};
+    state.metrics = data.metrics || {};
+    state.health = data.health || {};
+    state.series = Array.isArray(data.series) ? data.series : [];
+    state.usage = data.usage || {};
+    state.build = data.build || {};
+    state.pools = (data.memory || {}).pools || {};
+    state.scorerName = data.scorer;
+    $("#ver").textContent = "v" + (data.version || "--");
+    $("#ver").title = "版本来源：" + (state.build.source || "metadata.yaml");
+    $("#memcount").textContent = fmt(state.health.facts || 0);
+    bindConfig();
+    renderRealtime();
+    $("#save").disabled = true;
+    state.dirty = false;
+    $("#dock-hint").textContent = "改动会在下一轮生效，不需要重启";
+  }
+
+  function renderRealtime() {
+    const m = state.metrics, h = state.health, s = state.series;
+    const fresh = num(m.actual_total_input_tokens, 0);
+    const cached = num(m.actual_cached_tokens, 0);
+    const totalIn = fresh + cached;
+    const available = Boolean(state.usage.available);
+    $("#k-rounds").textContent = fmt(m.rounds);
+    $("#k-hit").textContent = totalIn ? pct(cached / totalIn) : "--";
+    $("#k-facts").innerHTML = fmt(h.facts) + " <small>条</small>";
+    const shownCost = available ? m.actual_cost : (m.cost_display != null ? m.cost_display : m.actual_cost);
+    $("#k-cost").innerHTML = (m.actual_currency || "CNY") + " " + Number(shownCost || 0).toFixed(4);
+    $("#k-cost-kind").textContent = available ? "真实" : "估算";
+    $("#k-cost-kind").className = "badge" + (available ? "" : " warn");
+    $("#k-window").innerHTML = fmt(m.l0_chars_max) + " <small>字 / " + fmt(get("l3.recent_turns", 8)) + " 轮</small>";
+    $("#rt-usage").textContent = available ? ("用量：真实 " + m.actual_usage_rounds + " 轮") : "用量：模型未返回，按插件估算";
+    $("#rt-usage").className = "badge" + (available ? "" : " warn");
+    $("#rt-time").textContent = "更新于 " + new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+
+    // chart
+    const W = 900, H = 74, n = Math.max(s.length, 1);
+    const max = Math.max(1, ...s.map((x) => (x.fresh || 0) + (x.cached || 0)));
+    const bw = W / n;
+    $("#chart").innerHTML = s.map((x, i) => {
+      const hC = ((x.cached || 0) / max) * H, hF = ((x.fresh || 0) / max) * H;
+      const x0 = i * bw + 1, w = Math.max(1, bw - 2);
+      return '<rect x="' + x0 + '" y="' + (H - hC) + '" width="' + w + '" height="' + hC + '" fill="#14b8a6" opacity=".85"></rect>' +
+             '<rect x="' + x0 + '" y="' + (H - hC - hF) + '" width="' + w + '" height="' + hF + '" fill="#f59e0b" opacity=".9"></rect>';
+    }).join("");
+    $("#chart-empty").hidden = Boolean(s.length);
+    const cost = s.reduce((a, x) => a + (x.cost || 0), 0);
+    const sf = s.reduce((a, x) => a + (x.fresh || 0), 0);
+    const sc = s.reduce((a, x) => a + (x.cached || 0), 0);
+    $("#legend").innerHTML = s.length
+      ? '<span class="dot-key"><i style="background:#14b8a6"></i>缓存 ' + fmt(sc) + '</span>' +
+        '<span class="dot-key"><i style="background:#f59e0b"></i>未缓存 ' + fmt(sf) + '</span>' +
+        '<span>近 ' + s.length + ' 轮合计 ' + cost.toFixed(4) + ' 元，每轮均价 ' + (cost / s.length).toFixed(4) + ' 元' + (available ? '' : '（估算）') + '</span>'
+      : '<span>还没有轮次数据。</span>';
+    const errWhen = h.last_error_at ? when(h.last_error_at) : "";
+    const err = h.last_error
+      ? '<span class="bad">最近错误：' + esc(h.last_error) + (errWhen ? " · " + errWhen : "") + "</span>"
+      : '<span class="good">没有记录到错误</span>';
+    $("#health").innerHTML =
+      "<span>版本 v" + esc(state.build.version || "--") + (state.build.mismatch ? ' <span class="bad">（版本不一致）</span>' : '') + "</span>" +
+      "<span>向量 " + esc(state.scorerName || "本地") + "</span>" +
+      "<span>数据库 " + (h.db_ok ? h.db_kb + " KB" : "不可用") + "</span>" +
+      "<span>记忆 " + fmt((state.pools.cycle || 0)) + " / 珍藏 " + fmt(state.pools.treasure || 0) + " / 浅忆 " + fmt(state.pools.shallow || 0) + " / 回收 " + fmt(state.pools.trash || 0) + "</span>" +
+      "<span>累计错误 " + (h.errors || 0) + "</span>" + err;
+    $("#side-status").innerHTML = (state.config.shadow_mode)
+      ? "<b>观察模式</b><br>只记录，不改回复"
+      : "<b>生效中</b><br>正在接管上下文";
+    syncLabels();
+  }
+
+  // ------------------------------------------------------------- save
+  function collect() {
+    const values = {};
+    $$("[data-path]").forEach((el) => {
+      const path = el.dataset.path;
+      if (!path) return;
+      if (el.type === "checkbox") values[path] = Boolean(el.checked);
+      else if (el.type === "number" || el.type === "range") values[path] = Number(el.value);
+      else values[path] = el.value;
+    });
+    const host = get("l3.host_context_mode");
+    if (host !== undefined) values["l3.host_context_mode"] = host;
+    // "恢复默认" also resets knobs with no input on this page. Only send them
+    // right after that button, so a normal save does not overwrite values the
+    // user tuned directly in AstrBot's own plugin config.
+    if (state.defaultsApplied) {
+      Object.keys(state.defaults || {}).forEach((path) => {
+        const v = get(path);
+        if (v !== undefined) values[path] = v;
+      });
+    }
+    return values;
+  }
+  $("#save").addEventListener("click", async () => {
+    const btn = $("#save"), values = collect();
+    btn.disabled = true;
+    $("#dock-hint").textContent = "正在保存…";
+    try {
+      const data = await callPost("page/config", { values });
+      state.config = (data && data.config) || state.config;
+      state.defaultsApplied = false;
+      bindConfig();
+      // Round-trip verification: a stale server-side value used to silently
+      // turn "线索放末尾" back off right after saving.
+      const bad = [];
+      Object.keys(values).forEach((path) => {
+        if (path === "l0.inject") return; // server clamps to 1..slots
+        const got = get(path);
+        if (JSON.stringify(got) !== JSON.stringify(values[path])) bad.push(path);
+      });
+      if (bad.length) {
+        $("#dock-hint").textContent = "保存后校验不一致：" + bad.join("、");
+        toast("保存后校验不一致：" + bad.join("、"));
+        btn.disabled = false;
+        return;
+      }
+      $("#dock-hint").textContent = "已保存并校验，下一轮生效";
+      toast("已保存，下一轮生效");
+      renderRealtime();
+      if (state.proactive) loadProactive();
+    } catch (e) {
+      $("#dock-hint").textContent = "保存失败：" + e.message;
+      toast("保存失败：" + e.message);
+      btn.disabled = false;
+    }
+  });
+
+  // ------------------------------------------------------------- presets
+  const RECOMMENDED = {
+    shadow_mode: false, "l3.host_context_mode": "replace", "l0.inject": 3,
+    "l0.max_inject_chars": 200, "l0.tail_injection": true, "l3.recent_turns": 8,
+    "shortcircuit.enabled": false, "l3.window_grow_turns": 4, "l3.recent_char_low_water": 0.7,
+    "l0.hysteresis": 2, "l0.min_dwell_rounds": 8, "l0.rebalance_interval": 8,
+    "l1.enabled": true, "l2.enabled": true, "aux.topic_stack": true,
+    "aux.compression": true, "aux.rhythm": true, "aux.style": true,
+    "aux.lexicon": true, "aux.open_loops": true, "l1.wake_cooldown_rounds": 8,
+    "memory.enabled": true, "memory.top_k": 3, "memory.min_score": 0.3,
+    "style_learning.enabled": true, "style_learning.learn_user": true,
+    "style_learning.online": true, "proactive.enabled": false
+  };
+  function applyValues(values) {
+    Object.keys(values).forEach((path) => {
+      const parts = String(path).split(".");
+      let cur = state.config;
+      for (let i = 0; i < parts.length - 1; i++) {
+        if (typeof cur[parts[i]] !== "object" || cur[parts[i]] == null) cur[parts[i]] = {};
+        cur = cur[parts[i]];
+      }
+      cur[parts[parts.length - 1]] = values[path];
+    });
+    bindConfig(); markDirty(); renderRealtime();
+  }
+  $("#takeover").addEventListener("click", async () => {
+    if (!(await askConfirm("让真心真正接管对话？\n\n这会关闭观察模式，并用真心的最近窗口替换 AstrBot 的上下文。建议先在“实时状态”里确认已观察过至少 50 轮。"))) return;
+    applyValues({ shadow_mode: false, "l3.host_context_mode": "replace" });
+    $("#preset-hint").textContent = "已切到接管模式：关闭观察、最近窗口由真心接管。确认后点底部保存。";
+    toast("已切到接管模式，记得保存");
+  });
+  $("#preset").addEventListener("click", () => {
+    applyValues(RECOMMENDED);
+    state.defaultsApplied = false;
+    $("#preset-hint").textContent = "已套用推荐设置（含接管），确认后点底部“保存并生效”。";
+    toast("已套用推荐设置，记得保存");
+  });
+  $("#defaults").addEventListener("click", () => {
+    const values = Object.keys(state.defaults || {}).length ? state.defaults : RECOMMENDED;
+    applyValues(values);
+    state.defaultsApplied = true;
+    $("#preset-hint").textContent = "已填回出厂默认值（观察模式），确认后点底部“保存并生效”。";
+    toast("已填回默认配置，记得保存");
+  });
+
+  // ------------------------------------------------------------- memory
+  function poolLabel(pool) {
+    return { cycle: "周期池", treasure: "珍藏池", shallow: "浅忆池", trash: "回收池" }[pool] || "记忆";
+  }
+  function kindLabel(kind) {
+    return { habit: "习惯/偏好", relationship: "关系", emotion: "情绪", unclosed: "未完成", fact: "事实", address: "称呼" }[kind] || "事实";
+  }
+  function importanceLabel(f) {
+    if (f.pool === "treasure" || Number(f.importance) >= 0.75) return "重要";
+    if (f.pool === "shallow") return "浅忆";
+    if (f.pool === "trash") return "回收";
+    if (Number(f.age_days) <= 7) return "最近";
+    return "普通";
+  }
+  function renderPoolChips() {
+    const pools = state.pools || {};
+    const items = [["", "全部"], ["cycle", "周期池"], ["treasure", "珍藏池"], ["shallow", "浅忆池"], ["trash", "回收池"]];
+    $("#pool-chips").innerHTML = items.map(([key, label]) =>
+      '<button class="chip' + (state.mem.pool === key ? " on" : "") + '" data-pool="' + key + '">' +
+      label + (key && pools[key] != null ? '<span class="n">' + fmt(pools[key]) + "</span>" : "") + "</button>"
+    ).join("");
+    $$("#pool-chips .chip").forEach((btn) => {
+      btn.onclick = () => {
+        state.mem.pool = btn.dataset.pool;
+        state.mem.view = btn.dataset.pool ? "pool" : "day";
+        if (!state.mem.date) state.mem.date = state.mem.today || "";
+        loadMemory();
+      };
+    });
+  }
+  function renderDates() {
+    const list = state.dates || [];
+    const chips = ['<button class="date' + (state.mem.view === "all" ? " on" : "") + '" data-date="__all__">全部</button>'];
+    list.forEach((d) => {
+      chips.push('<button class="date' + (state.mem.view === "day" && state.mem.date === d.date ? " on" : "") + '" data-date="' + esc(d.date) + '">' +
+        dayLabel(d.date) + '<span style="opacity:.65"> · ' + d.total + "</span></button>");
+    });
+    if (!list.length) chips.push('<span class="date">还没有记忆</span>');
+    $("#dates").innerHTML = chips.join("");
+    $$("#dates .date[data-date]").forEach((btn) => {
+      btn.onclick = () => {
+        if (btn.dataset.date === "__all__") state.mem.view = "all";
+        else { state.mem.view = "day"; state.mem.date = btn.dataset.date; state.mem.pool = ""; }
+        loadMemory();
+      };
+    });
+  }
+  function renderMemory() {
+    renderPoolChips();
+    renderDates();
+    const items = state.facts || [];
+    $("#memcount").textContent = fmt(state.health.facts || 0);
+    if (!items.length) {
+      $("#garden").innerHTML = '<div class="empty" style="grid-column:1/-1">' + (state.mem.view === "day" ? "今天还没有新的记忆，换个日期或点“全部”看看。" : "没有匹配的记忆。") + "</div>";
+      $("#memlist").innerHTML = "";
+      $("#mem-detail").innerHTML = "";
+      return;
+    }
+    $("#garden").innerHTML = items.map((f) => {
+      const size = 18 + Math.round(num(f.weight, .3) * 26);
+      return '<button class="dot' + (f.pool === "trash" ? " trash" : "") + '" data-id="' + f.id + '" ' +
+        'style="--c:' + esc(f.color) + ";--s:" + size + 'px" title="' + esc(f.text) + "（" + fmtMath(f.weight) + '）"></button>';
+    }).join("");
+    $$("#garden .dot").forEach((btn) => {
+      // A single click on the dot is the requested "click to deepen": it
+      // raises the weight/colour immediately and opens the detail actions.
+      btn.onclick = async () => {
+        const fact = state.facts.find((f) => String(f.id) === String(btn.dataset.id));
+        if (!fact) return;
+        if (fact.pool === "trash") { showDetail(fact, btn); return; }
+        btn.classList.add("pulse");
+        try {
+          const data = await callPost("page/memory/boost", { id: fact.id, delta: 0.12 });
+          if (data.fact) Object.assign(fact, data.fact);
+          toast("已加深这条记忆");
+          renderMemory();
+          const next = state.facts.find((f) => String(f.id) === String(fact.id)) || fact;
+          showDetail(next, null);
+          loadStatus(true);
+        } catch (err) {
+          showDetail(fact, null);
+          toast(err.message);
+        }
+      };
+    });
+    $("#memlist").innerHTML = items.map((f) => {
+      const tag = importanceLabel(f);
+      return '<div class="mem-item"><div class="body"><div class="t"><span class="tag' +
+        (tag === "普通" || tag === "浅忆" ? " low" : "") + (tag === "回收" ? " bad" : "") + '">' + tag + "</span>" + esc(f.text) + "</div>" +
+        '<div class="m">' + kindLabel(f.kind) + " · " + poolLabel(f.pool) + " · 重要度 " + f.importance +
+        " · 深度 " + fmtMath(f.weight) + " · 提到 " + (f.mentions || 1) + " 次 · 用过 " + (f.used || 0) + " 次</div></div>" +
+        '<button class="del" title="删除这条" data-id="' + f.id + '">×</button></div>';
+    }).join("");
+    $$("#memlist .del").forEach((btn) => {
+      btn.onclick = async () => {
+        if (!(await askConfirm("彻底删掉这条记忆？不会进入回收池。"))) return;
+        try {
+          await callPost("page/memory/delete", { ids: [Number(btn.dataset.id)] });
+          toast("已删除"); loadMemory();
+        } catch (err) { toast(err.message); }
+      };
+    });
+  }
+  function fmtMath(x) { return (Math.round(num(x, 0) * 100) / 100).toFixed(2); }
+  function showDetail(fact, dot) {
+    if (dot) { dot.classList.add("pulse"); setTimeout(() => dot.classList.remove("pulse"), 400); }
+    const actions = ['<button class="btn small primary" data-act="boost">点一下加深</button>'];
+    if (fact.pool === "trash") actions.push('<button class="btn small" data-act="restore">从回收池恢复</button>');
+    else actions.push('<button class="btn small danger" data-act="trash">移到回收池</button>');
+    actions.push('<button class="btn small" data-act="close">收起</button>');
+    $("#mem-detail").innerHTML = '<div class="mem-detail"><div class="t">' + esc(fact.text) + "</div>" +
+      '<div class="meta">' + kindLabel(fact.kind) + " · " + poolLabel(fact.pool) +
+      " · 重要度 " + fact.importance + " · 颜色深度 " + fmtMath(fact.weight) +
+      " · 保持度 " + fact.retention + "<br>提到 " + (fact.mentions || 1) + " 次 · 被检索 " + (fact.used || 0) +
+      " 次 · 记住于 " + when(fact.created_at) + (fact.trash_reason ? " · 回收原因：" + esc(fact.trash_reason) : "") + "</div>" +
+      '<div class="actions">' + actions.join("") + "</div></div>";
+    const panel = $("#mem-detail");
+    panel.querySelector('[data-act="boost"]').onclick = async () => {
+      try {
+        const data = await callPost("page/memory/boost", { id: fact.id, delta: 0.12 });
+        toast("已加深");
+        if (data.fact) Object.assign(fact, data.fact);
+        renderMemory(); showDetail(fact, null); loadStatus(true);
+      } catch (err) { toast(err.message); }
+    };
+    const trashBtn = panel.querySelector('[data-act="trash"]');
+    if (trashBtn) trashBtn.onclick = async () => {
+      try { await callPost("page/memory/trash", { id: fact.id }); toast("已移到回收池"); loadMemory(); }
+      catch (err) { toast(err.message); }
+    };
+    const restoreBtn = panel.querySelector('[data-act="restore"]');
+    if (restoreBtn) restoreBtn.onclick = async () => {
+      try { await callPost("page/memory/restore", { id: fact.id }); toast("已恢复"); loadMemory(); }
+      catch (err) { toast(err.message); }
+    };
+    panel.querySelector('[data-act="close"]').onclick = () => { panel.innerHTML = ""; };
+  }
+  async function loadMemory() {
+    try {
+      const params = { view: state.mem.view, date: state.mem.date, pool: state.mem.pool };
+      const data = await callGet("page/memory", params);
+      state.facts = (data && data.facts) || [];
+      state.traces = (data && data.traces) || [];
+      state.dates = (data && data.dates) || [];
+      state.pools = (data && data.pools) || {};
+      state.mem.today = (data && data.today) || state.mem.today;
+      if (!state.mem.date) state.mem.date = state.mem.today;
+      state.archivedTotal = (data && data.archived_total) || 0;
+      renderMemory();
+      renderTraces();
+    } catch (e) {
+      $("#memlist").innerHTML = '<div class="empty">读取记忆失败：' + esc(e.message) + "</div>";
+    }
+  }
+  function renderTraces() {
+    $("#tracecount").textContent = fmt(state.archivedTotal || state.traces.length);
+    if (!state.traces.length) { $("#tracelist").innerHTML = '<div class="empty">还没有彻底淡出的记忆</div>'; return; }
+    $("#tracelist").innerHTML = state.traces.map((t) =>
+      '<div class="mem-item"><div class="body"><div class="t" style="color:var(--muted);font-weight:500">' +
+      (t.keywords ? esc(t.keywords) : "（无关键词）") + "</div>" +
+      '<div class="m">' + kindLabel(t.kind) + " · 关键词痕迹 · 已彻底删除 · " + when(t.archived_at) + "</div></div></div>"
+    ).join("");
+  }
+  $("#memsearch").addEventListener("input", renderMemory);
+  $("#memclear").addEventListener("click", async () => {
+    if (!(await askConfirm("清空全部记忆（包括回收池和关键词痕迹）？这个操作不能撤销。"))) return;
+    try { await callPost("page/memory/clear", {}); toast("已清空"); loadMemory(); loadStatus(true); }
+    catch (err) { toast(err.message); }
+  });
+
+  // ------------------------------------------------------------- style
+  async function loadStyle() {
+    try {
+      const data = await callGet("page/style", { user: state.style.selected || "" });
+      state.style.selected = (data && data.selected) || "";
+      state.style.users = (data && data.users) || [];
+      const status = (data && data.status) || {};
+      const select = $("#style-user");
+      select.innerHTML = state.style.users.length
+        ? state.style.users.map((u) => '<option value="' + esc(u.user) + '"' + (u.user === state.style.selected ? " selected" : "") + ">" + esc(u.user) + "（" + u.turns + " 条）</option>").join("")
+        : '<option value="">还没有对话</option>';
+      select.onchange = () => { state.style.selected = select.value; loadStyle(); };
+      const kb = status.knowledge || "";
+      $("#kb-box").textContent = kb || "（空）还没有学习结果。先聊几句，再点“立即从本地对话学习”。";
+      const max = num(status.max_chars, 500), chars = num(status.chars, kb.length);
+      $("#kb-bar").style.width = Math.min(100, Math.round(chars / max * 100)) + "%";
+      $("#kb-meta").textContent = "会话：" + (status.user || "—") + " · " + chars + " / " + max + " 字 · 最近学习 " + when(status.updated_at) +
+        " · 下次本地 " + (status.next_at ? when(status.next_at) : "待触发") +
+        " · 下次联网 " + (status.online_next_at ? when(status.online_next_at) : "待触发");
+      $("#kb-src").innerHTML = Object.keys(status.sources || {}).map((key) =>
+        '<span class="tag' + (key === "web" ? " web" : "") + '">' +
+        (key === "web" ? "网络知识" : key === "seed" ? "内置常识" : "本人习惯") +
+        " · " + (status.sources[key].chars || 0) + " 字</span>"
+      ).join("") || '<span class="tag">还没有来源</span>';
+      $("#kb-error").textContent = status.last_error ? "上次联网学习失败：" + status.last_error : "";
+      $("#kb-error").style.color = status.last_error ? "var(--warn)" : "var(--muted)";
+    } catch (e) { $("#kb-meta").textContent = "读取失败：" + e.message; }
+  }
+  async function learnStyle(online) {
+    const user = state.style.selected || ((state.style.users[0] || {}).user || "");
+    if (!user) { toast("还没有可学习的对话"); return; }
+    const btn = online ? $("#style-online") : $("#style-local");
+    btn.disabled = true; const old = btn.textContent; btn.textContent = online ? "联网搜索中…" : "学习中…";
+    try {
+      const data = await callPost("page/style/learn", { user, online });
+      if (data && data.status) {
+        const s = data.status;
+        $("#kb-box").textContent = s.knowledge || "（空）";
+        $("#kb-bar").style.width = Math.min(100, Math.round((s.chars || 0) / (s.max_chars || 500) * 100)) + "%";
+        $("#kb-meta").textContent = "会话：" + (s.user || user) + " · " + (s.chars || 0) + " / " + (s.max_chars || 500) + " 字 · 最近学习 " + when(s.updated_at);
+        $("#kb-error").textContent = data.error ? "联网搜索提示：" + data.error : "";
+      }
+      toast(online ? "联网学习完成" : "本地学习完成");
+      loadStyle();
+    } catch (e) { toast("学习失败：" + e.message); }
+    finally { btn.disabled = false; btn.textContent = old; }
+  }
+  $("#style-local").addEventListener("click", () => learnStyle(false));
+  $("#style-online").addEventListener("click", () => learnStyle(true));
+
+  // ------------------------------------------------------------- proactive
+  async function loadProactive() {
+    try {
+      const data = await callGet("page/proactive", {});
+      state.proactive = data;
+      const items = (data && data.previews) || [];
+      $("#proactive-list").innerHTML = items.length
+        ? items.map((p) => '<div style="padding:7px 0;border-bottom:1px dashed var(--line)">' +
+            '<b>' + esc(p.user) + "</b> · " + (p.allowed ? '<span class="sev info">现在可发</span>' : '<span class="sev warning">' + esc(p.reason) + "</span>") +
+            '<div style="color:var(--muted);margin-top:3px">' + esc(p.text) + "</div></div>").join("")
+        : "最近 72 小时没有活跃会话，或主动消息还没开启。";
+    } catch (e) { $("#proactive-list").textContent = "读取失败：" + e.message; }
+  }
+  $("#proactive-preview").addEventListener("click", loadProactive);
+  $("#proactive-test").addEventListener("click", async () => {
+    const previews = (state.proactive && state.proactive.previews) || [];
+    const user = previews.length ? previews[0].user : "";
+    if (!(await askConfirm("现在真的发一条主动消息" + (user ? "给 " + user : "") + "？\n\n请确认这是测试会话，不会打扰别人。"))) return;
+    try {
+      const data = await callPost("page/proactive/test", { user });
+      toast(data.sent ? "已发送：" + data.text : "未发送（没有可用会话）");
+      loadProactive();
+    } catch (err) { toast("发送失败：" + err.message); }
+  });
+
+  // ------------------------------------------------------------- health
+  async function runScan() {
+    $("#scan-summary").textContent = "正在扫描已安装插件…";
+    $("#scan-list").innerHTML = "";
+    try {
+      const data = await callGet("page/health", {});
+      state.scanDone = true;
+      const s = (data && data.summary) || {};
+      $("#scan-summary").innerHTML = (data && data.ok === false)
+        ? '<span class="sev direct">扫描失败</span> ' + esc(data.message || "")
+        : '<b>' + ((data.plugins || []).length) + "</b> 个可能有重叠的插件 · " +
+          '<span class="sev direct">直接冲突 ' + (s.direct || 0) + "</span> " +
+          '<span class="sev warning">需注意 ' + (s.warning || 0) + "</span> " +
+          '<span class="sev info">参考 ' + (s.info || 0) + "</span> " +
+          '<span class="sev info">已停用 ' + (s.disabled || 0) + "</span>" +
+          '<div style="margin-top:6px">' + esc((data.advice || "")) + "</div>";
+      $("#scan-time").textContent = "扫描时间：" + new Date().toLocaleTimeString("zh-CN");
+      const list = (data && data.plugins) || [];
+      $("#scan-list").innerHTML = list.length ? list.map((p) =>
+        '<div class="plug"><div class="top"><b>' + esc(p.display || p.name) + "</b>" +
+        (p.enabled === false ? '<span class="sev info">已停用</span>' : "") +
+        '<span class="sev ' + esc(p.severity) + '">' + ({ direct: "直接冲突", warning: "需注意", info: "参考" }[p.severity] || p.severity) + "</span>" +
+        '<span style="color:var(--muted);font-size:12px">' + esc(p.version || "") + "</span></div>" +
+        "<ul class='why'>" + (p.reasons || []).map((r) => "<li>" + esc(r) + "</li>").join("") + "</ul></div>"
+      ).join("") : '<div class="empty">没有发现明显冲突的插件。</div>';
+    } catch (e) { $("#scan-summary").textContent = "扫描失败：" + e.message; }
+  }
+  $("#scan").addEventListener("click", runScan);
+  async function loadFeedback() {
+    try {
+      const data = await callGet("page/feedback/list", {});
+      const items = (data && data.items) || [];
+      $("#fb-list").innerHTML = items.length ? items.map((f) =>
+        '<div class="fb-item"><b>' + esc(f.category) + "</b> · " + when(f.created_at) + " · " + esc(f.content.slice(0, 120)) + "</div>"
+      ).join("") : "还没有反馈。";
+    } catch (e) { /* ignore */ }
+  }
+  let fbIssueUrl = "";
+  $("#fb-submit").addEventListener("click", async () => {
+    const content = $("#fb-content").value.trim();
+    if (content.length < 5) { toast("请至少写 5 个字"); return; }
+    const btn = $("#fb-submit"); btn.disabled = true;
+    try {
+      const data = await callPost("page/feedback", {
+        category: $("#fb-category").value,
+        content,
+        contact: $("#fb-contact").value.trim(),
+        diagnostics: JSON.stringify({ version: state.build.version, rounds: state.metrics.rounds, usage: state.usage, pools: state.pools })
+      });
+      fbIssueUrl = data.issue_url || "";
+      $("#fb-issue").disabled = !fbIssueUrl;
+      $("#fb-hint").textContent = data.message || "已保存";
+      toast("反馈已保存");
+      loadFeedback();
+    } catch (e) { toast("保存失败：" + e.message); $("#fb-hint").textContent = e.message; }
+    finally { btn.disabled = false; }
+  });
+  $("#fb-issue").addEventListener("click", () => {
+    if (!fbIssueUrl) return;
+    try { window.open(fbIssueUrl, "_blank", "noopener"); }
+    catch (e) { toast("浏览器拦截了新窗口，请复制链接：" + fbIssueUrl); }
+  });
+
+  // ------------------------------------------------------------- reset
+  const RESET_CONFIRM = {
+    conversation: "重置所有会话的对话状态？最近窗口、线索、话题栈和固化路径会清空，长期记忆保留。",
+    memory: "清空全部长期记忆（包括回收池和关键词痕迹）？这个操作不能撤销。",
+    style: "清空说话知识库和主动消息记录？下一条消息会重新开始学。",
+    metrics: "清空花费与错误统计？真实对话不受影响。",
+    all: "全部恢复初始？对话状态、长期记忆、说话习惯、统计和配置都会重置，不能撤销。"
+  };
+  $$("button[data-reset]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const scope = btn.dataset.reset;
+      if (!(await askConfirm(RESET_CONFIRM[scope] || "确认重置？"))) return;
+      btn.disabled = true;
+      try {
+        const data = await callPost("page/reset", { scope });
+        const counts = (data && data.deleted) || {};
+        const total = Object.values(counts).reduce((a, b) => a + (Number(b) || 0), 0);
+        toast("已重置" + (total ? "（清理 " + total + " 条记录）" : ""));
+        if (scope === "all" && data && data.config) state.config = data.config;
+        await loadStatus(true);
+        if (scope === "memory" || scope === "all") loadMemory();
+        if (scope === "style" || scope === "all") loadStyle();
+      } catch (e) { toast("重置失败：" + e.message); }
+      finally { btn.disabled = false; }
+    });
+  });
+
+  // ------------------------------------------------------------- load/boot
+  async function loadStatus(silent) {
+    const data = await callGet("page/status", {});
+    renderStatus(data);
+    if (!silent) {
+      try {
+        const defaults = await callGet("page/defaults", {});
+        state.defaults = (defaults && defaults.defaults) || {};
+      } catch (e) { state.defaults = {}; }
+      await loadMemory();
+      await loadStyle();
+      await loadProactive();
+      await loadFeedback();
+    }
+    return data;
+  }
+  $("#refresh").addEventListener("click", async () => {
+    const btn = $("#refresh");
+    btn.classList.add("spin"); btn.disabled = true;
+    try { await loadStatus(true); toast("已刷新实时状态"); }
+    catch (e) { toast("刷新失败：" + e.message); }
+    finally { btn.classList.remove("spin"); btn.disabled = false; }
+  });
+  setInterval(() => {
+    if (document.hidden || state.dirty) return;
+    loadStatus(true).catch(() => {});
+  }, 45000);
+
+  (async function boot() {
+    const bridge = await waitForBridge();
+    if (!bridge) {
+      $("#side-status").textContent = "没有检测到 AstrBot 页面桥：请从「插件 → 真心」重新打开本页。";
+      $("#dock-hint").textContent = "页面桥未加载：请刷新页面，或从「插件 → 真心」重新打开。";
+      return;
+    }
+    try {
+      const status = await loadStatus(false);
+      const mode = (status.config || {}).shadow_mode;
+      $("#dock-hint").textContent = mode
+        ? "当前是观察模式。改动会在下一轮生效，不需要重启"
+        : "改动会在下一轮生效，不需要重启";
+    } catch (e) {
+      $("#side-status").textContent = "连接失败：" + e.message;
+      $("#dock-hint").textContent = "加载失败：" + e.message;
+    }
+  })();
+})();
+</script>
+</body>
+</html>
