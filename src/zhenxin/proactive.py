@@ -7,7 +7,9 @@ threshold, a minimum interval and a daily cap.  Every send is persisted, so a
 restart cannot reset the cap and spam the user.
 
 Message material comes from the plugin's own memory: an unfinished open loop
-first ("稿子交了吗"), then a high-value fact, then a time-of-day fallback.  An
+first ("稿子交了吗"), then a high-value fact, then a time-of-day greeting bank
+("吃饭了没" / "在干嘛呀" / "还没睡？").  Every third message skips the memory
+material on purpose, so the stream does not read like a reminder bot.  An
 optional LLM call can rewrite the line in the user's style; the local template
 is always the fallback.
 """
@@ -23,6 +25,77 @@ from .config import ProactiveConfig
 from .db import Database
 
 STATE_LAST_USER = "last_user_at"
+
+# Casual check-ins, grouped by time of day.  These are the "你在干嘛呀" /
+# "吃饭了没" half of proactive messages: small talk is a feature, not noise.
+GREETINGS: dict[str, tuple[str, ...]] = {
+    "dawn": (
+        "醒了？早安。",
+        "早呀，今天起得挺早。",
+        "早上好，今天有什么安排？",
+        "刚醒，早。",
+    ),
+    "morning": (
+        "在忙吗？",
+        "今天忙不忙？",
+        "上午还顺利吗？",
+        "在干嘛呀？",
+    ),
+    "noon": (
+        "吃饭了没？",
+        "到饭点了，今天吃什么？",
+        "午饭吃了吗？别又随便对付。",
+        "中午好，吃了没？",
+    ),
+    "afternoon": (
+        "在干嘛呀？",
+        "下午犯困不？",
+        "忙完了吗？",
+        "刚泡了杯茶，想起你了。",
+    ),
+    "evening": (
+        "下班了吗？",
+        "晚饭吃了吗？",
+        "今天累不累？",
+        "忙一天了，歇会儿吧。",
+    ),
+    "night": (
+        "晚上好呀，今天怎么样？",
+        "吃了吗？在忙啥？",
+        "在做什么呢？",
+        "今天过得怎么样？",
+    ),
+    "late": (
+        "还没睡？",
+        "这么晚还不睡呀。",
+        "睡不着？",
+        "别熬太晚了。",
+    ),
+}
+
+GENERIC_GREETINGS: tuple[str, ...] = (
+    "突然想起你了。",
+    "在干嘛呀？",
+    "最近怎么样？",
+    "好久没聊，你还好吗？",
+    "刚看到个东西，想到你了。",
+)
+
+
+def _band(hour: int) -> str:
+    if 5 <= hour < 8:
+        return "dawn"
+    if 8 <= hour < 11:
+        return "morning"
+    if 11 <= hour < 13:
+        return "noon"
+    if 13 <= hour < 17:
+        return "afternoon"
+    if 17 <= hour < 19:
+        return "evening"
+    if 19 <= hour < 23:
+        return "night"
+    return "late"
 
 
 def is_group_session(user_key: str) -> bool:
@@ -139,36 +212,70 @@ class ProactiveScheduler:
                 return text
         return ""
 
-    def _fallback(self, now: float) -> str:
-        hour = _hour(now)
-        if 5 <= hour < 11:
-            return "早，今天有什么要紧事吗？"
-        if 11 <= hour < 14:
-            return "吃饭了吗？突然想起你。"
-        if 14 <= hour < 19:
-            return "在忙吗？没什么事，就是想起你了。"
-        if 19 <= hour < 23:
-            return "今天过得怎么样？"
-        return "还没睡？"
+    def _sent_count(self, user_key: str) -> int:
+        return int(
+            self.db.scalar(
+                "SELECT COUNT(*) FROM proactive_log WHERE user_key=?",
+                (user_key,),
+                0,
+            )
+            or 0
+        )
+
+    def _last_text(self, user_key: str) -> str:
+        row = self.db.fetchone(
+            "SELECT content FROM proactive_log WHERE user_key=?"
+            " ORDER BY id DESC LIMIT 1",
+            (user_key,),
+        )
+        return str(row["content"] or "") if row else ""
+
+    def _greeting(self, user_key: str, now: float) -> str:
+        """Pick one casual check-in that fits the hour and never repeats."""
+        pool = GREETINGS[_band(_hour(now))] + GENERIC_GREETINGS
+        # Deterministic per user/day/send-count: a restart does not replay the
+        # same line, and tests stay reproducible without touching ``random``.
+        seed = f"{user_key}|{int(now // 86400)}|{_hour(now)}|{self._sent_count(user_key)}"
+        index = sum(ord(ch) for ch in seed) % len(pool)
+        text = pool[index]
+        if text == self._last_text(user_key):
+            text = pool[(index + 1) % len(pool)]
+        return text
 
     def compose(self, user_key: str, now: float | None = None) -> tuple[str, str]:
-        """Return ``(text, kind)`` using local memory only."""
+        """Return ``(text, kind)`` using local memory only.
+
+        Material order: unfinished open loop, high-value fact, then a casual
+        greeting for the current time of day.  Every third message skips the
+        memory material on purpose, so the stream also contains plain small
+        talk instead of only reminders.
+        """
         now = self.clock() if now is None else now
         template = str(self.cfg.template or "").strip()
-        loop = self._open_loop(user_key)
+        greeting = self._greeting(user_key, now)
+        casual_turn = self._sent_count(user_key) % 3 == 2
+
+        loop = None if casual_turn else self._open_loop(user_key)
         if loop is not None:
             summary = str(loop["summary"] or "").strip()
             # Clean rows written by older versions ("周五·周五要交稿").
             summary = re.sub(r"^([^·]{1,6})·\1", r"\1", summary)
             text = template or "对了，{loop}后来怎么样了？"
             text = text.replace("{loop}", summary or "上次说的那件事")
+            text = text.replace("{greeting}", greeting)
             return self._clip(text), "open_loop"
-        fact = self._top_fact(user_key)
+        fact = "" if casual_turn else self._top_fact(user_key)
         if fact:
             text = template or "突然想到，{fact}。"
-            text = text.replace("{fact}", fact)
+            text = text.replace("{fact}", fact).replace("{greeting}", greeting)
             return self._clip(text), "memory"
-        return self._clip(template or self._fallback(now)), "presence"
+        text = template or "{greeting}"
+        text = text.replace("{greeting}", greeting)
+        # A custom template may still hold {loop}/{fact}; drop the empty slots
+        # rather than sending a literal placeholder to the user.
+        text = text.replace("{loop}", "").replace("{fact}", "")
+        text = " ".join(text.strip(" ，,。；;：:").split())
+        return self._clip(text or greeting), "presence"
 
     def _clip(self, text: str) -> str:
         text = " ".join(str(text or "").split())
