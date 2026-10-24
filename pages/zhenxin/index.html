@@ -1866,7 +1866,11 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
     }
     state.lastFeedbackText = payload.text;
   });
-  $("#fb-copy-link").addEventListener("click", () => copyText($("#fb-link").value, "链接已复制"));
+  $("#fb-copy-link").addEventListener("click", () => {
+    const url = $("#fb-link").value || state.lastFeedbackUrl || "";
+    if (!url) { toast("先点“一键打开 GitHub 提交”生成链接"); return; }
+    copyText(url, "链接已复制");
+  });
   $("#fb-copy-text").addEventListener("click", () => copyText(state.lastFeedbackText || feedbackPayload()?.text || "", "反馈内容已复制"));
   $("#fb-open-link").addEventListener("click", openFeedbackUrl);
 
@@ -1894,6 +1898,11 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
     if (box) { box.focus(); box.select(); }
     let copied = false;
     try { copied = document.execCommand("copy"); } catch (e) { copied = false; }
+    if (!copied && navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(() => {
+        $("#fb-hint").textContent = "浏览器拦了新窗口：链接已复制，粘贴到浏览器地址栏即可打开。";
+      }).catch(() => { /* keep the selected-text hint */ });
+    }
     $("#fb-hint").textContent = copied
       ? "浏览器拦了新窗口：链接已复制，粘贴到浏览器地址栏即可打开。"
       : "浏览器拦了新窗口：链接已选中，按 Ctrl+C 复制后粘贴到浏览器打开。";
