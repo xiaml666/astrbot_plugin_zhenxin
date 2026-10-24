@@ -1,0 +1,3 @@
+# Core has no mandatory third-party dependencies. PyYAML lets YAML configs be
+# read with the standard library fallback still available.
+PyYAML>=6.0
