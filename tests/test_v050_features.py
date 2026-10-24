@@ -90,6 +90,14 @@ class MemoryV2Tests(unittest.TestCase):
         self.assertEqual("", engine.facts.address("u1"))
         self.assertEqual(1, engine.facts.pool_counts("u1")["trash"])
 
+    def test_vague_address_rejection_uses_the_word_not_an_unrelated_verb(self):
+        from zhenxin._aux import zero_value
+
+        self.assertEqual("address_cancel", zero_value.cue("不要这样称呼我了"))
+        self.assertTrue(zero_value.matches("称呼我“阿岚”", "address", "不要这样称呼我了", "address_cancel"))
+        self.assertEqual("cancelled", zero_value.cue("不要叫外卖了"))
+        self.assertFalse(zero_value.matches("称呼我“阿岚”", "address", "不要叫外卖了", "cancelled"))
+
     def test_manual_boost_deepens_weight_and_pool(self):
         engine, _ = make_engine()
         engine.facts.add("u1", "不吃香菜", "habit", importance=0.2)
@@ -208,6 +216,15 @@ class ConfigRoundTripTests(unittest.TestCase):
         self.assertEqual(8, engine.cfg.l0.inject)
         self.assertTrue(engine.cfg.proactive.enabled)
         self.assertEqual(True, result["config"]["l0"]["tail_injection"])
+
+    def test_basic_style_switch_does_not_disable_human_style_learning(self):
+        engine, _ = make_engine()
+        api = PluginPageAPI(FakePlugin(FakeContext()), engine, {})
+        api._payload_override = {"values": {"aux.style": False}}
+        result = asyncio.run(api.save_config())
+        self.assertTrue(result["ok"])
+        self.assertFalse(engine.style.enabled)
+        self.assertTrue(engine.style_learning.cfg.enabled)
 
     def test_defaults_include_new_sections(self):
         engine, _ = make_engine()
