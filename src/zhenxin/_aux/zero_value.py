@@ -35,6 +35,13 @@ ADDRESS_RE = re.compile(
     r"(?:叫我|喊我|称呼我(?:为|作)?|我的名字(?:是|叫)|我叫)"
     r"([\u4e00-\u9fffA-Za-z0-9_]{1,12})"
 )
+# The user may also give *the assistant* a name ("你以后叫小满").  That is a
+# different identity fact and must not be rendered as "call the user X".
+ASSISTANT_NAME_RE = re.compile(
+    r"(?:你(?:以后|就)(?:叫|叫做)(?!我)|你的名字(?:是|叫)|以后叫你)"
+    r"([\u4e00-\u9fffA-Za-z0-9_]{1,12})"
+)
+_EXPLICIT_MEMORY_RE = re.compile(r"(?:记住|记一下|帮我记|别忘了|提醒我)[，,:：\s]*(.{2,40})")
 # Words that carry no identity by themselves; never use them as the only
 # overlap when deciding what to forget.
 _STOP = {
@@ -78,15 +85,51 @@ def address_in(text: str) -> str:
     match = ADDRESS_RE.search(text or "")
     if not match:
         return ""
-    name = match.group(1).strip()
-    # "别叫我阿岚了" captures the trailing particle too; it is not part of the
-    # name and would defeat the substring match against the stored fact.
-    name = re.sub(r"[了啦吧呀呢啊哦嘛哈]+$", "", name).strip()
+    return _clean_name(match.group(1))
+
+
+def _clean_name(raw: str) -> str:
+    name = re.sub(r"[了啦吧呀呢啊哦嘛哈]+$", "", (raw or "").strip()).strip()
     if len(name) < 1 or name in _STOP:
         return ""
     if any(word in name for word in ("什么", "啥", "哪", "怎么", "多少", "吗", "呢")):
         return ""
     return name
+
+
+def assistant_name_in(text: str) -> str:
+    match = ASSISTANT_NAME_RE.search(text or "")
+    if not match:
+        return ""
+    name = _clean_name(match.group(1))
+    # "你叫我老大" is the user's address, not the assistant's name.
+    if name.startswith("我"):
+        return ""
+    return name
+
+
+def identity_facts(text: str) -> list[tuple[str, str]]:
+    """Return durable identity facts in ``(fact_text, kind)`` form."""
+    out: list[tuple[str, str]] = []
+    name = address_in(text)
+    if name:
+        out.append((f"称呼我“{name}”", "address"))
+    ai_name = assistant_name_in(text)
+    if ai_name and not any(ai_name == item[0] for item in out):
+        out.append((f"你叫“{ai_name}”", "assistant_name"))
+    return out
+
+
+def explicit_memory(text: str) -> str:
+    """The clause after "记住…", if the user explicitly asked to remember."""
+    match = _EXPLICIT_MEMORY_RE.search(text or "")
+    if not match:
+        return ""
+    clause = match.group(1).strip().strip("。！？!?，,；; ")
+    if len(clause) < 2:
+        return ""
+    # "记住我叫阿岚" is an identity, already handled above; keep it once.
+    return clause[:40]
 
 
 def meaningful_tokens(text: str) -> set[str]:

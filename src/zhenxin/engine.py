@@ -123,6 +123,14 @@ class ZhenxinEngine:
                 self.db.set_state(user_key, "round_no", round_no)
         shadow = self.cfg.shadow_mode if shadow is None else shadow
         self.note_user_activity(user_key)
+        # Upgrade recovery: older versions / a cleared memory bank may have no
+        # stored name even though the conversation is still in `turns`.
+        try:
+            if not self.db.get_state(user_key, "identity_backfill_done", False):
+                self.facts.backfill_from_turns(user_key)
+                self.db.set_state(user_key, "identity_backfill_done", True)
+        except Exception:  # noqa: BLE001 - recovery must never break a turn
+            pass
         self._import_history(user_key, history)
         # A retraction ("不用提醒了", "别叫我阿岚") is a strong, immediate
         # signal; the cue check is one regex, the scan only runs on a hit.
@@ -223,6 +231,10 @@ class ZhenxinEngine:
             if address:
                 name = address.replace("称呼我", "").strip("“”\"' ")
                 ephemeral_parts.append(f"〔称呼〕对方希望你称呼TA为「{name}」")
+            assistant_name = self.facts.assistant_name(user_key)
+            if assistant_name:
+                name = assistant_name.replace("你叫", "").strip("“”\"' ")
+                ephemeral_parts.append(f"〔你的名字〕对方希望你叫「{name}」")
         if not hit:
             l1_result = self.l1.decide(
                 user_key,
@@ -261,6 +273,21 @@ class ZhenxinEngine:
             negative_hint = self.negative.hint(user_key)
             if negative_hint:
                 ephemeral_parts.append(negative_hint)
+            # A plugin was enabled while the bot was running.  Let the model
+            # mention it naturally once, and keep the page banner until ack.
+            alert = self.db.get_state("__global__", "conflict_alert", None)
+            if isinstance(alert, dict) and not alert.get("injected"):
+                items = alert.get("items") or []
+                names = "、".join(str(item.get("display") or item.get("name")) for item in items[:2])
+                if names:
+                    ephemeral_parts.append(
+                        "〔插件提醒〕用户刚启用了" + names
+                        + "，它可能也会改写上下文或系统提示。若发现记忆重复、回复变慢或变贵，"
+                        "可以在真心页面把「由真心接管对话」改成不接管，或先停用其中一个。"
+                    )
+                    alert = dict(alert)
+                    alert["injected"] = True
+                    self.db.set_state("__global__", "conflict_alert", alert)
         else:
             rhythm = self.rhythm.compute(user_key, raw)
             rhythm = self.style.adjust(user_key, rhythm)

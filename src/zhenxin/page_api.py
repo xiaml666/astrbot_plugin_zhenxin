@@ -271,6 +271,7 @@ class PluginPageAPI:
             ("defaults", self.defaults, ["GET"], "Zhenxin page defaults"),
             ("reset", self.reset, ["POST"], "Zhenxin page reset"),
             ("memory", self.memory_list, ["GET"], "Zhenxin memory list"),
+            ("memory/rebuild", self.memory_rebuild, ["POST"], "Zhenxin memory rebuild"),
             ("memory/boost", self.memory_boost, ["POST"], "Zhenxin memory boost"),
             ("memory/trash", self.memory_trash, ["POST"], "Zhenxin memory trash"),
             ("memory/restore", self.memory_restore, ["POST"], "Zhenxin memory restore"),
@@ -281,6 +282,7 @@ class PluginPageAPI:
             ("proactive", self.proactive_status, ["GET"], "Zhenxin proactive status"),
             ("proactive/test", self.proactive_test, ["POST"], "Zhenxin proactive test"),
             ("health", self.health_scan, ["GET"], "Zhenxin plugin conflict scan"),
+            ("health/ack", self.health_ack, ["POST"], "Zhenxin acknowledge conflict alert"),
             ("feedback", self.feedback_submit, ["POST"], "Zhenxin feedback submit"),
             ("feedback/list", self.feedback_list, ["GET"], "Zhenxin feedback list"),
         )
@@ -456,6 +458,7 @@ class PluginPageAPI:
                 "enabled": bool(self.engine.cfg.proactive.enabled),
                 **stats.get("proactive", {}),
             },
+            "conflict_alert": self.engine.db.get_state("__global__", "conflict_alert", None),
             "usage": {
                 "available": usage_rounds > 0,
                 "rounds": usage_rounds,
@@ -566,8 +569,9 @@ class PluginPageAPI:
     # --------------------------------------------------------------- memory
     async def memory_list(self) -> dict[str, Any]:
         try:
-            # Opening the page is also a good moment to run one forgetting
-            # cycle and retire expired recycle-bin rows.  Rule-based and capped.
+            # Recovery pass first: pulls "叫我…/你叫…/记住…" out of the stored
+            # recent turns, then runs one forgetting cycle.
+            self.engine.facts.backfill_all()
             self.engine.facts.sweep(None, max_archive=50)
             user = self._query("user")
             view = self._query("view", "day")
@@ -609,6 +613,21 @@ class PluginPageAPI:
             {"user": str(row["user_key"]), "count": int(row["c"] or 0)}
             for row in rows
         ]
+
+    async def memory_rebuild(self) -> dict[str, Any]:
+        """Re-extract identity and explicit memories from conversation history."""
+        try:
+            counts = self.engine.facts.backfill_all()
+        except Exception as exc:  # noqa: BLE001
+            return {"ok": False, "message": f"重建记忆失败：{exc}"}
+        total = sum(counts.values())
+        return {
+            "ok": True,
+            "added": total,
+            "users": len(counts),
+            "detail": counts,
+            "message": f"从历史对话补回 {total} 条记忆",
+        }
 
     async def memory_boost(self) -> dict[str, Any]:
         payload = await self._json_body()
@@ -776,13 +795,13 @@ class PluginPageAPI:
     # --------------------------------------------------------------- health
     async def health_scan(self) -> dict[str, Any]:
         try:
-            return await asyncio.to_thread(self._scan_plugins)
+            return await asyncio.to_thread(self._scan_plugins, True)
         except Exception as exc:  # noqa: BLE001
             return {"ok": False, "message": f"插件体检失败：{exc}", "plugins": []}
 
-    def _scan_plugins(self) -> dict[str, Any]:
+    def _scan_plugins(self, force: bool = False) -> dict[str, Any]:
         now = time.time()
-        if self._scan_cache and now - self._scan_cache[0] < 60:
+        if not force and self._scan_cache and now - self._scan_cache[0] < 30:
             return dict(self._scan_cache[1])
         plugins_dir = Path(__file__).resolve().parents[3]
         if plugins_dir.name != "plugins":
@@ -791,11 +810,16 @@ class PluginPageAPI:
                 plugins_dir = guess
         results: list[dict[str, Any]] = []
         inactive = self._inactive_plugins(plugins_dir)
+        disabled = 0
         if plugins_dir.is_dir():
             for child in sorted(plugins_dir.iterdir()):
                 if not child.is_dir() or child.name.startswith((".", "_")):
                     continue
                 if child.name == PLUGIN_NAME:
+                    continue
+                if child.name in inactive:
+                    # Disabled plugins are not part of the live conflict set.
+                    disabled += 1
                     continue
                 item = self._inspect_plugin(child, inactive)
                 if item:
@@ -804,7 +828,7 @@ class PluginPageAPI:
             "direct": sum(1 for item in results if item["severity"] == "direct"),
             "warning": sum(1 for item in results if item["severity"] == "warning"),
             "info": sum(1 for item in results if item["severity"] == "info"),
-            "disabled": sum(1 for item in results if not item.get("enabled", True)),
+            "disabled": disabled,
         }
         payload = {
             "ok": True,
@@ -813,12 +837,52 @@ class PluginPageAPI:
             "summary": summary,
             "plugins": results,
             "advice": (
-                "只让一个插件接管上下文最稳。出现“直接冲突”时，把真心的 l3.host_context_mode 设为 off，"
-                "或停用另一个记忆/摘要插件，再做 20 轮对照。"
+                "只让一个插件接管上下文最稳。只有会改写上下文窗口、系统提示或每轮摘要/压缩的插件才算直接冲突；"
+                "表情包、B 站等媒体插件不影响真心的上下文寿命和预算，不计入冲突。"
             ),
         }
         self._scan_cache = (now, payload)
         return payload
+
+    def poll_conflicts(self) -> dict[str, Any] | None:
+        """Detect newly enabled conflicting plugins in the background.
+
+        Called by the plugin's low-frequency loop.  A first run only records a
+        baseline, so an existing installation does not get an alert storm.
+        """
+        try:
+            payload = self._scan_plugins(True)
+            current = [item for item in payload.get("plugins", []) if item.get("severity") in ("direct", "warning")]
+            names = [item["name"] for item in current]
+            known_raw = self.engine.db.get_state("__global__", "health_known_plugins", None)
+            if known_raw is None:
+                self.engine.db.set_state("__global__", "health_known_plugins", names)
+                return None
+            known = set(str(x) for x in (known_raw or []))
+            fresh = [item for item in current if item["name"] not in known]
+            self.engine.db.set_state("__global__", "health_known_plugins", names)
+            if not fresh:
+                return None
+            alert = {
+                "at": time.time(),
+                "items": [
+                    {
+                        "name": item["name"],
+                        "display": item.get("display") or item["name"],
+                        "severity": item["severity"],
+                        "reasons": item.get("reasons", [])[:2],
+                    }
+                    for item in fresh
+                ],
+            }
+            self.engine.db.set_state("__global__", "conflict_alert", alert)
+            return alert
+        except Exception:  # noqa: BLE001 - health polling is best effort
+            return None
+
+    async def health_ack(self) -> dict[str, Any]:
+        self.engine.db.set_state("__global__", "conflict_alert", None)
+        return {"ok": True}
 
     @staticmethod
     def _inactive_plugins(plugins_dir: Path) -> set[str]:
@@ -891,17 +955,57 @@ class PluginPageAPI:
             text_parts.append(content)
             for key in hooks:
                 hooks[key] += content.count(key)
-        blob = "\n".join(text_parts)
         haystack = (name + " " + display + " " + desc).lower()
+        name_l = name.lower()
+        # Media / platform-specific plugins only send links, images or stats.
+        # They do not touch the context window or prompt budget, so counting
+        # them as conflicts is noise (the user explicitly called this out).
+        if any(
+            key in name_l
+            for key in (
+                "bilibili",
+                "biliread",
+                "meme",
+                "parser",
+                "qqprofile",
+                "matsuko",
+                "music",
+                "video",
+                "tts",
+            )
+        ):
+            return None
         memoryish = any(
             word in haystack
-            for word in ("记忆", "memory", "上下文", "context", "摘要", "summary", "压缩", "compact", "知识库", "rag", "人设", "persona")
+            for word in (
+                "记忆",
+                "memory",
+                "上下文",
+                "context",
+                "摘要",
+                "summary",
+                "压缩",
+                "compact",
+                "知识库",
+                "rag",
+                "人设",
+                "persona",
+            )
         )
         reasons: list[str] = []
         severity = "info"
-        if hooks["on_llm_request"] and hooks["contexts"]:
+        if "proactive" in name_l:
+            # A second proactive-message plugin duplicates behaviour, but it
+            # does not shorten the context window; warn, do not call it direct.
+            severity = "warning"
+            reasons.append("也提供主动消息，和真心的主动消息功能重复（可只留一个）")
+        elif memoryish and hooks["on_llm_request"] and (hooks["contexts"] or hooks["system_prompt"]):
             severity = "direct"
-            reasons.append("也会改写 req.contexts（最近对话窗口），与真心的窗口接管重叠")
+            if hooks["contexts"]:
+                reasons.append("也会改写 req.contexts（最近对话窗口），与真心的窗口接管重叠")
+            if hooks["system_prompt"]:
+                reasons.append("也会改写 system_prompt，可能每轮改变稳定前缀")
+            reasons.append("会实际影响上下文寿命/预算，属于直接冲突")
         elif hooks["on_llm_request"] and hooks["system_prompt"]:
             severity = "warning"
             reasons.append("在 on_llm_request 里改写 system_prompt，可能每轮改变稳定前缀")
@@ -911,8 +1015,6 @@ class PluginPageAPI:
         if memoryish and severity == "info":
             severity = "warning"
             reasons.append("功能标签与真心相近（记忆/上下文/摘要/知识库），可能重复注入")
-        if memoryish and severity == "direct":
-            reasons.append("同时命中“记忆类插件 + 改写上下文”")
         if not reasons:
             return None
         enabled = path.name not in (inactive or set())
@@ -959,14 +1061,6 @@ class PluginPageAPI:
                 )
             except Exception:  # noqa: BLE001
                 diagnostics = ""
-        try:
-            self.engine.db.execute(
-                "INSERT INTO feedback(user_key,category,content,contact,diagnostics,created_at)"
-                " VALUES(?,?,?,?,?,?)",
-                ("", category, content, contact, diagnostics, time.time()),
-            )
-        except Exception as exc:  # noqa: BLE001
-            return {"ok": False, "message": f"保存反馈失败：{exc}"}
         base = str(self.engine.cfg.feedback.github_issues or "").strip()
         issue_url = ""
         if base:
@@ -977,9 +1071,9 @@ class PluginPageAPI:
             issue_url = base + ("&" if "?" in base else "?") + "title=" + quote(title) + "&body=" + quote(body[:4000])
         return {
             "ok": True,
-            "stored": True,
+            "stored": False,
             "issue_url": issue_url,
-            "message": "已保存到插件本地。也可以点“打开 GitHub Issue”继续提交。",
+            "message": "已生成 GitHub 提交链接，不会再保存到插件本地。",
         }
 
     async def feedback_list(self) -> dict[str, Any]:

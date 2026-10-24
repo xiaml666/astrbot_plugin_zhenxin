@@ -15,7 +15,7 @@ from pathlib import Path
 # Used only when the package is installed without its AstrBot metadata file
 # (e.g. ``pip install -e .`` for standalone use).  scripts/package_plugin.py
 # checks that this stays equal to metadata.yaml.
-FALLBACK_VERSION = "0.5.0"
+FALLBACK_VERSION = "0.6.0"
 
 
 def _find_metadata() -> Path | None:
@@ -56,3 +56,4 @@ def build_info() -> dict[str, str | bool]:
         "metadata_path": str(_METADATA) if _METADATA else "",
         "mismatch": bool(_VERSION) and FALLBACK_VERSION != _VERSION,
     }
+

@@ -504,6 +504,78 @@ class FactBank:
         )
         return str(row["text"]) if row else ""
 
+    def assistant_name(self, user_key: str) -> str:
+        """The name the user gave the assistant, injected every turn."""
+        if not self.cfg.enabled or not user_key:
+            return ""
+        row = self.db.fetchone(
+            "SELECT text FROM facts WHERE user_key=? AND kind='assistant_name'"
+            " AND pool<>'trash' ORDER BY importance DESC, mentions DESC, id DESC LIMIT 1",
+            (user_key,),
+        )
+        return str(row["text"]) if row else ""
+
+    def backfill_from_turns(self, user_key: str, limit: int = 400) -> int:
+        """Recover identity / explicit memories from the stored recent turns.
+
+        Older versions only knew how to store a subset of facts, and a user may
+        have cleared the memory bank while keeping the conversation history.
+        This is a local rule pass over ``turns``; it is safe to run repeatedly
+        because ``add`` deduplicates by text.
+        """
+        if not self.cfg.enabled or not user_key:
+            return 0
+        rows = self.db.fetchall(
+            "SELECT content FROM turns WHERE user_key=? AND role='user'"
+            " ORDER BY id DESC LIMIT ?",
+            (user_key, max(20, int(limit))),
+        )
+        texts = [str(row["content"] or "") for row in reversed(rows)]
+        if not texts:
+            return 0
+        cancelled: set[str] = set()
+        vague_cancel = False
+        for text in texts:
+            if zero_value.cue(text) == "address_cancel":
+                name = zero_value.address_in(text)
+                if name:
+                    cancelled.add(name)
+                else:
+                    vague_cancel = True
+        added = 0
+        existing = {
+            str(row["text"])
+            for row in self.db.fetchall(
+                "SELECT text FROM facts WHERE user_key=?", (user_key,)
+            )
+        }
+        for text in texts:
+            for fact, kind in zero_value.identity_facts(text):
+                if kind == "address":
+                    name = fact.replace("称呼我", "").strip("“”\"' ")
+                    if vague_cancel or (name and name in cancelled):
+                        continue
+                if fact in existing:
+                    continue
+                if self.add(user_key, fact, kind, importance=0.98):
+                    existing.add(fact)
+                    added += 1
+            clause = zero_value.explicit_memory(text)
+            if clause and clause not in existing and not zero_value.identity_facts(text):
+                if self.add(user_key, clause, "fact", importance=0.9):
+                    existing.add(clause)
+                    added += 1
+        return added
+
+    def backfill_all(self, limit: int = 400) -> dict[str, int]:
+        users = [
+            str(row[0])
+            for row in self.db.fetchall(
+                "SELECT DISTINCT user_key FROM turns WHERE role='user'"
+            )
+        ]
+        return {user: self.backfill_from_turns(user, limit) for user in users}
+
     def top_facts(self, user_key: str, limit: int = 3, pools: tuple[str, ...] = ("treasure", "cycle")) -> list[dict[str, Any]]:
         now = self.clock()
         rows = [

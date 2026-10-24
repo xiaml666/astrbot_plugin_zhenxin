@@ -211,7 +211,7 @@ class StyleLearningConfig:
     online: bool = True
     interval_days: float = 7.0
     local_interval_hours: float = 24.0
-    min_turns: int = 12
+    min_turns: int = 6
     max_chars: int = 500
     hint_chars: int = 110
     # Optional override; empty means the built-in public search endpoint.

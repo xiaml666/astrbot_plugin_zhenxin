@@ -15,6 +15,7 @@ from .._aux.compression import extract_entities, keywords_for_seed
 from .._aux.lexicon import Lexicon
 from .._aux.negative import NegativePatterns
 from .._aux.open_loops import OpenLoops
+from .._aux.zero_value import identity_facts
 from ..config import L2Config, L0Config
 from ..db import Database
 from ..embeddings import LocalScorer
@@ -103,20 +104,19 @@ class Distiller:
                 seed = self._corrected_seed(clause, emotion)
                 out.append(self._candidate(seed, "fact", text, "correction", 0.95))
 
-        # 2. How the user wants to be addressed.  This is deliberately checked
-        # before generic quotes so "叫我阿岚" becomes one durable address fact
-        # rather than an incidental token.
+        # 2. How the user wants to be addressed, and what the assistant's name
+        # is.  These are durable identity facts, not incidental tokens.
         if not question:
-            name = ""
-            match = _ADDRESS_RE.search(text) or _NAME_RE.search(text)
-            if match:
-                name = match.group(1).strip()
             rejected = any(
                 phrase in text
                 for phrase in ("别叫我", "不要叫我", "不用叫我", "不许叫我", "不叫", "别喊我")
             )
-            if name and not rejected and not _is_interrogative(name):
-                out.append(self._candidate(f"称呼我“{name}”", "address", text, "address", 0.98))
+            for fact, kind in identity_facts(text):
+                if rejected and kind == "address":
+                    continue
+                out.append(
+                    self._candidate(fact, kind, text, kind, 0.98 if kind == "address" else 0.95)
+                )
 
         # 3. Explicit quote / identifier.
         if not question:
@@ -223,6 +223,8 @@ class Distiller:
             "habit": "偏好",
             "relationship": "关系",
             "unclosed": "未闭合",
+            "address": "称呼",
+            "assistant_name": "AI名字",
             "fact": "事实",
         }.get(type_, "线索")
 
@@ -280,7 +282,7 @@ class L2Writer:
             return []
         candidates = self.distiller.distill(text, bootstrap=True)[: self.cfg.bootstrap_seeds]
         for cand in candidates:
-            if cand.type == "address":
+            if cand.type in ("address", "assistant_name"):
                 continue
             self.l0.insert_candidate(
                 user_key,
@@ -337,10 +339,10 @@ class L2Writer:
             # An address is durable identity, not a changing short-term clue;
             # it is injected every turn by the fact bank, so copying it into
             # L0 would only duplicate it in the prompt.
-            if cand.type == "address":
+            if cand.type in ("address", "assistant_name"):
                 if self.facts is not None:
                     self.facts.add(user_key, cand.seed, cand.type, importance=cand.importance)
-                decisions.append({"action": "address_fact"})
+                decisions.append({"action": "identity_fact"})
                 continue
             if corrected and cand.source == "correction" and corrected_slot is not None:
                 continue
