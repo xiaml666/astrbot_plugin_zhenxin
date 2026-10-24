@@ -235,6 +235,37 @@ class MemoryV2Tests(unittest.TestCase):
         self.assertEqual(before["importance"], restored["importance"])
         self.assertEqual(before["pool"], restored["pool"])
 
+    def test_weaken_lightens_symmetrically_and_demotes_pools(self):
+        engine, _ = make_engine()
+        engine.facts.add("u1", "爱喝冰美式", "habit", importance=0.8)
+        before = engine.facts.list_facts()[0]
+        # Negative delta is a real lighten, not a no-op: manual boost goes
+        # below zero and the dot visibly gets lighter.
+        weakened = engine.facts.boost(before["id"], -0.12)
+        self.assertLess(weakened["manual_boost"], 0)
+        self.assertLess(weakened["importance"], before["importance"])
+        self.assertLess(weakened["weight"], before["weight"])
+        for _ in range(3):
+            weakened = engine.facts.boost(before["id"], -0.12)
+        self.assertEqual("shallow", weakened["pool"])
+        # Deepening returns to the original state and can cross into treasure.
+        for _ in range(6):
+            deepened = engine.facts.boost(before["id"], 0.12)
+        self.assertGreater(deepened["manual_boost"], 0.2)
+        self.assertGreaterEqual(deepened["weight"], before["weight"])
+
+    def test_weakened_boost_can_be_undone_exactly(self):
+        engine, _ = make_engine()
+        engine.facts.add("u1", "养了猫叫团子", "relationship", importance=0.7)
+        before = engine.facts.list_facts()[0]
+        engine.facts.boost(before["id"], -0.24)
+        restored = engine.facts.set_boost(
+            before["id"], before["manual_boost"], before["importance"], before["pool"]
+        )
+        self.assertEqual(before["manual_boost"], restored["manual_boost"])
+        self.assertEqual(before["importance"], restored["importance"])
+        self.assertEqual(before["pool"], restored["pool"])
+
     def test_cycle_separates_treasure_and_shallow(self):
         engine, clock = make_engine()
         engine.facts.add("u1", "很重要的事", "habit", importance=0.99)
@@ -328,6 +359,50 @@ class ProactiveTests(unittest.TestCase):
         ok, reason = engine.proactive.gate("u1", now - 3 * 3600, now + 400)
         self.assertFalse(ok)
         self.assertEqual("今天已经够了", reason)
+
+    def test_greeting_bank_covers_casual_check_ins(self):
+        from zhenxin.proactive import GENERIC_GREETINGS, GREETINGS
+
+        every = [line for lines in GREETINGS.values() for line in lines]
+        every.extend(GENERIC_GREETINGS)
+        for phrase in ("吃饭了没？", "在干嘛呀？", "还没睡？"):
+            self.assertIn(phrase, every)
+        engine, _ = make_engine(**{"proactive.enabled": True})
+        now = self._noon()
+        text, kind = engine.proactive.compose("u1", now)
+        self.assertEqual("presence", kind)
+        self.assertIn(text, list(GREETINGS["noon"]) + list(GENERIC_GREETINGS))
+        # Different hours on the same day should not repeat one fixed line.
+        lines = {
+            engine.proactive.compose("u1", datetime(2026, 10, 24, hour, 5, 0).timestamp())[0]
+            for hour in (6, 9, 12, 15, 18, 21)
+        }
+        self.assertGreater(len(lines), 1)
+
+    def test_every_third_message_is_plain_small_talk(self):
+        engine, _ = make_engine(**{"proactive.enabled": True})
+        now = self._noon()
+        engine.facts.add("u1", "周五要交稿", "unclosed", importance=0.9)
+        kinds = []
+        for index in range(6):
+            text, kind = engine.proactive.compose("u1", now + index * 60)
+            kinds.append(kind)
+            engine.proactive.mark_sent("u1", text, kind, now + index * 60)
+        # memory, memory, greeting — repeat: greetings are not excluded when
+        # memory material happens to be available.
+        self.assertEqual(["memory", "memory", "presence"] * 2, kinds)
+
+    def test_custom_template_can_use_the_greeting_slot(self):
+        engine, _ = make_engine(**{"proactive.enabled": True})
+        engine.cfg.proactive.template = "{greeting}"
+        text, kind = engine.proactive.compose("u1", self._noon())
+        self.assertEqual("presence", kind)
+        self.assertTrue(text)
+        engine.cfg.proactive.template = "在吗？{loop}{fact}"
+        text, kind = engine.proactive.compose("u1", self._noon())
+        # Unfilled placeholders must not leak to the user.
+        self.assertNotIn("{loop}", text)
+        self.assertNotIn("{fact}", text)
 
 
 class ConfigRoundTripTests(unittest.TestCase):

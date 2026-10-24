@@ -59,6 +59,23 @@ class PageApiTests(unittest.TestCase):
         self.assertIn('id="kb-details"', page)
         self.assertIn('id="graph"', page)
         self.assertIn('id="memundo"', page)
+        # The memory garden is one zoomable/pannable canvas, not a static
+        # layout: toolbar + wheel/pinch handlers + a transformed <g>.
+        self.assertIn('id="zoom-in"', page)
+        self.assertIn('id="zoom-out"', page)
+        self.assertIn('id="zoom-fit"', page)
+        self.assertIn('id="zoom-level"', page)
+        self.assertIn('id="graph-view"', page)
+        self.assertIn('data-act="weaken"', page)
+        self.assertIn("点一下减轻", page)
+        self.assertIn("pointermove", page)
+        self.assertIn('addEventListener("wheel"', page)
+        # Feedback: the category select sits on the left next to its label,
+        # and the "open in new window" control is a button with a real
+        # sandbox fallback instead of a dead <a href="#">.
+        self.assertIn('class="fb-type"', page)
+        self.assertIn('<button class="btn small" id="fb-open-link"', page)
+        self.assertNotIn('<a class="btn small" id="fb-open-link"', page)
         self.assertNotIn('id="garden"', page)
         self.assertIn('id="hero"', page)
         self.assertIn("关键链路", page)
