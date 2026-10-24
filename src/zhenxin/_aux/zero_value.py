@@ -28,7 +28,7 @@ DONE_RE = re.compile(
     r"|(?:做完|完成|搞定|交了|结束)了"
 )
 ADDRESS_CANCEL_RE = re.compile(
-    r"(?:别|不要|不用|不许)(?:再)?(?:叫我|喊我|称呼我)"
+    r"(?:别|不要|不用|不许)(?:再)?(?:这样|这么)?(?:叫我|喊我|称呼我|称呼)"
     r"|(?:不叫|别叫)(?:我)?"
 )
 ADDRESS_RE = re.compile(
@@ -110,8 +110,11 @@ def matches(fact_text: str, fact_kind: str, message: str, reason: str) -> bool:
         name = address_in(message)
         if name:
             return name in fact_text
-        # "不要这样称呼我了" -> any address fact is a candidate.
-        return fact_kind == "address"
+        # "不要这样称呼我了" -> any address fact is a candidate.  A vague
+        # "不要叫外卖" must not wipe an address, so require the word itself.
+        return fact_kind == "address" and any(
+            word in message for word in ("称呼", "名字", "叫我", "喊我")
+        )
     ratio = overlap_ratio(fact_text, message)
     if reason == "done":
         if fact_kind not in ("unclosed", "fact", "habit"):
