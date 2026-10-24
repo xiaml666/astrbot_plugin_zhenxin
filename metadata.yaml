@@ -10,7 +10,7 @@ desc: >-
   可选主动消息、插件冲突体检和页面内反馈通道。
   相比每轮检索或自动压缩的记忆方案，真心把线索放在请求末尾、写记忆不调用模型，缓存命中更稳、成本更低。
   不建议与其他接管上下文的记忆插件、每轮自动压缩/总结插件同时开启；共存时把 l3.host_context_mode 设为 off。
-version: 0.6.2
+version: 0.6.3
 author: xiaml666
 repo: https://github.com/xiaml666/astrbot_plugin_zhenxin
 social_link: https://github.com/xiaml666

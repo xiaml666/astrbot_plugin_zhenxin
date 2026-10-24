@@ -15,7 +15,6 @@ _PUNCT_RE = re.compile(r"[\s\u3000-\u303f\u2000-\u206f!-/:-@\[-`{-~，。！？�
 _EMOJI_RE = re.compile(
     "[\U0001f300-\U0001faff\U00002600-\U000027bf\U0001f1e6-\U0001f1ff\u2b00-\u2bff\ufe0f\u200d]+"
 )
-_CJK_RE = re.compile(r"[\u3400-\u4dbf\u4e00-\u9fff]")
 _WORD_RE = re.compile(r"[a-zA-Z][a-zA-Z0-9_.+\-]{0,30}|\d+(?:\.\d+)?")
 
 STOP_CHARS = set("的了呢吧啊呀哦嘛哈嗯是我你他她它们这那有个一不太就都也还很和在与吗么什怎")
@@ -25,7 +24,6 @@ STOPWORDS = {
     "他们", "一个", "没有", "不是", "这样", "那样", "时候", "东西", "事情", "感觉",
 }
 
-DEICTIC_RE = re.compile(r"那个|这个|上次|上回|之前|以前|前面说|你说过|还记得|记得|后来|然后呢|接着")
 # Backward-looking references only.  "这个/那个" alone is too common to justify
 # a memory retrieval.
 STRONG_DEICTIC_RE = re.compile(r"上次|上回|之前|以前|前面说|你说过|还记得|记得|后来|那次|当时|刚才说")
@@ -55,9 +53,6 @@ FUTURE_ACTION_RE = re.compile(
     r"要|得|准备|打算|计划|约了|答应|截止|交稿|面试|考试|出差|看医生|复诊|搬家|旅行|生日|开会)"
 )
 COMPLETION_RE = re.compile(r"(做完了|搞定了|弄完了|交了|交稿了|结束了|完成了|处理好了|看完了|去过了|已经.*了)")
-QUESTION_TAIL_RE = re.compile(r"[?？]|吗|呢|么|嘛")
-FILLER_PREFIX_RE = re.compile(r"^(那个|就是|然后|其实|我觉得|感觉|就是说|话说|对了|欸|哎|唉|嗯)+")
-ASSISTANT_FEATURE_RE = re.compile(r"[?？]|哈|呢|吧|～|~|🙂|😊|😂|🤔")
 
 
 def normalize(text: str) -> str:
@@ -82,10 +77,6 @@ def canonical_short(text: str) -> str:
     # Trailing discourse particles are not part of the habit pattern.
     text = re.sub(r"(啊|呀|呢|吧|哦|喔|嘛|哈|啦|咯|嘞)+$", "", text)
     return text
-
-
-def strip_emoji(text: str) -> str:
-    return _EMOJI_RE.sub("", text)
 
 
 def cjk_runs(text: str) -> list[str]:
@@ -113,14 +104,6 @@ def content_tokens(text: str) -> list[str]:
             continue
         out.append(tok)
     return out
-
-
-def jaccard(a: str | set[str], b: str | set[str]) -> float:
-    sa = set(tokens(a)) if isinstance(a, str) else set(a)
-    sb = set(tokens(b)) if isinstance(b, str) else set(b)
-    if not sa or not sb:
-        return 0.0
-    return len(sa & sb) / len(sa | sb)
 
 
 def overlap_ratio(query: str, target: str) -> float:
@@ -154,20 +137,12 @@ def is_correction(text: str) -> bool:
     return bool(CORRECTION_RE.search(text))
 
 
-def has_deictic(text: str) -> bool:
-    return bool(DEICTIC_RE.search(text))
-
-
 def has_strong_deictic(text: str) -> bool:
     return bool(STRONG_DEICTIC_RE.search(text))
 
 
 def is_question(text: str) -> bool:
     return bool(QUESTION_RE.search(normalize(text)))
-
-
-def is_short(text: str, limit: int = 8) -> bool:
-    return len(compact(text)) <= limit
 
 
 @dataclass(frozen=True)

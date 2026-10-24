@@ -152,6 +152,3 @@ class RhythmController:
             if not reply.endswith(("。", "！", "？", "…")):
                 reply += "。"
         return reply
-
-    def apply_lexicon(self, user_key: str, reply: str, enabled: bool = True) -> str:
-        return reply

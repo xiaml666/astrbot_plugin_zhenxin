@@ -235,6 +235,24 @@ class MemoryV2Tests(unittest.TestCase):
         self.assertEqual(before["importance"], restored["importance"])
         self.assertEqual(before["pool"], restored["pool"])
 
+    def test_color_follows_importance_in_five_tiers(self):
+        engine, clock = make_engine()
+        for index, importance in enumerate((0.05, 0.3, 0.55, 0.8, 0.98)):
+            engine.facts.add("u1", f"记忆{index}", "fact", importance=importance)
+        facts = {f["text"]: f for f in engine.facts.list_facts("u1", limit=50)}
+        ordered = [facts[f"记忆{i}"] for i in range(5)]
+        self.assertEqual([1, 2, 3, 4, 5], [f["tone"] for f in ordered])
+        self.assertEqual(5, len({f["color"] for f in ordered}))
+        self.assertEqual("淡灰", ordered[0]["tone_label"])
+        self.assertEqual("墨绿", ordered[4]["tone_label"])
+        # Colour is bound to importance, not to age/retention: an old but
+        # important fact keeps the same dark tone as a fresh one.
+        engine.facts.add("u1", "老记忆", "fact", importance=0.98)
+        clock.advance(200 * 86400)
+        old = {f["text"]: f for f in engine.facts.list_facts("u1", limit=50)}["老记忆"]
+        self.assertEqual(ordered[4]["color"], old["color"])
+        self.assertLess(old["retention"], ordered[4]["retention"])
+
     def test_weaken_lightens_symmetrically_and_demotes_pools(self):
         engine, _ = make_engine()
         engine.facts.add("u1", "爱喝冰美式", "habit", importance=0.8)

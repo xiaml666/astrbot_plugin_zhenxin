@@ -26,7 +26,7 @@ class PageApiTests(unittest.TestCase):
         config = {}
         api = PluginPageAPI(FakePlugin(context), engine, config)
         api.register()
-        self.assertEqual(len(context.routes), 20)
+        self.assertEqual(len(context.routes), 18)
         self.assertTrue(context.routes[0][0].endswith("/page/status"))
         self.assertTrue(any(r[0].endswith("/page/defaults") for r in context.routes))
         self.assertTrue(any(r[0].endswith("/page/reset") for r in context.routes))
@@ -93,6 +93,14 @@ class PageApiTests(unittest.TestCase):
         # The bridge arrives after this script, so it must be looked up lazily.
         self.assertNotIn("const bridge = window.AstrBotPluginView", script)
         self.assertIn("waitForBridge", script)
+        # Memory colour is the importance scale (5 blended tiers), and the
+        # search box actually filters instead of being a dead input.
+        self.assertIn("tone-legend", page)
+        self.assertIn("第 5 档 墨绿", page)
+        self.assertIn("visibleFacts", script)
+        self.assertIn("memoryQuery", script)
+        self.assertNotIn("颜色深度", page)
+        self.assertNotIn("style-online", script)
         # window.confirm is blocked inside AstrBot's sandboxed iframe; the
         # clear/reset handlers must use the in-page dialog instead.
         self.assertNotIn("confirm(", script)

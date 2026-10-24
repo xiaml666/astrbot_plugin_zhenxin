@@ -192,18 +192,6 @@ CREATE TABLE IF NOT EXISTS style_knowledge (
     PRIMARY KEY (user_key, source)
 );
 
--- User feedback / bug reports written from the plugin page.  Kept locally as
--- a paper trail; the page also offers a prefilled GitHub issue link.
-CREATE TABLE IF NOT EXISTS feedback (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_key TEXT NOT NULL DEFAULT '',
-    category TEXT NOT NULL,
-    content TEXT NOT NULL,
-    contact TEXT NOT NULL DEFAULT '',
-    diagnostics TEXT NOT NULL DEFAULT '',
-    created_at REAL NOT NULL
-);
-
 -- One row per unsolicited message, so daily caps survive a restart.
 CREATE TABLE IF NOT EXISTS proactive_log (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

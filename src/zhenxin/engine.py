@@ -586,25 +586,6 @@ class ZhenxinEngine:
         except Exception:
             pass
 
-    def reset_user(self, user_key: str) -> None:
-        for table in (
-            "hot_slots",
-            "warm_slots",
-            "cold_seeds",
-            "solidified_paths",
-            "topic_stack",
-            "open_loops",
-            "negative_patterns",
-            "lexicon",
-            "turns",
-            "metrics",
-            "state",
-            "style_knowledge",
-            "proactive_log",
-        ):
-            self.db.execute(f"DELETE FROM {table} WHERE user_key=?", (user_key,))
-
-
 def _plan_tokens(plan: ContextPlan) -> int:
     from .layers.l3 import estimate_tokens
 

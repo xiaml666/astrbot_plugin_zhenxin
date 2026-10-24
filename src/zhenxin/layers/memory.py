@@ -41,7 +41,6 @@ MAX_CHARS = 60
 
 # Zero-value cleanup.  Everything below is rule-based, so the sweep costs one
 # small query and no embeddings/LLM calls.
-ARCHIVE_MIN_AGE_DAYS = 30.0
 ARCHIVE_SCORE = 0.30
 MAX_ARCHIVE_PER_SWEEP = 50
 
@@ -108,38 +107,6 @@ def retention(row: Any, now: float, *, half_life_days: float = 30.0) -> float:
     elif pool == "shallow":
         life *= 0.55
     return math.exp(-idle_days / max(0.5, life))
-
-
-def fact_value(
-    importance: float,
-    used_count: int,
-    created_at: float,
-    last_used: float,
-    now: float,
-    *,
-    mentions: int = 0,
-    manual_boost: float = 0.0,
-    pool: str = "cycle",
-    half_life_days: float = 30.0,
-) -> float:
-    """0..1 estimate of how much a fact is still worth recalling."""
-    row = {
-        "importance": importance,
-        "used_count": used_count,
-        "created_at": created_at,
-        "last_used": last_used,
-        "mentions": max(1, int(mentions or 1)),
-        "manual_boost": manual_boost,
-        "pool": pool,
-    }
-    recency = retention(row, now, half_life_days=half_life_days)
-    usage = min(1.0, math.log1p(max(0, int(used_count))) / math.log(6.0))
-    return _clamp(
-        0.48 * _clamp(importance)
-        + 0.32 * recency
-        + 0.12 * usage
-        + 0.08 * _signed(manual_boost)
-    )
 
 
 class FactBank:
@@ -585,16 +552,6 @@ class FactBank:
         ]
         return {user: self.backfill_from_turns(user, limit) for user in users}
 
-    def top_facts(self, user_key: str, limit: int = 3, pools: tuple[str, ...] = ("treasure", "cycle")) -> list[dict[str, Any]]:
-        now = self.clock()
-        rows = [
-            row
-            for row in self._rows(user_key, include_trash=False)
-            if str(row.get("pool") or "cycle") in pools
-        ]
-        rows.sort(key=lambda row: (-self.weight_of(row, now), -float(row.get("last_mentioned") or 0)))
-        return rows[: max(1, int(limit))]
-
     # -------------------------------------------------------------- page view
     def list_facts(
         self,
@@ -640,14 +597,20 @@ class FactBank:
     def _public(self, row: dict[str, Any], now: float) -> dict[str, Any]:
         pool = str(row.get("pool") or "cycle")
         weight = self.weight_of(row, now)
+        importance = round(_clamp(row.get("importance", 0.5)), 2)
+        tone = _tone_index(importance)
         created = float(row.get("created_at") or 0)
         return {
             "id": int(row["id"]),
             "text": row["text"],
             "kind": row.get("kind", "fact"),
-            "importance": round(_clamp(row.get("importance", 0.5)), 2),
+            "importance": importance,
             "weight": round(weight, 3),
-            "color": _color(weight),
+            # Colour is the importance scale, not the decayed weight: a
+            # high-importance memory must stay visually dark even when old.
+            "color": _importance_color(importance),
+            "tone": tone + 1,
+            "tone_label": TONE_LABELS[tone],
             "mentions": int(row.get("mentions") or 1),
             "used": int(row.get("used_count") or 0),
             "pool": pool,
@@ -802,18 +765,29 @@ def _date_of(timestamp: float) -> str:
         return ""
 
 
-def _color(weight: float) -> str:
-    """Map 0..1 weight to a CSS colour used by the dot matrix."""
-    stops = (
-        (0.0, (203, 213, 225)),
-        (0.25, (148, 197, 190)),
-        (0.5, (45, 161, 148)),
-        (0.75, (15, 118, 110)),
-        (1.0, (6, 78, 74)),
-    )
-    value = _clamp(weight)
-    for index in range(1, len(stops)):
-        left, right = stops[index - 1], stops[index]
+# Five importance tiers; the colour between two anchors is a linear blend, so
+# the dot darkens smoothly with importance instead of jumping between buckets.
+IMPORTANCE_STOPS = (
+    (0.0, (203, 213, 225)),   # 第 1 档 · 淡灰
+    (0.25, (148, 197, 190)),  # 第 2 档 · 浅青
+    (0.5, (45, 161, 148)),    # 第 3 档 · 青绿
+    (0.75, (15, 118, 110)),   # 第 4 档 · 深青
+    (1.0, (6, 78, 74)),       # 第 5 档 · 墨绿
+)
+TONE_LABELS = ("淡灰", "浅青", "青绿", "深青", "墨绿")
+
+
+def _tone_index(importance: float) -> int:
+    """0..4, nearest of the five anchors."""
+    value = _clamp(importance)
+    return max(0, min(len(IMPORTANCE_STOPS) - 1, int(value * 4 + 0.5)))
+
+
+def _importance_color(importance: float) -> str:
+    """Map importance to one of five tier colours, blended in between."""
+    value = _clamp(importance)
+    for index in range(1, len(IMPORTANCE_STOPS)):
+        left, right = IMPORTANCE_STOPS[index - 1], IMPORTANCE_STOPS[index]
         if value <= right[0]:
             span = max(1e-6, right[0] - left[0])
             ratio = (value - left[0]) / span

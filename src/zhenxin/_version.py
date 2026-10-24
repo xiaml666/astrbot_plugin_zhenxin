@@ -15,7 +15,7 @@ from pathlib import Path
 # Used only when the package is installed without its AstrBot metadata file
 # (e.g. ``pip install -e .`` for standalone use).  scripts/package_plugin.py
 # checks that this stays equal to metadata.yaml.
-FALLBACK_VERSION = "0.6.2"
+FALLBACK_VERSION = "0.6.3"
 
 
 def _find_metadata() -> Path | None:

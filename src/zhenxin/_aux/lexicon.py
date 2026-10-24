@@ -6,7 +6,6 @@ import re
 
 from ..db import Database
 
-_ALIAS_RE = re.compile(r"(?:我)?(?:一般|都)?(?:管|把).{1,10}?(?:叫|叫做|称为)(.{1,10})")
 _PAREN_RE = re.compile(r"([\u4e00-\u9fffA-Za-z0-9]{1,10})[（(]([\u4e00-\u9fffA-Za-z0-9]{1,10})[）)]")
 # Only metalinguistic naming, not ordinary corrections ("不是累，是烦").
 _EXPLICIT_RE = re.compile(r"(?:我)?(?:不叫|管它叫|管这个叫)(.{1,8})[，, ]*(?:叫|是)(.{1,8})")

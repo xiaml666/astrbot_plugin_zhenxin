@@ -40,13 +40,6 @@ _ACTION_RE = re.compile(
     r"(交稿|截止|面试|考试|看医生|复诊|搬家|出差|开会|还钱|赶稿|通宵|早起|提交|汇报|答辩|体检|买|订)"
 )
 _EXPLICIT_MEMORY_RE = re.compile(r"记住|记一下|别忘了|提醒我")
-# "叫我阿岚 / 称呼我为小满 / 我的名字是..." is a durable identity fact: keep it
-# top-importance so retrieval weights and the always-on address hint can use it.
-_ADDRESS_RE = re.compile(
-    r"(?:你(?:可以|就|以后)?|以后|请|都)?(?:叫我|喊我|称呼我(?:为|作)?)"
-    r"([\u4e00-\u9fffA-Za-z0-9_]{1,12})"
-)
-_NAME_RE = re.compile(r"(?:我的名字(?:是|叫)|我叫)([\u4e00-\u9fffA-Za-z0-9_]{1,12})")
 _KNOWN = ("海盐", "团子", "阿哲", "甲方", "冰美式", "香菜", "线稿", "绘本", "电影", "妈妈", "医院", "中药")
 
 # Question detection.  A question can carry emotion, but it must not create
@@ -396,7 +389,4 @@ class L2Writer:
             "inserted": inserted,
             "decisions": decisions,
         }
-
-    def bootstrap_done(self, user_key: str) -> bool:
-        return bool(self.db.get_state(user_key, "bootstrapped", False))
 

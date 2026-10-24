@@ -13,21 +13,6 @@ class Ball:
     last_touched: float
     type: str = "fact"
 
-    @property
-    def is_empty(self) -> bool:
-        return not self.content_seed.strip()
-
-
-@dataclass
-class ColdSeed:
-    id: int
-    seed_tokens: str
-    thin_context: str
-    topic_key: str | None
-    last_wake_round: int
-    wake_count: int
-    access_count: int
-
 
 @dataclass
 class SolidPath:

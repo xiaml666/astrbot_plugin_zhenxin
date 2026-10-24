@@ -16,7 +16,7 @@ from __future__ import annotations
 import re
 import time
 from dataclasses import dataclass, replace
-from typing import Any, Callable
+from typing import Callable
 
 from ..db import Database
 from .rhythm import Rhythm, render_hint

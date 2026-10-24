@@ -1,5 +1,17 @@
 # 更新日志
 
+## 0.6.3
+
+- 记忆颜色与重要度绑定：5 个档位（淡灰 / 浅青 / 青绿 / 深青 / 墨绿），档位之间线性融合；
+  颜色只看重要度，不再被保持度/使用次数带偏；节点大小也改为按重要度。
+  列表和详情显示“第 N 档 + 色名”，并加了颜色图例。
+- 记忆搜索修好了：输入即过滤图谱和列表，无结果给出提示（之前输入框绑定了但没过滤）。
+- 代码清理：删除已废弃的点阵视图 CSS、realtime/kpi 样式、`style-online` 死分支、
+  `boostFact` 包装、`_memory_users`、`feedback_submit`/`feedback_list` 死接口与 `feedback` 表、
+  未使用的 `ColdSeed`/`fact_value`/`strip_emoji`/`jaccard`/`has_deictic`/`is_short`、
+  `get_ball`/`clear_ball`/`relevance_rank`/`reset_user`/`top_facts`/`bootstrap_done` 等方法与常量。
+- 116 个测试。
+
 ## 0.6.2
 
 - 记忆花园：整张点阵可以缩放和平移，不再只能拖单个节点。滚轮缩放（以光标为中心）、双指捏合、

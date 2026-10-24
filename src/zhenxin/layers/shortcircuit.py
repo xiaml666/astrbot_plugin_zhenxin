@@ -21,7 +21,6 @@ from ..models import SolidPath
 from ..normalize import (
     TEMPLATES,
     Signature,
-    canonical_short,
     compact,
     is_ack,
     is_cold,

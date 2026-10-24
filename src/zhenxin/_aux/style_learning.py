@@ -16,8 +16,6 @@ profile still works and the last good online note is kept.
 from __future__ import annotations
 
 import html
-import json
-import math
 import re
 import time
 import urllib.parse

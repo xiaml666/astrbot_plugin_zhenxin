@@ -126,26 +126,12 @@ main section > h1,main section > .sub{display:none}
 .chart-card .chart-head .rt-time{margin-left:auto}
 
 /* ---------- realtime strip ---------- */
-.realtime{background:linear-gradient(135deg,color-mix(in srgb,var(--card) 92%,var(--acc-soft)),var(--card));
-  border:1px solid var(--line);border-radius:22px;padding:18px 20px;margin-bottom:18px;box-shadow:var(--shadow);position:relative;overflow:hidden}
-.realtime:before{content:"";position:absolute;inset:0;background:radial-gradient(500px 180px at 100% 0%,color-mix(in srgb,var(--acc2) 16%,transparent),transparent 70%);pointer-events:none}
-.rt-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;position:relative}
-.rt-head h2{margin:0;font-size:16px}
-.rt-dot{width:9px;height:9px;border-radius:50%;background:var(--good);box-shadow:0 0 0 5px color-mix(in srgb,var(--good) 15%,transparent)}
-.rt-dot.shadow{background:var(--warn);box-shadow:0 0 0 5px color-mix(in srgb,var(--warn) 16%,transparent)}
 .rt-time{color:var(--muted);font-size:12px;margin-left:auto}
 .refresh{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--card);color:var(--ink);
   padding:7px 12px;border-radius:11px;cursor:pointer;font-size:13px}
 .refresh:hover{border-color:var(--acc);color:var(--acc)}
 .refresh.spin .r{animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
-.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:14px;position:relative}
-@media(max-width:980px){.kpis{grid-template-columns:repeat(3,1fr)}}
-@media(max-width:560px){.kpis{grid-template-columns:repeat(2,1fr)}}
-.kpi{background:color-mix(in srgb,var(--card) 74%,var(--bg2));border:1px solid var(--line);border-radius:14px;padding:10px 12px}
-.kpi .k{color:var(--muted);font-size:11px;display:flex;gap:5px;align-items:center}
-.kpi .v{font-size:21px;font-weight:760;font-variant-numeric:tabular-nums;margin-top:2px;letter-spacing:-.3px}
-.kpi .v small{font-size:11px;color:var(--muted);font-weight:500;letter-spacing:0}
 .badge{display:inline-block;font-size:10px;padding:0 6px;border-radius:999px;background:var(--acc-soft);color:var(--acc);font-weight:650}
 .badge.warn{background:var(--warn-soft);color:var(--warn)}
 .badge.bad{background:var(--bad-soft);color:var(--bad)}
@@ -214,17 +200,11 @@ input[type=range]{width:190px;accent-color:var(--acc)}
 .dates{display:flex;gap:7px;overflow:auto;padding:8px 2px 2px;margin:6px 0 12px;scrollbar-width:thin}
 .date{border:1px solid var(--line);background:var(--card);color:var(--muted);padding:5px 11px;border-radius:10px;white-space:nowrap;cursor:pointer;font-size:12.3px}
 .date.on{background:var(--acc-soft);color:var(--acc);border-color:color-mix(in srgb,var(--acc) 40%,var(--line));font-weight:650}
-.garden{min-height:210px;display:flex;flex-wrap:wrap;gap:18px 22px;align-items:center;
-  justify-content:space-evenly;align-content:center;
-  padding:22px;border:1px solid var(--line);border-radius:16px;background:
-  radial-gradient(circle at 1px 1px,color-mix(in srgb,var(--line) 60%,transparent) 1px,transparent 0) 0 0/18px 18px,
-  color-mix(in srgb,var(--bg2) 55%,transparent)}
-.dot{--c:#94c5be;--s:26px;width:var(--s);height:var(--s);border-radius:50%;border:0;cursor:pointer;position:relative;
-  background:radial-gradient(circle at 34% 28%,#ffffffb8,transparent 38%),var(--c);
-  box-shadow:0 0 0 4px color-mix(in srgb,var(--c) 16%,transparent),0 3px 9px color-mix(in srgb,var(--c) 35%,transparent);
-  transition:transform .15s,box-shadow .15s;margin:0}
-.dot:hover{transform:scale(1.18);box-shadow:0 0 0 6px color-mix(in srgb,var(--c) 24%,transparent),0 6px 16px color-mix(in srgb,var(--c) 48%,transparent)}
-.dot.trash{opacity:.45;filter:grayscale(.25)}
+.tone-legend{display:flex;align-items:center;gap:8px;flex-wrap:wrap;color:var(--muted);font-size:11.8px;margin:10px 2px 0}
+.tone-bar{width:132px;height:7px;border-radius:999px;
+  background:linear-gradient(90deg,#cbd5e1 0%,#94c5be 25%,#2da194 50%,#0f766e 75%,#064e4a 100%)}
+.tone-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;position:relative;top:-1px;
+  box-shadow:0 0 0 2px color-mix(in srgb,#fff 72%,transparent)}
 .mem-graph{border:1px solid var(--line);border-radius:16px;background:
   radial-gradient(circle at 1px 1px,color-mix(in srgb,var(--line) 60%,transparent) 1px,transparent 0) 0 0/22px 22px,
   color-mix(in srgb,var(--bg2) 55%,transparent);overflow:hidden}
@@ -240,8 +220,6 @@ input[type=range]{width:190px;accent-color:var(--acc)}
 .graph-node:active{cursor:grabbing}
 .graph-label{fill:var(--ink);font-size:11.5px;pointer-events:none;user-select:none}
 .graph-edge{stroke:var(--muted);stroke-width:.9;opacity:.24;pointer-events:none}
-.dot.pulse{animation:pulse .35s ease}
-@keyframes pulse{50%{transform:scale(1.35);filter:brightness(1.12)}}
 .mem-detail{border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-top:12px;background:color-mix(in srgb,var(--card) 80%,var(--bg2))}
 .mem-detail .t{font-weight:700;font-size:15px;word-break:break-word}
 .mem-detail .meta{color:var(--muted);font-size:12.3px;margin:5px 0 10px;line-height:1.8}
@@ -285,8 +263,6 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
 .fb-type b{font-size:13.4px}
 .fb-type select{min-width:190px}
 .fb-type .hintline{margin:0}
-.fb-item{border-bottom:1px dashed var(--line);padding:8px 0;font-size:12.4px;color:var(--muted)}
-.fb-item b{color:var(--ink)}
 
 /* ---------- dock / toast / modal ---------- */
 .dock{position:fixed;left:0;right:0;bottom:0;background:color-mix(in srgb,var(--card) 92%,transparent);
@@ -464,7 +440,7 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
 
     <section id="tab-memory">
       <h1>记忆花园</h1>
-      <p class="sub">节点越深越重要、越不容易忘。滚轮或双指缩放整张点阵，拖空白处平移，拖节点整理布局；单击节点选中后可以加深或减轻，误点可撤销。默认只看今天，也可以切换日期或看全部。</p>
+      <p class="sub">颜色 = 重要度：分 5 档从淡灰到墨绿，档位之间渐变，重要度越高颜色越深。滚轮或双指缩放整张点阵，拖空白处平移，拖节点整理布局；单击节点选中后可以加深或减轻，误点可撤销。默认只看今天，也可以切换日期或看全部。</p>
       <div class="card">
         <div class="mem-top">
           <div class="chips" id="pool-chips"></div>
@@ -486,6 +462,10 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
           </div>
           <svg id="graph-svg" viewBox="0 0 900 420" preserveAspectRatio="xMidYMid meet"></svg>
         </div>
+        <div class="tone-legend">
+          <span>颜色 = 重要度：</span><i class="tone-bar"></i>
+          <span>第 1 档 淡灰 → 第 5 档 墨绿（档位之间渐变）</span>
+        </div>
         <div id="mem-detail"></div>
         <div class="mem-list" id="memlist"></div>
         <details class="adv" id="traces-box">
@@ -499,7 +479,7 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
         <p class="lead">周期结束后，记忆会按“艾宾浩斯式”的保持度分流；高价值加深，低价值优先遗忘，避免上下文越来越长。选中节点后可以“加深”也可以“减轻”，两个方向都随时能撤销。</p>
         <div class="note">
           <b>周期池</b>：刚记住、还在观察中；<b>珍藏池</b>：重要且常被提到，衰减更慢；<b>浅忆池</b>：低价值，只有强相关时才想起；<b>回收池</b>：你明确说“不用了/别叫我X”或手动移入，默认 7 天后彻底删除。<br>
-          被提到越多、点得越多，颜色越深，遗忘越慢；长时间不再被提到会自然变浅。
+          颜色只跟重要度绑定：提到、点“加深”都会提高重要度，颜色随之变深；点“减轻”会变浅。保持度负责遗忘节奏，不再参与颜色。
         </div>
       </div>
     </section>
@@ -756,7 +736,7 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
   const state = {
     config: {}, defaults: {}, defaultsApplied: false, metrics: {}, health: {},
     series: [], facts: [], traces: [], archivedTotal: 0, pools: {}, dates: [],
-    mem: { view: "day", date: "", pool: "", user: "" }, lastBoost: null,
+    mem: { view: "day", date: "", pool: "" }, lastBoost: null,
     style: { users: [], selected: "" }, dirty: false, build: {}, usage: {}, proactive: null,
     lastScan: null, feedbackIssueUrl: "https://github.com/xiaml666/astrbot_plugin_zhenxin/issues/new",
     lastFeedbackText: "", lastFeedbackUrl: ""
@@ -1209,14 +1189,10 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
       };
     });
   }
-  async function boostFact(factId, el) {
-    return adjustFact(factId, 0.12, el, "加深");
-  }
-  async function adjustFact(factId, delta, el, action) {
+  async function adjustFact(factId, delta, action) {
     const fact = state.facts.find((f) => String(f.id) === String(factId));
     if (!fact) return;
-    if (fact.pool === "trash") { showDetail(fact, el); return; }
-    if (el) { el.classList.add("pulse"); setTimeout(() => el.classList.remove("pulse"), 400); }
+    if (fact.pool === "trash") { showDetail(fact); return; }
     try {
       const previous = {
         id: fact.id,
@@ -1231,10 +1207,10 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
       toast(action === "减轻" ? "已减轻这条记忆" : "已加深这条记忆");
       renderMemory();
       const next = state.facts.find((f) => String(f.id) === String(fact.id)) || fact;
-      showDetail(next, null);
+      showDetail(next);
       loadStatus(true);
     } catch (err) {
-      showDetail(fact, null);
+      showDetail(fact);
       toast(err.message);
     }
   }
@@ -1257,7 +1233,7 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
         fact: f,
         x: W / 2 + Math.cos(angle) * ring,
         y: H / 2 + Math.sin(angle) * ring * 0.62,
-        r: 8 + num(f.weight, .3) * 10,
+        r: 8 + num(f.importance, .5) * 12,
         tokens: graphTokens(f.text),
       };
     });
@@ -1419,7 +1395,7 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
       const tx = left ? node.x - node.r - 6 : node.x + node.r + 6;
       const anchor = left ? "end" : "start";
       parts.push('<g class="graph-node" data-id="' + f.id + '" data-index="' + nodes.indexOf(node) + '">' +
-        '<title>' + esc(f.text) + "（" + poolLabel(f.pool) + "，深度 " + fmtMath(f.weight) + "）</title>" +
+        '<title>' + esc(f.text) + "（" + poolLabel(f.pool) + "，重要度 " + f.importance + "，" + toneText(f) + "）</title>" +
         '<circle cx="' + node.x.toFixed(1) + '" cy="' + node.y.toFixed(1) + '" r="' + node.r.toFixed(1) +
         '" fill="' + esc(f.color) + '" stroke="' + (f.pool === "treasure" ? "#f59e0b" : "#ffffff") + '" stroke-width="1.4" opacity="' +
         (f.pool === "trash" ? ".45" : ".95") + '"></circle>' +
@@ -1460,7 +1436,7 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
       if (!pointers.size) svg.classList.remove("dragging");
       if (drag && !drag.moved && !svg._pinch) {
         const node = svg._graph && svg._graph.nodes[drag.index];
-        if (node) boostFact(node.fact.id, null);
+        if (node) adjustFact(node.fact.id, 0.12, "加深");
       }
     };
 
@@ -1570,16 +1546,34 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
     }).catch((err) => toast("撤销失败：" + err.message));
   }
 
+  function memoryQuery() {
+    const input = $("#memsearch");
+    return input ? String(input.value || "").trim().toLowerCase() : "";
+  }
+  function visibleFacts() {
+    const query = memoryQuery();
+    const facts = state.facts || [];
+    return query ? facts.filter((f) => String(f.text || "").toLowerCase().includes(query)) : facts;
+  }
+  function toneText(fact) {
+    return "第 " + (fact.tone || 1) + " 档 " + (fact.tone_label || "");
+  }
   function renderMemory() {
     renderPoolChips();
     renderDates();
-    const items = state.facts || [];
+    const query = memoryQuery();
+    const items = visibleFacts();
     $("#memcount").textContent = fmt(state.health.facts || 0);
     if (!items.length) {
       const svg = $("#graph-svg");
       svg._graph = null;
+      const empty = query
+        ? "没有匹配“" + query + "”的记忆，换个词或点“全部”看看。"
+        : state.mem.view === "day"
+          ? "今天还没有新的记忆，换个日期或点“全部”看看。"
+          : "没有匹配的记忆。";
       svg.innerHTML = '<text x="450" y="200" text-anchor="middle" fill="#64756f" font-size="13">' +
-        esc(state.mem.view === "day" ? "今天还没有新的记忆，换个日期或点“全部”看看。" : "没有匹配的记忆。") + "</text>";
+        esc(empty) + "</text>";
       $("#memlist").innerHTML = "";
       $("#mem-detail").innerHTML = "";
       return;
@@ -1587,10 +1581,12 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
     renderGraph(items);
     $("#memlist").innerHTML = items.map((f) => {
       const tag = importanceLabel(f);
-      return '<div class="mem-item"><div class="body"><div class="t"><span class="tag' +
+      return '<div class="mem-item"><div class="body"><div class="t"><span class="tone-dot" style="background:' +
+        esc(f.color) + '" title="颜色按重要度分 5 档"></span><span class="tag' +
         (tag === "普通" || tag === "浅忆" ? " low" : "") + (tag === "回收" ? " bad" : "") + '">' + tag + "</span>" + esc(f.text) + "</div>" +
         '<div class="m">' + kindLabel(f.kind) + " · " + poolLabel(f.pool) + " · 重要度 " + f.importance +
-        " · 深度 " + fmtMath(f.weight) + " · 提到 " + (f.mentions || 1) + " 次 · 用过 " + (f.used || 0) + " 次</div></div>" +
+        "（" + toneText(f) + "） · 保持度 " + f.retention +
+        " · 提到 " + (f.mentions || 1) + " 次 · 用过 " + (f.used || 0) + " 次</div></div>" +
         '<button class="del" title="删除这条" data-id="' + f.id + '">×</button></div>';
     }).join("");
     $$("#memlist .del").forEach((btn) => {
@@ -1609,30 +1605,30 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
     if (Math.abs(value) < 0.005) return "手动权重 0";
     return "手动" + (value > 0 ? "加深 +" : "减轻 ") + fmtMath(Math.abs(value));
   }
-  function showDetail(fact, dot) {
-    if (dot) { dot.classList.add("pulse"); setTimeout(() => dot.classList.remove("pulse"), 400); }
+  function showDetail(fact) {
     const actions = [];
     if (fact.pool !== "trash") {
       actions.push(
-        '<button class="btn small primary" data-act="boost" title="点一次重要一点，忘得更慢">点一下加深</button>',
-        '<button class="btn small" data-act="weaken" title="点一次轻一点，更容易被放下">点一下减轻</button>'
+        '<button class="btn small primary" data-act="boost" title="点一次重要一点，颜色也会变深">点一下加深</button>',
+        '<button class="btn small" data-act="weaken" title="点一次轻一点，颜色也会变浅">点一下减轻</button>'
       );
     }
     if (fact.pool === "trash") actions.push('<button class="btn small" data-act="restore">从回收池恢复</button>');
     else actions.push('<button class="btn small danger" data-act="trash">移到回收池</button>');
     actions.push('<button class="btn small" data-act="close">收起</button>');
-    $("#mem-detail").innerHTML = '<div class="mem-detail"><div class="t">' + esc(fact.text) + "</div>" +
+    $("#mem-detail").innerHTML = '<div class="mem-detail"><div class="t"><span class="tone-dot" style="background:' +
+      esc(fact.color) + '"></span>' + esc(fact.text) + "</div>" +
       '<div class="meta">' + kindLabel(fact.kind) + " · " + poolLabel(fact.pool) +
-      " · 重要度 " + fact.importance + " · 颜色深度 " + fmtMath(fact.weight) +
+      " · 重要度 " + fact.importance + "（" + toneText(fact) + "）" +
       " · 保持度 " + fact.retention + "<br>" + manualLabel(fact) +
       " · 提到 " + (fact.mentions || 1) + " 次 · 被检索 " + (fact.used || 0) +
       " 次 · 记住于 " + when(fact.created_at) + (fact.trash_reason ? " · 回收原因：" + esc(fact.trash_reason) : "") + "</div>" +
       '<div class="actions">' + actions.join("") + "</div></div>";
     const panel = $("#mem-detail");
     const boostBtn = panel.querySelector('[data-act="boost"]');
-    if (boostBtn) boostBtn.onclick = () => adjustFact(fact.id, 0.12, null, "加深");
+    if (boostBtn) boostBtn.onclick = () => adjustFact(fact.id, 0.12, "加深");
     const weakenBtn = panel.querySelector('[data-act="weaken"]');
-    if (weakenBtn) weakenBtn.onclick = () => adjustFact(fact.id, -0.12, null, "减轻");
+    if (weakenBtn) weakenBtn.onclick = () => adjustFact(fact.id, -0.12, "减轻");
     const trashBtn = panel.querySelector('[data-act="trash"]');
     if (trashBtn) trashBtn.onclick = async () => {
       try { await callPost("page/memory/trash", { id: fact.id }); toast("已移到回收池"); loadMemory(); }
@@ -1686,7 +1682,11 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
     } catch (e) { toast("重建失败：" + e.message); }
     finally { btn.disabled = false; }
   });
-  $("#memsearch").addEventListener("input", renderMemory);
+  let memorySearchTimer = 0;
+  $("#memsearch").addEventListener("input", () => {
+    clearTimeout(memorySearchTimer);
+    memorySearchTimer = setTimeout(renderMemory, 120);
+  });
   $("#memclear").addEventListener("click", async () => {
     if (!(await askConfirm("清空全部记忆（包括回收池和关键词痕迹）？这个操作不能撤销。"))) return;
     try { await callPost("page/memory/clear", {}); toast("已清空"); loadMemory(); loadStatus(true); }
@@ -1723,13 +1723,13 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
       $("#kb-error").style.color = status.last_error ? "var(--warn)" : "var(--muted)";
     } catch (e) { $("#kb-meta").textContent = "读取失败：" + e.message; }
   }
-  async function learnStyle(online) {
+  async function learnStyle() {
     const user = state.style.selected || ((state.style.users[0] || {}).user || "");
     if (!user) { toast("还没有可学习的对话"); return; }
-    const btn = online ? $("#style-online") : $("#style-local");
-    btn.disabled = true; const old = btn.textContent; btn.textContent = online ? "联网搜索中…" : "学习中…";
+    const btn = $("#style-local");
+    btn.disabled = true; const old = btn.textContent; btn.textContent = "学习中…";
     try {
-      const data = await callPost("page/style/learn", { user, online });
+      const data = await callPost("page/style/learn", { user, online: false });
       if (data && data.status) {
         const s = data.status;
         $("#kb-box").textContent = s.knowledge || "（空）";
@@ -1737,12 +1737,12 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
         $("#kb-meta").textContent = "会话：" + (s.user || user) + " · " + (s.chars || 0) + " / " + (s.max_chars || 500) + " 字 · 最近学习 " + when(s.updated_at);
         $("#kb-error").textContent = data.error ? "联网搜索提示：" + data.error : "";
       }
-      toast(online ? "联网学习完成" : "本地学习完成");
+      toast("本地学习完成");
       loadStyle();
     } catch (e) { toast("学习失败：" + e.message); }
     finally { btn.disabled = false; btn.textContent = old; }
   }
-  $("#style-local").addEventListener("click", () => learnStyle(false));
+  $("#style-local").addEventListener("click", learnStyle);
 
   // ------------------------------------------------------------- proactive
   const PROACTIVE_KINDS = { open_loop: "未完成事项", memory: "记忆线索", presence: "日常问候", manual: "手动发送" };

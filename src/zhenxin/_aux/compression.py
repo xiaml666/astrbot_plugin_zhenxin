@@ -11,7 +11,6 @@ _SENT_RE = re.compile(r"(?<=[。！？!?；;\n])")
 _QUOTED_RE = re.compile(r"[“\"「『]([^”\"」』]{1,40})[”\"」』]")
 _IDENT_RE = re.compile(r"(?<![A-Za-z0-9_])([A-Za-z][A-Za-z0-9_.+\-]{2,30})(?![A-Za-z0-9_])")
 _INSTRUCTION_RE = re.compile(r"你|帮我|记得|必须|不要|别|几点|在哪|怎么|为什么|能不能|可以吗|需要我")
-_FILLER_RE = re.compile(r"^(那个|就是|然后|其实|我觉得|感觉|就是说|话说|对了|欸|哎|唉)+")
 
 
 @dataclass

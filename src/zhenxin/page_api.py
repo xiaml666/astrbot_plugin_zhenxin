@@ -18,7 +18,6 @@ import sqlite3
 import time
 from pathlib import Path
 from typing import Any
-from urllib.parse import quote
 
 PLUGIN_NAME = "astrbot_plugin_zhenxin"
 PAGE_PREFIX = f"/{PLUGIN_NAME}/page"
@@ -225,20 +224,6 @@ def schema_defaults() -> dict[str, Any]:
     return dict(defaults)
 
 
-def _get_path(source: Any, path: str, default: Any = None) -> Any:
-    cur = source
-    for part in path.split("."):
-        if isinstance(cur, dict):
-            if part not in cur:
-                return default
-            cur = cur[part]
-        else:
-            if not hasattr(cur, part):
-                return default
-            cur = getattr(cur, part)
-    return cur
-
-
 def _set_path(target: Any, path: str, value: Any) -> None:
     parts = path.split(".")
     cur = target
@@ -284,8 +269,6 @@ class PluginPageAPI:
             ("proactive/test", self.proactive_test, ["POST"], "Zhenxin proactive test"),
             ("health", self.health_scan, ["GET"], "Zhenxin plugin conflict scan"),
             ("health/ack", self.health_ack, ["POST"], "Zhenxin acknowledge conflict alert"),
-            ("feedback", self.feedback_submit, ["POST"], "Zhenxin feedback submit"),
-            ("feedback/list", self.feedback_list, ["GET"], "Zhenxin feedback list"),
         )
         for suffix, handler, methods, desc in routes:
             register(f"{PAGE_PREFIX}/{suffix}", handler, methods, desc)
@@ -467,13 +450,6 @@ class PluginPageAPI:
                 "source": "provider" if usage_rounds else "estimate",
             },
             "series": series,
-            "realtime": {
-                "server_time": time.time(),
-                "last_round_at": self._health().get("last_round_at", 0),
-                "window_rounds": int(self.engine.cfg.l3.recent_turns),
-                "l0_inject": int(self.engine.cfg.l0.inject),
-                "l0_slots": int(self.engine.cfg.l0.slots),
-            },
             "metrics": {
                 "rounds": stats.get("rounds", 0),
                 "wake_rate": stats.get("wake_rate", 0),
@@ -603,18 +579,7 @@ class PluginPageAPI:
             "traces": traces,
             "archived_total": self.engine.facts.trace_count(user or None),
             "today": time.strftime("%Y-%m-%d"),
-            "users": self._memory_users(),
         }
-
-    def _memory_users(self) -> list[dict[str, Any]]:
-        rows = self.engine.db.fetchall(
-            "SELECT user_key,COUNT(*) c,MAX(created_at) last FROM facts"
-            " GROUP BY user_key ORDER BY last DESC LIMIT 12"
-        )
-        return [
-            {"user": str(row["user_key"]), "count": int(row["c"] or 0)}
-            for row in rows
-        ]
 
     async def memory_rebuild(self) -> dict[str, Any]:
         """Re-extract identity and explicit memories from conversation history."""
@@ -1051,60 +1016,6 @@ class PluginPageAPI:
             "memoryish": memoryish,
             "enabled": enabled,
         }
-
-    # ------------------------------------------------------------- feedback
-    async def feedback_submit(self) -> dict[str, Any]:
-        payload = await self._json_body()
-        category = str(payload.get("category") or "bug").strip()[:20]
-        content = str(payload.get("content") or "").strip()
-        contact = str(payload.get("contact") or "").strip()[:120]
-        if len(content) < 5:
-            return {"ok": False, "message": "请至少写 5 个字，方便定位问题"}
-        if len(content) > 4000:
-            content = content[:4000]
-        diagnostics = str(payload.get("diagnostics") or "").strip()[:2000]
-        if not diagnostics:
-            try:
-                info = await self.status()
-                diagnostics = json.dumps(
-                    {
-                        "version": info.get("version"),
-                        "rounds": info.get("metrics", {}).get("rounds"),
-                        "memory": info.get("memory", {}),
-                        "usage": info.get("usage", {}),
-                        "config": {
-                            "shadow_mode": info.get("config", {}).get("shadow_mode"),
-                            "host_context_mode": info.get("config", {}).get("l3", {}).get("host_context_mode"),
-                        },
-                    },
-                    ensure_ascii=False,
-                )
-            except Exception:  # noqa: BLE001
-                diagnostics = ""
-        base = str(self.engine.cfg.feedback.github_issues or "").strip()
-        issue_url = ""
-        if base:
-            title = f"[{category}] " + content[:40]
-            body = content + "\n\n---\n诊断信息：\n```json\n" + diagnostics + "\n```\n"
-            if contact:
-                body += f"\n联系方式：{contact}\n"
-            issue_url = base + ("&" if "?" in base else "?") + "title=" + quote(title) + "&body=" + quote(body[:4000])
-        return {
-            "ok": True,
-            "stored": False,
-            "issue_url": issue_url,
-            "message": "已生成 GitHub 提交链接，不会再保存到插件本地。",
-        }
-
-    async def feedback_list(self) -> dict[str, Any]:
-        try:
-            rows = self.engine.db.fetchall(
-                "SELECT category,content,contact,created_at FROM feedback"
-                " ORDER BY id DESC LIMIT 20"
-            )
-        except Exception as exc:  # noqa: BLE001
-            return {"ok": False, "message": f"读取反馈失败：{exc}", "items": []}
-        return {"ok": True, "items": [dict(row) for row in rows]}
 
     # ---------------------------------------------------------------- reset
     async def reset(self) -> dict[str, Any]:

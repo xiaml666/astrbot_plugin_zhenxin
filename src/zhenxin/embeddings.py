@@ -165,10 +165,6 @@ class LocalScorer:
         target = (seed_tokens + " " + thin_context).strip()
         return self.similarity(query, target)
 
-    def rank(self, query: str, texts: Sequence[str]) -> list[tuple[int, float]]:
-        scored = [(i, self.similarity(query, t)) for i, t in enumerate(texts)]
-        return sorted(scored, key=lambda kv: kv[1], reverse=True)
-
 
 def keyword_set(text: str, limit: int = 8) -> list[str]:
     seen: list[str] = []

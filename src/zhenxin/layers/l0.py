@@ -72,22 +72,6 @@ class L0Layer:
     def active_balls(self, user_key: str) -> list[Ball]:
         return [b for b in self.balls(user_key) if b.content_seed.strip()]
 
-    def get_ball(self, user_key: str, slot: int) -> Ball | None:
-        row = self.db.fetchone(
-            "SELECT slot,content_seed,brightness,last_touched,type FROM hot_slots "
-            "WHERE user_key=? AND slot=?",
-            (user_key, slot),
-        )
-        if row is None:
-            return None
-        return Ball(
-            slot=int(row["slot"]),
-            content_seed=row["content_seed"] or "",
-            brightness=float(row["brightness"]),
-            last_touched=float(row["last_touched"]),
-            type=row["type"] or "fact",
-        )
-
     def update_ball(self, user_key: str, slot: int, **kwargs: Any) -> None:
         if not kwargs:
             return
@@ -95,14 +79,6 @@ class L0Layer:
         cols = ", ".join(f"{k}=?" for k in kwargs)
         vals = list(kwargs.values()) + [user_key, slot]
         self.db.execute(f"UPDATE hot_slots SET {cols} WHERE user_key=? AND slot=?", vals)
-
-    def clear_ball(self, user_key: str, slot: int) -> None:
-        now = self.clock()
-        self.db.execute(
-            "UPDATE hot_slots SET content_seed='',brightness=1.0,last_touched=?,type='fact',updated_at=? "
-            "WHERE user_key=? AND slot=?",
-            (now, now, user_key, slot),
-        )
 
     # -------------------------------------------------------------- salience
     def salience(self, ball: Ball, now: float | None = None) -> float:
@@ -498,10 +474,3 @@ class L0Layer:
                 ranked.append((slot, self.scorer.similarity(text, ball.content_seed)))
         ranked.sort(key=lambda kv: kv[1], reverse=True)
         return (ranked[0][1] if ranked else 0.0), ranked
-
-    def relevance_rank(self, user_key: str, text: str) -> list[tuple[int, float]]:
-        return sorted(
-            ((b.slot, self.scorer.similarity(text, b.content_seed)) for b in self.active_balls(user_key)),
-            key=lambda kv: kv[1],
-            reverse=True,
-        )
