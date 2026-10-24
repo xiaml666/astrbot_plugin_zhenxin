@@ -42,19 +42,38 @@ class FactBankTests(unittest.TestCase):
             bank.add("u1", f"线索编号 {i}", "fact")
         self.assertEqual(20, bank.count("u1"))
 
-    def test_zero_value_fact_ages_out_into_a_keyword_trace(self):
+    def test_low_value_fact_is_sorted_into_the_shallow_pool(self):
         self.bank.add("u1", "今天天气不错", "fact", importance=0.2)
         self.bank.add("u1", "不吃香菜", "habit", importance=0.9)
         self.clock.advance(40 * 86400)
         removed = self.bank.sweep("u1")
-        self.assertEqual(1, removed)
-        self.assertEqual(1, self.bank.count("u1"))
+        # Nothing is deleted at the end of a cycle: low value goes to the
+        # shallow pool, which is recalled only on a strong match.
+        self.assertEqual(0, removed)
+        self.assertEqual(2, self.bank.count("u1"))
+        pools = self.bank.pool_counts("u1")
+        self.assertGreaterEqual(pools["shallow"], 1)
         self.assertIn("不吃香菜", self.bank.recall("u1", "我不吃什么来着"))
-        traces = self.bank.traces("u1")
-        self.assertEqual(1, len(traces))
-        self.assertTrue(traces[0]["keywords"])
-        self.assertNotIn("今天天气不错", traces[0]["keywords"])
-        self.assertEqual(1, self.bank.trace_count("u1"))
+        self.assertEqual([], self.bank.recall("u1", "今天天气怎么样"))
+
+    def test_retraction_moves_a_fact_to_the_recycle_pool(self):
+        self.bank.add("u1", "提醒我周五交稿", "unclosed", importance=0.8)
+        self.assertEqual(1, self.bank.scan_zero_value("u1", "稿子已经交了，不用再提醒我了"))
+        self.assertEqual(1, self.bank.pool_counts("u1")["trash"])
+        # Trash never enters a prompt and is purged after the TTL.
+        self.assertEqual([], self.bank.recall("u1", "周五交稿"))
+        self.clock.advance(8 * 86400)
+        self.bank.sweep("u1")
+        self.assertEqual(0, self.bank.pool_counts("u1")["trash"])
+        self.assertGreaterEqual(self.bank.trace_count("u1"), 1)
+
+    def test_explicit_name_is_always_available(self):
+        self.bank.add("u1", "称呼我“阿岚”", "address", importance=0.98)
+        self.assertEqual("称呼我“阿岚”", self.bank.address("u1"))
+        # Even an unrelated question keeps the stated name injectable.
+        self.bank.add("u1", "不吃香菜", "habit")
+        hits = self.bank.recall("u1", "明天天气怎么样")
+        self.assertIn("称呼我“阿岚”", hits)
 
     def test_fresh_and_reinforced_facts_survive_cleanup(self):
         self.bank.add("u1", "最近开始晨跑", "fact", importance=0.2)

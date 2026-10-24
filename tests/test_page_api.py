@@ -26,7 +26,7 @@ class PageApiTests(unittest.TestCase):
         config = {}
         api = PluginPageAPI(FakePlugin(context), engine, config)
         api.register()
-        self.assertEqual(len(context.routes), 7)
+        self.assertEqual(len(context.routes), 17)
         self.assertTrue(context.routes[0][0].endswith("/page/status"))
         self.assertTrue(any(r[0].endswith("/page/defaults") for r in context.routes))
         self.assertTrue(any(r[0].endswith("/page/reset") for r in context.routes))
@@ -39,19 +39,29 @@ class PageApiTests(unittest.TestCase):
 
     def test_page_assets_are_beginner_pro_and_jargon_free(self):
         page = (ROOT / "pages" / "zhenxin" / "index.html").read_text(encoding="utf-8")
-        # User-facing sections, each with plain-language help.
-        for label in ("概览", "记忆", "花费", "行为设置", "高级", "重置"):
+        # The overview/cost pages were removed; realtime status now sits above
+        # every settings tab and the cost numbers live inside it.
+        for label in ("行为与状态", "记忆", "说话习惯", "体检与反馈", "高级", "重置"):
             self.assertIn(label, page)
+        self.assertNotIn('data-tab="overview"', page)
+        self.assertNotIn('data-tab="cost"', page)
+        self.assertIn("实时状态", page)
         self.assertIn("长期线索", page)
         self.assertNotIn("小球", page)
         self.assertIn("恢复默认配置", page)
         self.assertIn("data-reset", page)
         self.assertIn("关键词痕迹", page)
+        self.assertIn("珍藏池", page)
+        self.assertIn("浅忆池", page)
+        self.assertIn("回收池", page)
+        self.assertIn('data-path="l0.tail_injection"', page)
+        self.assertIn('id="refresh"', page)
+        self.assertIn('id="style-online"', page)
         # Pricing knobs moved out of the page; cost is display-only now.
         self.assertNotIn("计价单价", page)
         self.assertNotIn("metrics.input_price_per_million", page)
         # Every control carries a one-line explanation.
-        self.assertGreater(page.count('class="row"'), 15)
+        self.assertGreater(page.count('class="row"'), 28)
         # AstrBot injects its bridge at the first literal </body>.  A literal
         # body-close inside the inline script would make it terminate early.
         import re
@@ -68,22 +78,29 @@ class PageApiTests(unittest.TestCase):
         self.assertIn("confirm-mask", page)
         self.assertIn('data-path="aux.style"', page)
 
-    def test_memory_list_separates_importance_and_keeps_keyword_traces(self):
+    def test_memory_list_sorts_by_time_and_exposes_pools(self):
         import asyncio
 
         engine, clock = make_engine()
         engine.facts.add("u1", "今天天气不错", "fact", importance=0.2)
         engine.facts.add("u1", "不吃香菜", "habit", importance=0.9)
         clock.advance(40 * 86400)
+        engine.facts.sweep("u1")
         api = PluginPageAPI(FakePlugin(FakeContext()), engine, {})
+        api._query_override = {"view": "all"}
         data = asyncio.run(api.memory_list())
         self.assertTrue(data["ok"])
-        self.assertEqual(1, data["total"])
+        self.assertEqual(2, data["total"])
+        # Auto sorted by creation time, newest first; no manual sort needed.
         self.assertEqual("不吃香菜", data["facts"][0]["text"])
         self.assertIn("importance", data["facts"][0])
-        self.assertIn("tier", data["facts"][0])
-        self.assertGreaterEqual(data["archived_total"], 1)
-        trace = data["traces"][0]
+        self.assertIn("pool", data["facts"][0])
+        self.assertIn("weight", data["facts"][0])
+        self.assertGreaterEqual(data["pools"]["shallow"], 1)
+        # Deep-clean is still available as an explicit maintenance operation.
+        removed = engine.facts.sweep("u1", min_age_days=30, max_archive=50)
+        self.assertGreaterEqual(removed, 1)
+        trace = engine.facts.traces("u1")[0]
         self.assertTrue(trace["keywords"])
         self.assertNotIn("今天天气不错", trace["keywords"])
 

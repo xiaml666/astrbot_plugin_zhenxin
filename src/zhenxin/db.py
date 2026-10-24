@@ -58,6 +58,14 @@ CREATE TABLE IF NOT EXISTS facts (
     created_at REAL NOT NULL,
     last_used REAL NOT NULL DEFAULT 0,
     used_count INTEGER NOT NULL DEFAULT 0,
+    weight REAL NOT NULL DEFAULT 0.5,
+    mentions INTEGER NOT NULL DEFAULT 1,
+    pool TEXT NOT NULL DEFAULT 'cycle',
+    cycle_at REAL NOT NULL DEFAULT 0,
+    trashed_at REAL NOT NULL DEFAULT 0,
+    trash_reason TEXT NOT NULL DEFAULT '',
+    last_mentioned REAL NOT NULL DEFAULT 0,
+    manual_boost REAL NOT NULL DEFAULT 0,
     UNIQUE (user_key, text)
 );
 
@@ -172,6 +180,39 @@ CREATE TABLE IF NOT EXISTS state (
     PRIMARY KEY (user_key, key)
 );
 
+-- Distilled "talk like a real person" knowledge.  One row per source so a
+-- local refresh never wipes the last successful online refresh.
+CREATE TABLE IF NOT EXISTS style_knowledge (
+    user_key TEXT NOT NULL,
+    source TEXT NOT NULL,
+    content TEXT NOT NULL,
+    chars INTEGER NOT NULL DEFAULT 0,
+    created_at REAL NOT NULL,
+    updated_at REAL NOT NULL,
+    PRIMARY KEY (user_key, source)
+);
+
+-- User feedback / bug reports written from the plugin page.  Kept locally as
+-- a paper trail; the page also offers a prefilled GitHub issue link.
+CREATE TABLE IF NOT EXISTS feedback (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_key TEXT NOT NULL DEFAULT '',
+    category TEXT NOT NULL,
+    content TEXT NOT NULL,
+    contact TEXT NOT NULL DEFAULT '',
+    diagnostics TEXT NOT NULL DEFAULT '',
+    created_at REAL NOT NULL
+);
+
+-- One row per unsolicited message, so daily caps survive a restart.
+CREATE TABLE IF NOT EXISTS proactive_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_key TEXT NOT NULL,
+    content TEXT NOT NULL,
+    kind TEXT NOT NULL DEFAULT 'memory',
+    created_at REAL NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_hot_user ON hot_slots(user_key);
 CREATE INDEX IF NOT EXISTS idx_warm_user ON warm_slots(user_key);
 CREATE INDEX IF NOT EXISTS idx_cold_user ON cold_seeds(user_key);
@@ -179,6 +220,8 @@ CREATE INDEX IF NOT EXISTS idx_turns_user ON turns(user_key, id);
 CREATE INDEX IF NOT EXISTS idx_metrics_user ON metrics(user_key, round_no);
 CREATE INDEX IF NOT EXISTS idx_loops_user ON open_loops(user_key, status);
 CREATE INDEX IF NOT EXISTS idx_traces_user ON fact_traces(user_key, archived_at);
+CREATE INDEX IF NOT EXISTS idx_facts_created ON facts(created_at);
+CREATE INDEX IF NOT EXISTS idx_proactive_user ON proactive_log(user_key, created_at);
 """
 
 
@@ -212,10 +255,26 @@ class Database:
             if name not in cols:
                 self._conn.execute(f"ALTER TABLE metrics ADD COLUMN {name} {decl}")
         fact_cols = {row[1] for row in self._conn.execute("PRAGMA table_info(facts)").fetchall()}
-        if "importance" not in fact_cols:
-            self._conn.execute(
-                "ALTER TABLE facts ADD COLUMN importance REAL NOT NULL DEFAULT 0.5"
-            )
+        fact_additions = {
+            "importance": "REAL NOT NULL DEFAULT 0.5",
+            "weight": "REAL NOT NULL DEFAULT 0.5",
+            "mentions": "INTEGER NOT NULL DEFAULT 1",
+            "pool": "TEXT NOT NULL DEFAULT 'cycle'",
+            "cycle_at": "REAL NOT NULL DEFAULT 0",
+            "trashed_at": "REAL NOT NULL DEFAULT 0",
+            "trash_reason": "TEXT NOT NULL DEFAULT ''",
+            "last_mentioned": "REAL NOT NULL DEFAULT 0",
+            "manual_boost": "REAL NOT NULL DEFAULT 0",
+        }
+        for name, decl in fact_additions.items():
+            if name not in fact_cols:
+                self._conn.execute(f"ALTER TABLE facts ADD COLUMN {name} {decl}")
+        # This index depends on a migrated column, so it cannot live in the
+        # initial SCHEMA script: on an old database the column does not exist
+        # yet when executescript() runs.
+        self._conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_facts_pool ON facts(user_key, pool, created_at)"
+        )
 
     @property
     def connection(self) -> sqlite3.Connection:

@@ -1,16 +1,14 @@
 name: astrbot_plugin_zhenxin
 display_name: 真心
-short_desc: 默认不检索的五层上下文层：写路径零 LLM 调用，长对话省 38%，零价值记忆自动淡出。
+short_desc: 不换模型的长期记忆与上下文层：默认不检索、写记忆零 LLM 调用，记忆会按重要度自动分池与遗忘。
 desc: >-
-  给 AstrBot 的长期记忆插件：不换模型，只决定每轮让模型看到什么。
-  平时只带 2-3 条线索，出现“你还记得…”才翻旧记忆；写记忆零 LLM 调用，
-  线索放请求末尾、稳定前缀不动，缓存持续命中。100 轮实测省 38%，
-  第 101 轮仍记得第 5 轮说的细节。记忆按重要性/时间自动淡出，只留关键词；
-  会从长期对话里慢慢学习你的句长/表情/追问习惯，只收紧不放开、不额外调用模型；
-  自带控制中心，可先 shadow 观察再一键接管。
-  不建议与其他接管上下文的记忆插件、每轮自动压缩/总结插件、每轮动态改
-  system_prompt 的插件同时开启；共存时把 l3.host_context_mode 设为 off。
-version: 0.4.2
+  真心不换模型，只决定每一轮让模型看到什么。平时只带 3 条长期线索，出现“你还记得…”才翻旧记忆；
+  写记忆零 LLM 调用，线索放请求末尾、稳定前缀不动，缓存持续命中。
+  记忆按艾宾浩斯式周期分入周期池/珍藏池/浅忆池，零价值信息进回收池定期删除；
+  会学习你本人的说话习惯，并周期性从网络补充“像真人聊天”的知识（最多 500 字）；
+  可选主动消息、插件冲突体检和页面内反馈通道。
+  不建议与其他接管上下文的记忆插件、每轮自动压缩/总结插件同时开启；共存时把 l3.host_context_mode 设为 off。
+version: 0.5.0
 author: xiaml666
 repo: https://github.com/xiaml666/astrbot_plugin_zhenxin
 social_link: https://github.com/xiaml666
@@ -19,6 +17,8 @@ tags:
   - context
   - prompt-cache
   - cost
+  - proactive
+  - style
   - llm
 astrbot_version: ">=4.16,<5"
 support_platforms:
@@ -30,8 +30,3 @@ support_platforms:
   - dingtalk
   - discord
   - slack
-
-
-
-
-

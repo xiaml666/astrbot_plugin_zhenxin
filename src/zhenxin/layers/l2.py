@@ -39,6 +39,13 @@ _ACTION_RE = re.compile(
     r"(交稿|截止|面试|考试|看医生|复诊|搬家|出差|开会|还钱|赶稿|通宵|早起|提交|汇报|答辩|体检|买|订)"
 )
 _EXPLICIT_MEMORY_RE = re.compile(r"记住|记一下|别忘了|提醒我")
+# "叫我阿岚 / 称呼我为小满 / 我的名字是..." is a durable identity fact: keep it
+# top-importance so retrieval weights and the always-on address hint can use it.
+_ADDRESS_RE = re.compile(
+    r"(?:你(?:可以|就|以后)?|以后|请|都)?(?:叫我|喊我|称呼我(?:为|作)?)"
+    r"([\u4e00-\u9fffA-Za-z0-9_]{1,12})"
+)
+_NAME_RE = re.compile(r"(?:我的名字(?:是|叫)|我叫)([\u4e00-\u9fffA-Za-z0-9_]{1,12})")
 _KNOWN = ("海盐", "团子", "阿哲", "甲方", "冰美式", "香菜", "线稿", "绘本", "电影", "妈妈", "医院", "中药")
 
 # Question detection.  A question can carry emotion, but it must not create
@@ -96,7 +103,22 @@ class Distiller:
                 seed = self._corrected_seed(clause, emotion)
                 out.append(self._candidate(seed, "fact", text, "correction", 0.95))
 
-        # 2. Explicit quote / identifier.
+        # 2. How the user wants to be addressed.  This is deliberately checked
+        # before generic quotes so "叫我阿岚" becomes one durable address fact
+        # rather than an incidental token.
+        if not question:
+            name = ""
+            match = _ADDRESS_RE.search(text) or _NAME_RE.search(text)
+            if match:
+                name = match.group(1).strip()
+            rejected = any(
+                phrase in text
+                for phrase in ("别叫我", "不要叫我", "不用叫我", "不许叫我", "不叫", "别喊我")
+            )
+            if name and not rejected and not _is_interrogative(name):
+                out.append(self._candidate(f"称呼我“{name}”", "address", text, "address", 0.98))
+
+        # 3. Explicit quote / identifier.
         if not question:
             for m in _QUOTED_RE.finditer(text):
                 quoted = m.group(1).strip()
@@ -258,6 +280,8 @@ class L2Writer:
             return []
         candidates = self.distiller.distill(text, bootstrap=True)[: self.cfg.bootstrap_seeds]
         for cand in candidates:
+            if cand.type == "address":
+                continue
             self.l0.insert_candidate(
                 user_key,
                 cand.seed,
@@ -310,6 +334,14 @@ class L2Writer:
                     corrected_slot = int(decision["slot"])
                     decisions.append(decision)
         for cand in candidates:
+            # An address is durable identity, not a changing short-term clue;
+            # it is injected every turn by the fact bank, so copying it into
+            # L0 would only duplicate it in the prompt.
+            if cand.type == "address":
+                if self.facts is not None:
+                    self.facts.add(user_key, cand.seed, cand.type, importance=cand.importance)
+                decisions.append({"action": "address_fact"})
+                continue
             if corrected and cand.source == "correction" and corrected_slot is not None:
                 continue
             if corrected and cand.source == "correction":

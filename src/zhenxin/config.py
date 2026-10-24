@@ -59,7 +59,7 @@ class L0Config:
     # input tokens (~37% of a 32k-session's uncached input).
     tail_injection: bool = True
     max_seed_chars: int = 30
-    max_inject_chars: int = 150
+    max_inject_chars: int = 200
     decay: float = 0.99
     warm_decay: float = 0.995
     hysteresis: float = 2.0
@@ -161,6 +161,93 @@ class AuxConfig:
 
 
 @dataclass
+class MemoryConfig:
+    """Long-term memory retrieval weights and the forgetting cycle.
+
+    Retrieval is deliberately not "semantic top-k only": the score blends
+    semantic similarity, declared importance, Ebbinghaus retention, usage
+    evidence, exact token overlap and a small kind prior.  Explicit address
+    facts ("叫我阿岚") get an extra boost and are always injected, because a
+    name the user stated once should never need a lucky retrieval to survive.
+    """
+
+    enabled: bool = True
+    max_facts: int = 300
+    top_k: int = 3
+    min_score: float = 0.30
+    address_k: int = 1
+    # Retrieval score = sum(weight * component) + bonuses.
+    weight_semantic: float = 0.50
+    weight_importance: float = 0.18
+    weight_recency: float = 0.12
+    weight_usage: float = 0.10
+    weight_kind: float = 0.05
+    exact_boost: float = 0.12
+    address_boost: float = 0.22
+    # Forgetting cycle (Ebbinghaus-style retention with spacing effect).
+    cycle_days: float = 14.0
+    decay_half_life_days: float = 30.0
+    treasure_threshold: float = 0.62
+    shallow_threshold: float = 0.30
+    treasure_limit: int = 120
+    shallow_limit: int = 240
+    trash_ttl_days: float = 7.0
+    # A daily view is what the page opens on; the total view is one click away.
+    page_limit: int = 400
+
+
+@dataclass
+class StyleLearningConfig:
+    """Slow, periodic "talk like a real person" knowledge base.
+
+    The learner combines two sources: the user's own messages (always local)
+    and periodic web search results about natural human chat habits.  The
+    distilled text is capped hard (500 chars by default) so the per-turn hint
+    can never grow into a second prompt.
+    """
+
+    enabled: bool = True
+    learn_user: bool = True
+    online: bool = True
+    interval_days: float = 7.0
+    local_interval_hours: float = 24.0
+    min_turns: int = 12
+    max_chars: int = 500
+    hint_chars: int = 110
+    # Optional override; empty means the built-in public search endpoint.
+    search_endpoint: str = ""
+    search_timeout_s: float = 8.0
+
+
+@dataclass
+class ProactiveConfig:
+    """Optional proactive messages ("主动找你说话").
+
+    Off by default: an unsolicited message is a product decision, not a
+    technical default.  All timing is per conversation and persisted in the
+    ``state`` table, so a restart cannot spam a session.
+    """
+
+    enabled: bool = False
+    min_idle_minutes: int = 180
+    min_interval_hours: float = 12.0
+    max_per_day: int = 2
+    active_window_hours: float = 72.0
+    quiet_start: int = 23
+    quiet_end: int = 8
+    only_private: bool = True
+    use_llm: bool = False
+    max_chars: int = 80
+    template: str = ""
+
+
+@dataclass
+class FeedbackConfig:
+    enabled: bool = True
+    github_issues: str = "https://github.com/xiaml666/astrbot_plugin_zhenxin/issues/new"
+
+
+@dataclass
 class MetricsConfig:
     enabled: bool = True
     jsonl_path: str = "logs/metrics.jsonl"
@@ -194,6 +281,10 @@ class Config:
     l2: L2Config = field(default_factory=L2Config)
     l3: L3Config = field(default_factory=L3Config)
     aux: AuxConfig = field(default_factory=AuxConfig)
+    memory: MemoryConfig = field(default_factory=MemoryConfig)
+    style_learning: StyleLearningConfig = field(default_factory=StyleLearningConfig)
+    proactive: ProactiveConfig = field(default_factory=ProactiveConfig)
+    feedback: FeedbackConfig = field(default_factory=FeedbackConfig)
     metrics: MetricsConfig = field(default_factory=MetricsConfig)
 
     @classmethod

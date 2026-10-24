@@ -38,9 +38,9 @@ embedding:
 l0:
   enabled: true
   slots: 10
-  inject: 3
+  inject: 3                # 1-8；超过 3 条会明显增加 token
   max_seed_chars: 30
-  max_inject_chars: 150
+  max_inject_chars: 200
   decay: 0.99
   warm_decay: 0.995
   hysteresis: 2.0
@@ -105,6 +105,7 @@ aux:
   topic_stack: true
   compression: true
   rhythm: true
+  style: true
   lexicon: true
   open_loops: true
   negative_patterns: true
@@ -113,6 +114,54 @@ aux:
   rhythm_postprocess: true
   lexicon_postprocess: true
   lexicon_aliases: {}
+
+memory:
+  enabled: true
+  top_k: 3
+  min_score: 0.30
+  weight_semantic: 0.50
+  weight_importance: 0.18
+  weight_recency: 0.12
+  weight_usage: 0.10
+  weight_kind: 0.05
+  exact_boost: 0.12
+  address_boost: 0.22
+  cycle_days: 14
+  decay_half_life_days: 30
+  treasure_threshold: 0.62
+  shallow_threshold: 0.30
+  treasure_limit: 120
+  shallow_limit: 240
+  trash_ttl_days: 7
+
+style_learning:
+  enabled: true
+  learn_user: true
+  online: true
+  interval_days: 7
+  local_interval_hours: 24
+  min_turns: 12
+  max_chars: 500
+  hint_chars: 110
+  search_endpoint: ""
+  search_timeout_s: 8
+
+proactive:
+  enabled: false
+  min_idle_minutes: 180
+  min_interval_hours: 12
+  max_per_day: 2
+  active_window_hours: 72
+  quiet_start: 23
+  quiet_end: 8
+  only_private: true
+  use_llm: false
+  max_chars: 80
+  template: ""
+
+feedback:
+  enabled: true
+  github_issues: "https://github.com/xiaml666/astrbot_plugin_zhenxin/issues/new"
 
 metrics:
   enabled: true

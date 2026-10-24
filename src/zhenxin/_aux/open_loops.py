@@ -114,7 +114,10 @@ class OpenLoops:
         clauses = [c.strip() for c in _SUMMARY_SPLIT_RE.split(text) if c.strip()]
         relevant = next((c for c in clauses if action.group(1) in c), action.group(1))
         due = TIME_RE.search(text)
-        summary = ((due.group(1) + "·") if due else "") + relevant
+        due_text = due.group(1) if due else ""
+        # "周五要交稿" already contains the time word; prepending "周五·"
+        # would produce "周五·周五要交稿" in prompts and proactive messages.
+        summary = (due_text + "·" + relevant) if due_text and due_text not in relevant else relevant
         summary = summary[:40]
         keywords = " ".join(content_tokens(summary)[:6]) or summary
         # Deduplicate by lexical similarity.

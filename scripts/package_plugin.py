@@ -30,11 +30,26 @@ PLUGIN_NAME = "astrbot_plugin_zhenxin"
 
 
 def _version() -> str:
-    text = (ROOT / "src" / "zhenxin" / "__init__.py").read_text(encoding="utf-8")
-    match = re.search(r'__version__\s*=\s*"([^"]+)"', text)
+    """Read the same metadata AstrBot reads.
+
+    The page, the @register decorator and the ZIP all derive from this single
+    value; a stale hard-coded copy is what produced the "latest version in the
+    plugin list, v0.1.0 in the config page" bug.
+    """
+    meta = ROOT / "metadata.yaml"
+    text = meta.read_text(encoding="utf-8-sig")
+    match = re.search(r"^version:\s*([^\s]+)", text, re.M)
     if not match:
-        raise SystemExit("cannot read __version__ from src/zhenxin/__init__.py")
-    return match.group(1)
+        raise SystemExit("cannot read version from metadata.yaml")
+    version = match.group(1).strip().strip("'\"")
+    fallback = (ROOT / "src" / "zhenxin" / "_version.py").read_text(encoding="utf-8")
+    fallback_match = re.search(r'FALLBACK_VERSION\s*=\s*"([^"]+)"', fallback)
+    if fallback_match and fallback_match.group(1) != version:
+        raise SystemExit(
+            f"version mismatch: metadata.yaml={version}, "
+            f"_version.py fallback={fallback_match.group(1)}"
+        )
+    return version
 
 
 VERSION = _version()

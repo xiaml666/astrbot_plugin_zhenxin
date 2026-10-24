@@ -12,6 +12,7 @@ from ._aux.negative import NegativePatterns
 from ._aux.open_loops import OpenLoops
 from ._aux.rhythm import RhythmController
 from ._aux.style import StyleLearner
+from ._aux.style_learning import HumanStyleLearner
 from ._aux.topic_stack import TopicStack
 from .config import Config
 from .db import Database
@@ -26,6 +27,7 @@ from .llm import LLMCallLedger, LLMGateway, OpenAICompatibleProvider, PolicyViol
 from .metrics import MetricsRecorder
 from .models import ContextPlan, TurnResult, TurnTrace
 from .normalize import is_correction, normalize
+from .proactive import ProactiveScheduler
 
 
 class ZhenxinEngine:
@@ -49,12 +51,16 @@ class ZhenxinEngine:
         self.shortcircuit = ShortCircuit(self.db, self.scorer, self.cfg.shortcircuit, clock)
         self.l1 = L1Layer(self.db, self.scorer, self.cfg.l1, clock)
         self.l3 = ContextBuilder(self.db, self.cfg.l3)
-        self.facts = FactBank(self.db, self.scorer, clock)
+        self.facts = FactBank(self.db, self.scorer, clock, cfg=self.cfg.memory)
         self.topic = TopicStack(self.db, self.scorer, self.cfg.aux.topic_depth, self.cfg.aux.topic_stack)
         self.rhythm = RhythmController(
             self.db, self.cfg.aux.rhythm, self.cfg.aux.rhythm_postprocess
         )
         self.style = StyleLearner(self.db, self.cfg.aux.style, clock)
+        self.style_learning = HumanStyleLearner(
+            self.db, self.cfg.style_learning, self.style, clock
+        )
+        self.proactive = ProactiveScheduler(self.db, self.cfg.proactive, clock)
         self.lexicon = Lexicon(self.db, self.cfg.aux.lexicon_aliases, self.cfg.aux.lexicon)
         self.loops = OpenLoops(
             self.db,
@@ -116,11 +122,18 @@ class ZhenxinEngine:
             if round_no > current:
                 self.db.set_state(user_key, "round_no", round_no)
         shadow = self.cfg.shadow_mode if shadow is None else shadow
+        self.note_user_activity(user_key)
         self._import_history(user_key, history)
+        # A retraction ("不用提醒了", "别叫我阿岚") is a strong, immediate
+        # signal; the cue check is one regex, the scan only runs on a hit.
+        try:
+            self.facts.scan_zero_value(user_key, raw)
+        except Exception:  # noqa: BLE001 - memory hygiene must never break a turn
+            pass
         # Cheap periodic zero-value cleanup: one indexed count every round, a
         # rule-based sweep every 20 rounds and only once memory has some size.
         try:
-            if round_no % 20 == 0 and self.facts.count(user_key) >= 20:
+            if round_no % 20 == 0:
                 self.facts.sweep(user_key, now=self.clock())
         except Exception:  # noqa: BLE001 - memory hygiene must never break a turn
             pass
@@ -194,12 +207,22 @@ class ZhenxinEngine:
         wake_trigger = ""
         wake_detail: dict[str, Any] = {}
         ephemeral_parts: list[str] = []
-        # Long-term fact bank: pull the one or two facts that actually match this
+        # Long-term fact bank: pull the few facts that actually match this
         # message.  They ride in the tail, so depth is free (no prefix cache hit
         # is lost) and facts that left the recent window are still reachable.
-        recalled_facts = self.facts.recall(user_key, raw)
-        if recalled_facts:
-            ephemeral_parts.append("〔相关记忆〕" + "；".join(recalled_facts))
+        if self.cfg.memory.enabled:
+            recalled_facts = self.facts.recall(user_key, raw, k=self.cfg.memory.top_k)
+            # A stated name is not a retrieval lottery: it rides along every
+            # turn once the user has said how they want to be addressed.  Keep
+            # it out of the generic memory line so the model sees it once.
+            address = self.facts.address(user_key)
+            if address:
+                recalled_facts = [text for text in recalled_facts if text != address]
+            if recalled_facts:
+                ephemeral_parts.append("〔相关记忆〕" + "；".join(recalled_facts))
+            if address:
+                name = address.replace("称呼我", "").strip("“”\"' ")
+                ephemeral_parts.append(f"〔称呼〕对方希望你称呼TA为「{name}」")
         if not hit:
             l1_result = self.l1.decide(
                 user_key,
@@ -229,6 +252,9 @@ class ZhenxinEngine:
             style_hint = self.style.hint(user_key, rhythm)
             if style_hint:
                 ephemeral_parts.append(style_hint)
+            human_hint = self.style_learning.hint(user_key)
+            if human_hint:
+                ephemeral_parts.append(human_hint)
             lexicon_hint = self.lexicon.hint(user_key)
             if lexicon_hint:
                 ephemeral_parts.append(lexicon_hint)
@@ -503,9 +529,17 @@ class ZhenxinEngine:
                 self.db.append_turn(user_key, 0, role, content, self.clock())
         self.db.set_state(user_key, "history_imported", True)
 
+    def note_user_activity(self, user_key: str) -> None:
+        try:
+            self.db.set_state(user_key, "last_user_at", self.clock())
+        except Exception:  # noqa: BLE001
+            pass
+
     def stats(self, user_key: str | None = None) -> dict[str, Any]:
         report = self.metrics.report(user_key)
         report["solidified"] = self.shortcircuit.stats(user_key) if user_key else {}
+        report["memory_pools"] = self.facts.pool_counts(user_key)
+        report["proactive"] = self.proactive.stats(user_key, limit=5)
         report["db"] = {
             "users": int(self.db.scalar("SELECT COUNT(DISTINCT user_key) FROM hot_slots", (), 0)),
             "hot_slots": int(self.db.scalar("SELECT COUNT(*) FROM hot_slots WHERE content_seed<>''", (), 0)),
@@ -538,6 +572,8 @@ class ZhenxinEngine:
             "turns",
             "metrics",
             "state",
+            "style_knowledge",
+            "proactive_log",
         ):
             self.db.execute(f"DELETE FROM {table} WHERE user_key=?", (user_key,))
 
