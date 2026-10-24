@@ -103,7 +103,13 @@ class CallableProvider:
 
 
 class OpenAICompatibleProvider:
-    """Minimal OpenAI-compatible chat-completions client (stdlib only)."""
+    """Minimal OpenAI-compatible chat-completions client (stdlib only).
+
+    The client is synchronous by design so the standalone library has no
+    third-party dependencies.  In the AstrBot adapter the whole ``begin_turn``
+    pipeline is executed via ``asyncio.to_thread``; optional small-model and
+    rerank calls therefore never block AstrBot's event loop.
+    """
 
     def __init__(self, cfg: ModelConfig) -> None:
         self.cfg = cfg

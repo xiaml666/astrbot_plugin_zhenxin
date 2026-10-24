@@ -13,7 +13,6 @@ given an LLM client.
 from __future__ import annotations
 
 import hashlib
-import logging
 import math
 from pathlib import Path
 from typing import Any, Sequence
@@ -21,7 +20,10 @@ from typing import Any, Sequence
 from .config import EmbeddingConfig
 from .normalize import content_tokens, overlap_ratio, tokens
 
-log = logging.getLogger(__name__)
+try:  # AstrBot plugin runtime: use the host logger (log level / tag aware).
+    from astrbot.api import logger as log
+except Exception:  # Standalone library / tests: stdlib fallback.
+    from ._aux.stdlog import log
 
 
 def _l2(vec: Sequence[float]) -> list[float]:

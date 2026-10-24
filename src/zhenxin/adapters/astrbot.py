@@ -17,7 +17,7 @@ exports the actual ``Star`` subclass.
 
 from __future__ import annotations
 
-import logging
+import asyncio
 import os
 import sys
 from pathlib import Path
@@ -27,7 +27,10 @@ from ..config import Config
 from ..engine import ZhenxinEngine
 from ..models import ContextPlan
 
-log = logging.getLogger(__name__)
+try:  # AstrBot plugin runtime: use the host logger (log level / tag aware).
+    from astrbot.api import logger as log
+except Exception:  # Standalone import / tests: stdlib fallback.
+    from .._aux.stdlog import log
 PLAN_KEY = "zhenxin_plan"
 HOST_KEY = "zhenxin_host_prompt"
 MARKERS = ("\n\n【人格锚点】", "\n\n【长期线索·L0】")
@@ -140,7 +143,11 @@ class AstrBotAdapter:
             return
         user_key = self.user_key(event)
         try:
-            plan = self.engine.begin_turn(
+            # Off-load the synchronous pipeline (there may be optional
+            # small-model / rerank HTTP calls inside) so a slow provider can
+            # never block AstrBot's event loop.
+            plan = await asyncio.to_thread(
+                self.engine.begin_turn,
                 user_key,
                 text,
                 host_system_prompt=self._host_prompt(event),
@@ -170,7 +177,8 @@ class AstrBotAdapter:
         if plan is None:
             try:
                 text = str(getattr(req, "prompt", "") or self.text(event))
-                plan = self.engine.begin_turn(
+                plan = await asyncio.to_thread(
+                    self.engine.begin_turn,
                     self.user_key(event),
                     text,
                     host_system_prompt=self._base_system(req),
@@ -336,4 +344,8 @@ def make_engine(config: Any = None, data_dir: str | Path | None = None) -> Zhenx
     # default relative path, put the DB in the plugin data directory instead.
     if data_dir and cfg.db_path == Config().db_path:
         cfg.db_path = str(Path(data_dir) / "zhenxin.sqlite3")
+    # JSONL traces contain conversation excerpts; keep them in the plugin data
+    # directory instead of AstrBot's working directory.
+    if data_dir and cfg.metrics.jsonl_path == Config().metrics.jsonl_path:
+        cfg.metrics.jsonl_path = str(Path(data_dir) / "metrics.jsonl")
     return ZhenxinEngine(cfg)

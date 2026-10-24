@@ -4,7 +4,7 @@
 
 <p align="center">
   <a href="https://github.com/xiaml666/astrbot_plugin_zhenxin/releases/latest"><img alt="release" src="https://img.shields.io/github/v/release/xiaml666/astrbot_plugin_zhenxin?color=0f766e"></a>
-  <img alt="tests" src="https://img.shields.io/badge/tests-82%20passed-brightgreen">
+  <img alt="tests" src="https://img.shields.io/badge/tests-83%20passed-brightgreen">
   <img alt="AstrBot" src="https://img.shields.io/badge/AstrBot-4.x-0f766e">
   <img alt="license" src="https://img.shields.io/badge/license-MIT-blue">
 </p>
@@ -14,7 +14,7 @@
 
 <p align="center"><img src="docs/control-center.png" width="860" alt="真心控制中心"></p>
 
-> 0.4.1 · 82 个测试 · AstrBot 4.29.1 实测 · MIT
+> 0.4.2 · 83 个测试 · AstrBot 4.29.1 实测 · MIT
 
 ## 一句话
 
@@ -72,7 +72,7 @@ AstrBot 面板 → 插件 → 安装插件 → 搜索「真心」；或从 [Rele
 
 ## 0. 验证状态（请先读）
 
-- **已做**：82 个 unittest；60 轮 live/shadow 模拟；装/不装上下文对比；本地 ONNX/哈希回退；
+- **已做**：83 个 unittest；60 轮 live/shadow 模拟；装/不装上下文对比；本地 ONNX/哈希回退；
   用假 AstrBot event/request 验证 hook 注入、短路阻断、shadow 不改请求、`LLMResponse.usage` 落库。
 - **未做**：在真实 AstrBot 实例 + 真实 QQ/微信适配器 + 其他插件组合下的长期回归。当前环境没有 AstrBot 依赖，
   所以仓库不能声称“已对所有 AstrBot 版本验证通过”。
@@ -279,7 +279,7 @@ pip install -r astrbot_plugin_zhenxin/requirements.txt
 **方式三：从 Release 安装**
 
 下载 [最新 Release](https://github.com/xiaml666/astrbot_plugin_zhenxin/releases/latest) 里的
-`astrbot_plugin_zhenxin-0.4.1.zip`，AstrBot 面板 → 插件 → 安装插件 → 从文件安装。插件卡片会使用 [`logo.png`](logo.png)。
+`astrbot_plugin_zhenxin-0.4.2.zip`，AstrBot 面板 → 插件 → 安装插件 → 从文件安装。插件卡片会使用 [`logo.png`](logo.png)。
 
 > 0.3.1 起包目录为 `src/zhenxin/_aux`（`aux` 是 Windows 保留名），从 zip 安装不会再被系统改写。
 
@@ -547,7 +547,7 @@ python scripts/quality_sheet.py --pairs data/quality_pairs.example.jsonl
 │   ├── layers/                 # l0 l1 l2 l3 shortcircuit
 │   ├── _aux/                   # 话题栈/压缩/节奏/词汇/队列/负面模式
 │   └── adapters/               # astrbot / nonebot2
-├── tests/                      # 82 个 unittest
+├── tests/                      # 83 个 unittest
 ├── data/sim_dialogue.jsonl     # 60 轮模拟数据
 ├── data/human_eval_cases.jsonl # 20 条人工评测
 ├── data/quality_pairs.example.jsonl # 盲测输入示例
@@ -566,7 +566,7 @@ python scripts/quality_sheet.py --pairs data/quality_pairs.example.jsonl
 ├── docs/astrbot-install.md     # 4.29.1 面板安装/新建验证对话
 ├── docs/astrbot-live-report.md # 4.29.1 实机验证记录
 ├── docs/cache-layout-rollout.md # 0.1.1 缓存布局改动：上线/验证/回滚
-└── dist/astrbot_plugin_zhenxin-0.4.1.zip
+└── dist/astrbot_plugin_zhenxin-0.4.2.zip
 ```
 
 ---
@@ -578,7 +578,7 @@ python scripts/quality_sheet.py --pairs data/quality_pairs.example.jsonl
 
 1. 仓库根目录保留 `main.py`、`metadata.yaml`、`_conf_schema.json`、`requirements.txt`、`logo.png`。
 2. `metadata.yaml` 的 `name` 用 `astrbot_plugin_zhenxin`，`repo` 指向本仓库，版本号与 Release 一致。
-3. 打 tag（如 `v0.4.1`）并上传 Release zip；zip 不超过 16MB（当前约 150KB）。
+3. 打 tag（如 `v0.4.2`）并上传 Release zip；zip 不超过 16MB（当前约 150KB）。
 4. 登录 [AstrBot Cloud](https://cloud.astrbot.app/) 的插件发布页，提交本仓库；审核通过后即可在
    AstrBot 面板「插件 → 安装插件」里搜索到。
 5. 不要提交 `data/*.sqlite3`、`logs/`、`.venv/`、`models/`、`reports/`、`.astrbot_cookies.txt`。

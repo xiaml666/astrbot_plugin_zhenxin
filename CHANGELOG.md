@@ -1,5 +1,16 @@
 # 更新日志
 
+## 0.4.2
+
+AstrBot 市场审核反馈修复：
+
+- 日志：`adapters/astrbot.py` 与 `embeddings.py` 在插件运行时改用
+  `from astrbot.api import logger`，独立库/测试才退回 `_aux/stdlog.py`。
+- 阻塞 I/O：AstrBot 适配器把整个 `begin_turn` 放到 `asyncio.to_thread` 执行，
+  `shortcircuit.use_small_model` / `l1.rerank` 的同步 HTTP 不再阻塞宿主事件循环。
+- 数据路径：默认 `metrics.jsonl` 改写到插件数据目录，不再落在 AstrBot 工作目录的 `logs/`。
+- 83 个测试。
+
 ## 0.4.1
 
 - 修正风格收紧后的节奏提示：句长上限从 72 收到 46 时，尾部提示也同步显示 46 字，避免模型收到矛盾约束。

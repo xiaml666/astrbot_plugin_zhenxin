@@ -1,9 +1,22 @@
 from __future__ import annotations
 
 import unittest
+from pathlib import Path
 
 from tests.helpers import Config, make_engine
 from zhenxin.adapters.astrbot import AstrBotAdapter
+
+
+class MakeEnginePathsTests(unittest.TestCase):
+    def test_default_metrics_jsonl_lives_in_the_plugin_data_dir(self):
+        import tempfile
+        from zhenxin.adapters.astrbot import make_engine
+
+        with tempfile.TemporaryDirectory() as tmp:
+            engine = make_engine({}, data_dir=tmp)
+            self.assertEqual(str(Path(tmp) / "metrics.jsonl"), engine.cfg.metrics.jsonl_path)
+            self.assertEqual(str(Path(tmp) / "zhenxin.sqlite3"), engine.cfg.db_path)
+            engine.close()
 
 
 class FakeEvent:

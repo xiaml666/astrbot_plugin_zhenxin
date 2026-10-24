@@ -26,7 +26,7 @@ from zhenxin.page_api import PluginPageAPI  # noqa: E402
     "astrbot_plugin_zhenxin",
     "zhenxin contributors",
     "真心：五层上下文与缓存感知修剪，默认不检索、写入零 LLM 调用。",
-    "0.4.1",
+    "0.4.2",
 )
 class ZhenxinPlugin(Star):
     def __init__(self, context: Context, config=None):
@@ -122,6 +122,7 @@ class ZhenxinPlugin(Star):
             self.engine.record_error("tool_remember", str(exc))
             return "写入记忆失败。"
         return "已记住。" if added else "这条已经记过了。"
+
 
 
 
