@@ -312,8 +312,9 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
     <div class="nav-label">管理</div>
     <nav id="nav">
       <button data-tab="behavior" class="on"><span class="ico">◎</span>运行总览</button>
+      <button data-tab="chat"><span class="ico">⌘</span>对话设置</button>
       <button data-tab="memory"><span class="ico">✦</span>记忆花园<span class="pill" id="memcount">0</span></button>
-      <button data-tab="voice"><span class="ico">◌</span>说话习惯</button>
+      <button data-tab="voice"><span class="ico">◌</span>说话与主动</button>
       <button data-tab="health"><span class="ico">✓</span>体检与反馈</button>
     </nav>
     <div class="nav-label">维护</div>
@@ -389,9 +390,11 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
       </div>
     </div>
 
-    <section id="tab-behavior" class="on">
-      <h1>行为与状态</h1>
-      <p class="sub">只有这里和“说话习惯”里的开关真的会改变回复。改完点底部保存，下一轮生效，不用重启。</p>
+    <section id="tab-behavior" class="on"></section>
+
+    <section id="tab-chat">
+      <h1>对话设置</h1>
+      <p class="sub">接管方式、长期线索、最近窗口和推荐组合放在一起；改完点底部保存。</p>
 
       <div class="card">
         <h2>对话接管</h2>
@@ -437,6 +440,90 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
       </div>
 
       <div class="card">
+        <h2>推荐设置</h2>
+        <p class="lead">“推荐”是实测比较稳的组合，并且会由真心接管对话；“恢复默认”回到刚装好时的原始配置（观察模式）。</p>
+        <div class="tools">
+          <button class="btn primary" id="takeover">由真心接管对话</button>
+          <button class="btn" id="preset">恢复推荐设置</button>
+          <button class="btn" id="defaults">恢复默认配置</button>
+        </div>
+        <p class="hintline" id="preset-hint">三个按钮都只改表单，确认无误后再点底部“保存并生效”。</p>
+      </div>
+    </section>
+
+    <section id="tab-memory">
+      <h1>记忆花园</h1>
+      <p class="sub">节点越深越重要、越不容易忘；拖动节点可整理布局，单击节点加深权重，误点可撤销。默认只看今天，也可以切换日期或看全部。</p>
+      <div class="card">
+        <div class="mem-top">
+          <div class="chips" id="pool-chips"></div>
+          <div class="tools" style="margin:0">
+            <button class="btn small" id="memundo" disabled title="撤销上一次点击加深">撤销上次加深</button>
+            <button class="btn small" id="memrebuild" title="从已保存的对话里补回称呼、AI 名字和明确要求记住的事">从历史对话重建</button>
+            <input type="search" id="memsearch" placeholder="搜索记忆内容，例如：香菜 / 海盐 / 团子">
+            <button class="btn small danger" id="memclear">清空全部</button>
+          </div>
+        </div>
+        <div class="dates" id="dates"></div>
+        <div class="mem-graph" id="graph"><svg id="graph-svg" viewBox="0 0 900 420" preserveAspectRatio="xMidYMid meet"></svg></div>
+        <div id="mem-detail"></div>
+        <div class="mem-list" id="memlist"></div>
+        <details class="adv" id="traces-box">
+          <summary>已淡出的关键词痕迹（<span id="tracecount">0</span>）</summary>
+          <p class="lead" style="margin:8px 0 10px">这些记忆已经被彻底删除，只留关键词，不会再进入模型。</p>
+          <div class="mem-list" id="tracelist"></div>
+        </details>
+      </div>
+      <div class="card">
+        <h2>四个池子怎么工作</h2>
+        <p class="lead">周期结束后，记忆会按“艾宾浩斯式”的保持度分流；高价值加深，低价值优先遗忘，避免上下文越来越长。</p>
+        <div class="note">
+          <b>周期池</b>：刚记住、还在观察中；<b>珍藏池</b>：重要且常被提到，衰减更慢；<b>浅忆池</b>：低价值，只有强相关时才想起；<b>回收池</b>：你明确说“不用了/别叫我X”或手动移入，默认 7 天后彻底删除。<br>
+          被提到越多、点得越多，颜色越深，遗忘越慢；长时间不再被提到会自然变浅。
+        </div>
+      </div>
+    </section>
+
+    <section id="tab-voice">
+      <h1>说话与主动</h1>
+      <p class="sub">一边模仿你本人的句长、语气词、表情和追问习惯，一边周期性从网络补充聊天知识；主动消息也放在这里，方便和说话风格一起调。</p>
+      <div class="card">
+        <h2>像真人一样说话</h2>
+        <p class="lead">知识库最多 500 字，每轮只取其中约 110 字放进请求末尾，不会把上下文撑长；学习过程不调用主模型。</p>
+        <div class="row"><div class="txt"><b>启用说话学习</b>
+          <p>关闭后不再学习，也不再把“像真人”的提示带进请求。</p></div>
+          <div class="ctl"><label class="switch"><input type="checkbox" data-path="style_learning.enabled"><span></span></label></div></div>
+        <div class="row"><div class="txt"><b>基础风格自适应</b>
+          <p>老版的句长/表情/追问统计；关掉就只保留下面的真人知识库。</p></div>
+          <div class="ctl"><label class="switch"><input type="checkbox" data-path="aux.style"><span></span></label></div></div>
+        <div class="row"><div class="txt"><b>模仿用户本人</b>
+          <p>从你最近的消息里统计句长、口头禅、笑声、标点、表情和提问频率。</p></div>
+          <div class="ctl"><label class="switch"><input type="checkbox" data-path="style_learning.learn_user"><span></span></label></div></div>
+        <div class="row"><div class="txt"><b>周期性从网络学习</b>
+          <p>默认 7 天一次，搜索公开的聊天习惯资料，用规则提炼成短句；网络失败会保留上一次结果。</p></div>
+          <div class="ctl"><label class="switch"><input type="checkbox" data-path="style_learning.online"><span></span></label></div></div>
+        <div class="row"><div class="txt"><b>联网学习间隔</b>
+          <p>单位：天。太频繁没必要，7–14 天足够。</p></div>
+          <div class="ctl"><input type="number" min="1" max="30" step="1" data-path="style_learning.interval_days"></div></div>
+        <div class="row"><div class="txt"><b>知识库字数上限</b>
+          <p>超过会自动删减；默认 500 字。</p></div>
+          <div class="ctl"><input type="number" min="200" max="800" step="50" data-path="style_learning.max_chars"></div></div>
+        <div class="tools" style="margin-top:12px">
+          <select id="style-user" title="选择要查看的会话"></select>
+          <button class="btn" id="style-local">立即学习一次（本地）</button>
+        </div>
+        <p class="hintline">联网学习会按上面的间隔自动进行，不需要手动点；网络失败会保留上一次知识库。</p>
+        <div class="progress"><i id="kb-bar"></i></div>
+        <div class="hintline" id="kb-meta">还没有学习结果，先聊几句，后台会自动学习。</div>
+        <details class="adv" id="kb-details">
+          <summary>查看知识库（<span id="kb-chars">0</span> / <span id="kb-max">500</span> 字）</summary>
+          <div class="kb" id="kb-box" style="margin-top:10px">（空）</div>
+          <div class="src" id="kb-src"></div>
+          <p class="hintline" id="kb-error"></p>
+        </details>
+      </div>
+
+      <div class="card">
         <h2>主动消息</h2>
         <p class="lead">让真心先开口。默认关闭；打开后只在最近活跃的私聊、非静默时段、满足空闲与间隔时发一条。</p>
         <div class="row"><div class="txt"><b>启用主动消息</b>
@@ -473,93 +560,6 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
         </div>
         <div id="proactive-list" class="note" style="margin-top:10px">打开“主动消息”后，这里会显示最近可发送的会话与内容预览。</div>
       </div>
-
-      <div class="card">
-        <h2>推荐设置</h2>
-        <p class="lead">“推荐”是实测比较稳的组合，并且会由真心接管对话；“恢复默认”回到刚装好时的原始配置（观察模式）。</p>
-        <div class="tools">
-          <button class="btn primary" id="takeover">由真心接管对话</button>
-          <button class="btn" id="preset">恢复推荐设置</button>
-          <button class="btn" id="defaults">恢复默认配置</button>
-        </div>
-        <p class="hintline" id="preset-hint">三个按钮都只改表单，确认无误后再点底部“保存并生效”。</p>
-      </div>
-    </section>
-
-    <section id="tab-memory">
-      <h1>记忆花园</h1>
-      <p class="sub">每颗点是一条记忆：颜色越深越重要、越不容易忘，点一下可以继续加深。记忆按时间自动排序，默认只看今天，也可以切换日期或看全部。</p>
-      <div class="card">
-        <div class="mem-top">
-          <div class="chips" id="pool-chips"></div>
-          <div class="tools" style="margin:0">
-            <div class="seg" id="memview">
-              <button data-v="graph" class="on">图谱</button><button data-v="dots">点阵</button>
-            </div>
-            <button class="btn small" id="memrebuild" title="从已保存的对话里补回称呼、AI 名字和明确要求记住的事">从历史对话重建</button>
-            <input type="search" id="memsearch" placeholder="搜索记忆内容，例如：香菜 / 海盐 / 团子">
-            <button class="btn small danger" id="memclear">清空全部</button>
-          </div>
-        </div>
-        <div class="dates" id="dates"></div>
-        <div class="garden" id="garden"></div>
-        <div class="mem-graph" id="graph" hidden><svg id="graph-svg" viewBox="0 0 900 420" preserveAspectRatio="xMidYMid meet"></svg></div>
-        <div id="mem-detail"></div>
-        <div class="mem-list" id="memlist"></div>
-        <details class="adv" id="traces-box">
-          <summary>已淡出的关键词痕迹（<span id="tracecount">0</span>）</summary>
-          <p class="lead" style="margin:8px 0 10px">这些记忆已经被彻底删除，只留关键词，不会再进入模型。</p>
-          <div class="mem-list" id="tracelist"></div>
-        </details>
-      </div>
-      <div class="card">
-        <h2>四个池子怎么工作</h2>
-        <p class="lead">周期结束后，记忆会按“艾宾浩斯式”的保持度分流；高价值加深，低价值优先遗忘，避免上下文越来越长。</p>
-        <div class="note">
-          <b>周期池</b>：刚记住、还在观察中；<b>珍藏池</b>：重要且常被提到，衰减更慢；<b>浅忆池</b>：低价值，只有强相关时才想起；<b>回收池</b>：你明确说“不用了/别叫我X”或手动移入，默认 7 天后彻底删除。<br>
-          被提到越多、点得越多，颜色越深，遗忘越慢；长时间不再被提到会自然变浅。
-        </div>
-      </div>
-    </section>
-
-    <section id="tab-voice">
-      <h1>说话习惯</h1>
-      <p class="sub">真心会慢慢学习真人怎么聊天：一边模仿你本人的句长、语气词、表情和追问习惯，一边周期性从网络补充聊天知识，最后压缩成一个小知识库。主动消息的开关在“行为与状态”。</p>
-      <div class="card">
-        <h2>像真人一样说话</h2>
-        <p class="lead">知识库最多 500 字，每轮只取其中约 110 字放进请求末尾，不会把上下文撑长；学习过程不调用主模型。</p>
-        <div class="row"><div class="txt"><b>启用说话学习</b>
-          <p>关闭后不再学习，也不再把“像真人”的提示带进请求。</p></div>
-          <div class="ctl"><label class="switch"><input type="checkbox" data-path="style_learning.enabled"><span></span></label></div></div>
-        <div class="row"><div class="txt"><b>基础风格自适应</b>
-          <p>老版的句长/表情/追问统计；关掉就只保留下面的真人知识库。</p></div>
-          <div class="ctl"><label class="switch"><input type="checkbox" data-path="aux.style"><span></span></label></div></div>
-        <div class="row"><div class="txt"><b>模仿用户本人</b>
-          <p>从你最近的消息里统计句长、口头禅、笑声、标点、表情和提问频率。</p></div>
-          <div class="ctl"><label class="switch"><input type="checkbox" data-path="style_learning.learn_user"><span></span></label></div></div>
-        <div class="row"><div class="txt"><b>周期性从网络学习</b>
-          <p>默认 7 天一次，搜索公开的聊天习惯资料，用规则提炼成短句；网络失败会保留上一次结果。</p></div>
-          <div class="ctl"><label class="switch"><input type="checkbox" data-path="style_learning.online"><span></span></label></div></div>
-        <div class="row"><div class="txt"><b>联网学习间隔</b>
-          <p>单位：天。太频繁没必要，7–14 天足够。</p></div>
-          <div class="ctl"><input type="number" min="1" max="30" step="1" data-path="style_learning.interval_days"></div></div>
-        <div class="row"><div class="txt"><b>知识库字数上限</b>
-          <p>超过会自动删减；默认 500 字。</p></div>
-          <div class="ctl"><input type="number" min="200" max="800" step="50" data-path="style_learning.max_chars"></div></div>
-        <div class="tools" style="margin-top:12px">
-          <select id="style-user" title="选择要查看的会话"></select>
-          <button class="btn" id="style-local">立即学习一次（本地）</button>
-        </div>
-        <p class="hintline">联网学习会按上面的间隔自动进行，不需要手动点；网络失败会保留上一次知识库。</p>
-        <div class="progress"><i id="kb-bar"></i></div>
-        <div class="hintline" id="kb-meta">还没有学习结果，先聊几句，后台会自动学习。</div>
-        <details class="adv" id="kb-details">
-          <summary>查看知识库（<span id="kb-chars">0</span> / <span id="kb-max">500</span> 字）</summary>
-          <div class="kb" id="kb-box" style="margin-top:10px">（空）</div>
-          <div class="src" id="kb-src"></div>
-          <p class="hintline" id="kb-error"></p>
-        </details>
-      </div>
     </section>
 
     <section id="tab-health">
@@ -593,7 +593,17 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
           <button class="btn primary" id="fb-submit">一键打开 GitHub 提交</button>
           <span class="hintline" id="fb-hint"></span>
         </div>
-        <p class="hintline">如果浏览器拦截了新窗口，请允许弹出窗口，或从仓库 Issues 页面手动粘贴。</p>
+        <div id="fb-fallback" class="note" hidden style="margin-top:12px">
+          <b>没打开？</b>浏览器可能拦截了新窗口，或者当前网络访问 GitHub 较慢。
+          反馈内容已经生成，不会丢；可以复制后发到插件反馈渠道，或稍后联网再打开。
+          <textarea id="fb-link" readonly style="margin-top:8px;min-height:60px"></textarea>
+          <div class="feedback-actions">
+            <button class="btn small" id="fb-copy-link">复制链接</button>
+            <button class="btn small" id="fb-copy-text">复制反馈内容</button>
+            <a class="btn small" id="fb-open-link" href="#" target="_blank" rel="noopener noreferrer">在新窗口打开</a>
+          </div>
+        </div>
+        <p class="hintline">GitHub 在中国大陆可能需要网络加速；打不开时用上面的“复制反馈内容”，不会影响提交内容完整性。</p>
       </div>
     </section>
 
@@ -721,8 +731,10 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
   const state = {
     config: {}, defaults: {}, defaultsApplied: false, metrics: {}, health: {},
     series: [], facts: [], traces: [], archivedTotal: 0, pools: {}, dates: [],
-    mem: { view: "day", date: "", pool: "", user: "", mode: "graph" },
-    style: { users: [], selected: "" }, dirty: false, build: {}, usage: {}, proactive: null
+    mem: { view: "day", date: "", pool: "", user: "" }, lastBoost: null,
+    style: { users: [], selected: "" }, dirty: false, build: {}, usage: {}, proactive: null,
+    lastScan: null, feedbackIssueUrl: "https://github.com/xiaml666/astrbot_plugin_zhenxin/issues/new",
+    lastFeedbackText: ""
   };
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
@@ -800,8 +812,9 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
     $$("main section").forEach((s) => s.classList.toggle("on", s.id === "tab-" + btn.dataset.tab));
     const meta = {
       behavior: ["运行总览", "上下文、记忆、说话习惯与花费状态集中在这里；刷新只读本地数据库。", "ZHENXIN · CONTROL CENTER"],
+      chat: ["对话设置", "接管方式、长期线索、最近窗口与推荐组合。", "CHAT · CONTEXT CONTROL"],
       memory: ["记忆花园", "按时间浏览记忆；点节点加深权重，点日期切换当天或全部。", "MEMORY · RETRIEVAL & FORGETTING"],
-      voice: ["说话习惯", "模仿用户 + 周期联网学习，知识库默认收起，避免页面和上下文变长。", "STYLE · HUMAN-LIKE SPEECH"],
+      voice: ["说话与主动", "模仿用户 + 周期联网学习，知识库默认收起；主动消息也在这里调。", "STYLE · HUMAN-LIKE SPEECH"],
       health: ["体检与反馈", "只扫描当前启用的插件；媒体类插件不计入上下文冲突。", "HEALTH · COMPATIBILITY"],
       advanced: ["高级设置", "检索权重、遗忘周期和换线索节奏。", "ADVANCED · WEIGHTS & CYCLE"],
       reset: ["重置", "清理对话状态、记忆、说话学习或统计。", "RESET · MAINTENANCE"],
@@ -896,6 +909,7 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
     state.series = Array.isArray(data.series) ? data.series : [];
     state.usage = data.usage || {};
     state.build = data.build || {};
+    if (data.feedback_issue_url) state.feedbackIssueUrl = data.feedback_issue_url;
     state.pools = (data.memory || {}).pools || {};
     state.scorerName = data.scorer;
     $("#ver").textContent = "v" + (data.version || "--");
@@ -1176,8 +1190,16 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
     if (fact.pool === "trash") { showDetail(fact, el); return; }
     if (el) { el.classList.add("pulse"); setTimeout(() => el.classList.remove("pulse"), 400); }
     try {
+      const previous = {
+        id: fact.id,
+        manual_boost: num(fact.manual_boost, 0),
+        importance: num(fact.importance, 0.5),
+        pool: fact.pool,
+      };
       const data = await callPost("page/memory/boost", { id: fact.id, delta: 0.12 });
       if (data.fact) Object.assign(fact, data.fact);
+      state.lastBoost = previous;
+      $("#memundo").disabled = false;
       toast("已加深这条记忆");
       renderMemory();
       const next = state.facts.find((f) => String(f.id) === String(fact.id)) || fact;
@@ -1189,17 +1211,6 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
     }
   }
 
-  function renderDots(items) {
-    $("#garden").innerHTML = items.map((f) => {
-      const size = 18 + Math.round(num(f.weight, .3) * 26);
-      return '<button class="dot' + (f.pool === "trash" ? " trash" : "") + '" data-id="' + f.id + '" ' +
-        'style="--c:' + esc(f.color) + ";--s:" + size + 'px" title="' + esc(f.text) + "（" + fmtMath(f.weight) + '）"></button>';
-    }).join("");
-    $$("#garden .dot").forEach((btn) => {
-      btn.onclick = () => boostFact(btn.dataset.id, btn);
-    });
-  }
-
   function graphTokens(text) {
     const clean = String(text || "").replace(/[^\u4e00-\u9fffa-zA-Z0-9]/g, "");
     const out = new Set();
@@ -1207,15 +1218,12 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
     return out;
   }
 
-  function renderGraph(items) {
-    const svg = $("#graph-svg");
+  function layoutGraph(items) {
     const W = 900, H = 420;
     const shown = Math.min(45, items.length);
     const nodes = items.slice(0, shown).map((f, i) => {
       const id = Number(f.id) || i;
       const angle = i * 2.39996 + (id % 11) * 0.12;
-      // Golden-angle spiral starting wide enough that labels do not pile up
-      // in the centre (the reference graph is airy, not a hairball).
       const ring = 150 + 52 * Math.sqrt(i);
       return {
         fact: f,
@@ -1225,7 +1233,6 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
         tokens: graphTokens(f.text),
       };
     });
-    // Edges: shared Chinese bigrams, capped to two strongest neighbours.
     const edges = [];
     for (let i = 0; i < nodes.length; i++) {
       const links = [];
@@ -1237,9 +1244,6 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
       }
       links.sort((a, b) => b[0] - a[0]);
       if (!links.length) {
-        // No shared words (common for different topics): connect to the two
-        // nearest nodes so the graph still reads as a network, like the
-        // reference panel.
         const nearest = nodes
           .map((b, j) => [j, Math.hypot(b.x - nodes[i].x, b.y - nodes[i].y)])
           .filter(([j]) => j !== i)
@@ -1250,7 +1254,6 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
         links.slice(0, 2).forEach(([, j]) => { if (i < j) edges.push([i, j]); });
       }
     }
-    // Small deterministic force layout.
     for (let iter = 0; iter < 90; iter++) {
       for (let i = 0; i < nodes.length; i++) {
         const a = nodes[i];
@@ -1265,7 +1268,6 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
             b.x += dx * push; b.y += dy * push;
           }
         }
-        // Weak center gravity; labels need room more than perfect centring.
         a.x += (W / 2 - a.x) * 0.0018;
         a.y += (H / 2 - a.y) * 0.0024;
         a.x = Math.max(70, Math.min(W - 70, a.x));
@@ -1281,6 +1283,14 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
         b.x -= dx * pull; b.y -= dy * pull;
       });
     }
+    return { W, H, nodes, edges, shown };
+  }
+
+  function paintGraph() {
+    const svg = $("#graph-svg");
+    const graph = svg._graph;
+    if (!graph) return;
+    const { W, H, nodes, edges, shown } = graph;
     const parts = [];
     edges.forEach(([i, j]) => {
       parts.push('<line class="graph-edge" x1="' + nodes[i].x.toFixed(1) + '" y1="' + nodes[i].y.toFixed(1) +
@@ -1292,7 +1302,7 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
       const left = node.x > W - 210;
       const tx = left ? node.x - node.r - 6 : node.x + node.r + 6;
       const anchor = left ? "end" : "start";
-      parts.push('<g class="graph-node" data-id="' + f.id + '">' +
+      parts.push('<g class="graph-node" data-id="' + f.id + '" data-index="' + nodes.indexOf(node) + '">' +
         '<title>' + esc(f.text) + "（" + poolLabel(f.pool) + "，深度 " + fmtMath(f.weight) + "）</title>" +
         '<circle cx="' + node.x.toFixed(1) + '" cy="' + node.y.toFixed(1) + '" r="' + node.r.toFixed(1) +
         '" fill="' + esc(f.color) + '" stroke="' + (f.pool === "treasure" ? "#f59e0b" : "#ffffff") + '" stroke-width="1.4" opacity="' +
@@ -1300,13 +1310,82 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
         '<text class="graph-label" x="' + tx.toFixed(1) + '" y="' + (node.y + 4).toFixed(1) + '" text-anchor="' + anchor + '">' +
         esc(trunc) + "</text></g>");
     });
-    if (items.length > shown) {
+    if ((graph.factCount || nodes.length) > shown) {
       parts.push('<text x="14" y="404" fill="#64756f" font-size="11">只显示前 ' + shown + ' 条；用搜索或日期缩小范围。</text>');
     }
     svg.innerHTML = parts.join("");
-    $$("#graph-svg .graph-node").forEach((node) => {
-      node.onclick = () => boostFact(node.dataset.id, null);
+  }
+
+  function svgPoint(ev) {
+    const svg = $("#graph-svg");
+    const pt = svg.createSVGPoint();
+    pt.x = ev.clientX;
+    pt.y = ev.clientY;
+    const ctm = svg.getScreenCTM();
+    return ctm ? pt.matrixTransform(ctm.inverse()) : { x: 0, y: 0 };
+  }
+
+  function renderGraph(items) {
+    const svg = $("#graph-svg");
+    svg._graph = layoutGraph(items);
+    svg._graph.factCount = items.length;
+    paintGraph();
+    if (svg._dragBound) return;
+    svg._dragBound = true;
+    svg.style.touchAction = "none";
+    svg.addEventListener("pointerdown", (ev) => {
+      const group = ev.target.closest(".graph-node");
+      if (!group || !svg._graph) return;
+      const index = Number(group.dataset.index);
+      const pt = svgPoint(ev);
+      svg._drag = {
+        index,
+        startX: pt.x,
+        startY: pt.y,
+        offsetX: svg._graph.nodes[index].x - pt.x,
+        offsetY: svg._graph.nodes[index].y - pt.y,
+        moved: false,
+      };
+      try { svg.setPointerCapture(ev.pointerId); } catch (e) { /* ignore */ }
+      ev.preventDefault();
     });
+    svg.addEventListener("pointermove", (ev) => {
+      const drag = svg._drag;
+      if (!drag || !svg._graph) return;
+      const pt = svgPoint(ev);
+      if (Math.hypot(pt.x - drag.startX, pt.y - drag.startY) > 4) drag.moved = true;
+      const node = svg._graph.nodes[drag.index];
+      if (!node) return;
+      node.x = Math.max(30, Math.min(svg._graph.W - 30, pt.x + drag.offsetX));
+      node.y = Math.max(24, Math.min(svg._graph.H - 24, pt.y + drag.offsetY));
+      paintGraph();
+    });
+    const finish = (ev) => {
+      const drag = svg._drag;
+      svg._drag = null;
+      if (!drag) return;
+      try { svg.releasePointerCapture(ev.pointerId); } catch (e) { /* ignore */ }
+      if (!drag.moved) {
+        const node = svg._graph && svg._graph.nodes[drag.index];
+        if (node) boostFact(node.fact.id, null);
+      }
+    };
+    svg.addEventListener("pointerup", finish);
+    svg.addEventListener("pointercancel", () => { svg._drag = null; });
+  }
+
+  function undoBoost() {
+    if (!state.lastBoost) return;
+    const target = state.lastBoost;
+    return callPost("page/memory/undo", target).then((data) => {
+      const fact = state.facts.find((f) => String(f.id) === String(target.id));
+      if (fact && data.fact) Object.assign(fact, data.fact);
+      state.lastBoost = null;
+      $("#memundo").disabled = true;
+      renderMemory();
+      showDetail(fact, null);
+      toast("已撤销上一次加深");
+    }).catch((err) => toast("撤销失败：" + err.message));
   }
 
   function renderMemory() {
@@ -1314,19 +1393,16 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
     renderDates();
     const items = state.facts || [];
     $("#memcount").textContent = fmt(state.health.facts || 0);
-    const graphMode = state.mem.mode === "graph";
-    $("#garden").hidden = graphMode;
-    $("#graph").hidden = !graphMode;
     if (!items.length) {
-      const empty = '<div class="empty" style="grid-column:1/-1">' + (state.mem.view === "day" ? "今天还没有新的记忆，换个日期或点“全部”看看。" : "没有匹配的记忆。") + "</div>";
-      $("#garden").hidden = false;
-      $("#graph").hidden = true;
-      $("#garden").innerHTML = empty;
+      const svg = $("#graph-svg");
+      svg._graph = null;
+      svg.innerHTML = '<text x="450" y="200" text-anchor="middle" fill="#64756f" font-size="13">' +
+        esc(state.mem.view === "day" ? "今天还没有新的记忆，换个日期或点“全部”看看。" : "没有匹配的记忆。") + "</text>";
       $("#memlist").innerHTML = "";
       $("#mem-detail").innerHTML = "";
       return;
     }
-    if (graphMode) renderGraph(items); else renderDots(items);
+    renderGraph(items);
     $("#memlist").innerHTML = items.map((f) => {
       const tag = importanceLabel(f);
       return '<div class="mem-item"><div class="body"><div class="t"><span class="tag' +
@@ -1359,14 +1435,7 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
       " 次 · 记住于 " + when(fact.created_at) + (fact.trash_reason ? " · 回收原因：" + esc(fact.trash_reason) : "") + "</div>" +
       '<div class="actions">' + actions.join("") + "</div></div>";
     const panel = $("#mem-detail");
-    panel.querySelector('[data-act="boost"]').onclick = async () => {
-      try {
-        const data = await callPost("page/memory/boost", { id: fact.id, delta: 0.12 });
-        toast("已加深");
-        if (data.fact) Object.assign(fact, data.fact);
-        renderMemory(); showDetail(fact, null); loadStatus(true);
-      } catch (err) { toast(err.message); }
-    };
+    panel.querySelector('[data-act="boost"]').onclick = () => boostFact(fact.id, null);
     const trashBtn = panel.querySelector('[data-act="trash"]');
     if (trashBtn) trashBtn.onclick = async () => {
       try { await callPost("page/memory/trash", { id: fact.id }); toast("已移到回收池"); loadMemory(); }
@@ -1405,13 +1474,7 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
       '<div class="m">' + kindLabel(t.kind) + " · 关键词痕迹 · 已彻底删除 · " + when(t.archived_at) + "</div></div></div>"
     ).join("");
   }
-  $("#memview").addEventListener("click", (e) => {
-    const btn = e.target.closest("button[data-v]");
-    if (!btn) return;
-    state.mem.mode = btn.dataset.v;
-    $$("#memview button").forEach((b) => b.classList.toggle("on", b === btn));
-    renderMemory();
-  });
+  $("#memundo").addEventListener("click", undoBoost);
   $("#memrebuild").addEventListener("click", async () => {
     const btn = $("#memrebuild");
     btn.disabled = true;
@@ -1513,6 +1576,7 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
     try {
       const data = await callGet("page/health", {});
       state.scanDone = true;
+      state.lastScan = data;
       const s = (data && data.summary) || {};
       $("#scan-summary").innerHTML = (data && data.ok === false)
         ? '<span class="sev direct">扫描失败</span> ' + esc(data.message || "")
@@ -1534,27 +1598,74 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
     } catch (e) { $("#scan-summary").textContent = "扫描失败：" + e.message; }
   }
   $("#scan").addEventListener("click", runScan);
-  $("#fb-submit").addEventListener("click", async () => {
+  function feedbackPayload() {
     const content = $("#fb-content").value.trim();
-    if (content.length < 5) { toast("请至少写 5 个字"); return; }
-    const btn = $("#fb-submit"); btn.disabled = true;
-    try {
-      const data = await callPost("page/feedback", {
-        category: $("#fb-category").value,
-        content,
-        contact: $("#fb-contact").value.trim(),
-        diagnostics: JSON.stringify({ version: state.build.version, rounds: state.metrics.rounds, usage: state.usage, pools: state.pools })
-      });
-      const url = data.issue_url || "";
-      if (!url) throw new Error("没有生成 GitHub 链接");
-      $("#fb-hint").textContent = "已打开 GitHub，请在页面底部点 Submit new issue。";
-      const a = document.createElement("a");
-      a.href = url; a.target = "_blank"; a.rel = "noopener noreferrer";
-      document.body.appendChild(a); a.click(); a.remove();
+    if (content.length < 5) return null;
+    const category = $("#fb-category").value;
+    const contact = $("#fb-contact").value.trim();
+    const diagnostics = {
+      version: state.build.version,
+      rounds: state.metrics.rounds,
+      usage: state.usage,
+      pools: state.pools,
+      plugins: (state.lastScan && state.lastScan.plugins || []).map((p) => p.display || p.name),
+    };
+    const title = "[" + category + "] " + content.slice(0, 40);
+    const body = content +
+      "\n\n---\n版本：" + (state.build.version || "unknown") +
+      "\n联系方式：" + (contact || "未填写") +
+      "\n诊断信息：\n```json\n" + JSON.stringify(diagnostics, null, 2) + "\n```\n";
+    const base = state.feedbackIssueUrl || "https://github.com/xiaml666/astrbot_plugin_zhenxin/issues/new";
+    return {
+      url: base + (base.includes("?") ? "&" : "?") + "title=" + encodeURIComponent(title) + "&body=" + encodeURIComponent(body),
+      text: title + "\n\n" + body,
+    };
+  }
+
+  function copyText(value, okMessage) {
+    const done = () => toast(okMessage);
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(value).then(done).catch(() => legacyCopy(value, done));
+    } else {
+      legacyCopy(value, done);
+    }
+  }
+
+  function legacyCopy(value, done) {
+    const area = document.createElement("textarea");
+    area.value = value;
+    area.style.position = "fixed";
+    area.style.opacity = "0";
+    document.body.appendChild(area);
+    area.select();
+    try { document.execCommand("copy"); done(); } catch (e) { toast("复制失败，请手动选择文本"); }
+    area.remove();
+  }
+
+  $("#fb-submit").addEventListener("click", () => {
+    const payload = feedbackPayload();
+    if (!payload) { toast("请至少写 5 个字"); return; }
+    // Build and open synchronously: awaiting a request first makes browsers
+    // treat window.open as a non-user gesture and silently block it, which is
+    // why the old button appeared to do nothing.
+    let win = null;
+    try { win = window.open(payload.url, "_blank"); } catch (e) { win = null; }
+    $("#fb-link").value = payload.url;
+    $("#fb-open-link").href = payload.url;
+    // Always expose the copy fallback: sandboxed iframe popups and GitHub
+    // connectivity are both outside our control.
+    $("#fb-fallback").hidden = false;
+    if (win) {
+      $("#fb-hint").textContent = "已打开 GitHub；在页面底部点 Submit new issue 即可。";
       toast("已打开 GitHub 提交页");
-    } catch (e) { toast("打开失败：" + e.message); $("#fb-hint").textContent = "打开失败：" + e.message; }
-    finally { btn.disabled = false; }
+    } else {
+      $("#fb-hint").textContent = "没有自动打开：可能是浏览器拦截，或当前网络访问 GitHub 较慢。";
+      toast("没自动打开，已生成可复制的反馈");
+    }
+    state.lastFeedbackText = payload.text;
   });
+  $("#fb-copy-link").addEventListener("click", () => copyText($("#fb-link").value, "链接已复制"));
+  $("#fb-copy-text").addEventListener("click", () => copyText(state.lastFeedbackText || feedbackPayload()?.text || "", "反馈内容已复制"));
 
   // ------------------------------------------------------------- reset
   const RESET_CONFIRM = {
