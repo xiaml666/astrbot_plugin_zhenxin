@@ -2,7 +2,7 @@
 
 > 不换模型，只接管“每一轮给模型看什么”。
 
-**v0.5.0 · 99 个测试 · AstrBot 4.29.1 实测 · MIT**
+**v0.5.0 · 100 个测试 · AstrBot 4.29.1 实测 · MIT**
 
 真心是给 AstrBot 用的长期记忆与上下文插件：
 
@@ -155,7 +155,7 @@ WebUI 里能改的都在 [`_conf_schema.json`](_conf_schema.json)。常用项：
 ## 验证
 
 ```bash
-python -m unittest discover -s tests -t .   # 99 个测试
+python -m unittest discover -s tests -t .   # 100 个测试
 python scripts/package_plugin.py            # 生成 dist zip
 ```
 
@@ -203,3 +203,4 @@ Each file appears once; no duplicated or doubled suffixes.
 ## License
 
 MIT。见 [`LICENSE`](LICENSE)。
+
