@@ -271,7 +271,7 @@ class HumanStyleLearner:
         text = self.knowledge(user_key)
         if not text:
             return ""
-        text = re.sub(r"^用户习惯[:：]\s*", "", text)
+        text = re.sub(r"^(?:用户习惯|真人聊天常识)[:：]\s*", "", text)
         text = _trim(text, max(40, int(self.cfg.hint_chars)))
         return "〔像真人一点：" + text + "〕"
 
