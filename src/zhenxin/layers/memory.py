@@ -293,6 +293,8 @@ class FactBank:
 
     def scan_zero_value(self, user_key: str, text: str) -> int:
         """Move explicitly retracted memories into the recycle bin."""
+        if not self.cfg.enabled:
+            return 0
         reason = zero_value.cue(text)
         if not reason:
             return 0
@@ -317,8 +319,10 @@ class FactBank:
         bank overflows, and a shallow fact is only recalled on a strong match.
         """
         now = self.clock() if now is None else float(now)
-        rows = self._rows(user_key, include_trash=False)
         changed = {"treasure": 0, "shallow": 0, "cycle": 0, "purged": 0}
+        if not self.cfg.enabled:
+            return changed
+        rows = self._rows(user_key, include_trash=False)
         cycle_seconds = max(0.5, float(self.cfg.cycle_days)) * 86400.0
         for row in rows:
             cycle_at = float(row.get("cycle_at") or 0)
