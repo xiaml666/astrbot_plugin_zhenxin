@@ -273,6 +273,7 @@ class PluginPageAPI:
             ("memory", self.memory_list, ["GET"], "Zhenxin memory list"),
             ("memory/rebuild", self.memory_rebuild, ["POST"], "Zhenxin memory rebuild"),
             ("memory/boost", self.memory_boost, ["POST"], "Zhenxin memory boost"),
+            ("memory/undo", self.memory_undo, ["POST"], "Zhenxin undo memory boost"),
             ("memory/trash", self.memory_trash, ["POST"], "Zhenxin memory trash"),
             ("memory/restore", self.memory_restore, ["POST"], "Zhenxin memory restore"),
             ("memory/delete", self.memory_delete, ["POST"], "Zhenxin memory delete"),
@@ -459,6 +460,7 @@ class PluginPageAPI:
                 **stats.get("proactive", {}),
             },
             "conflict_alert": self.engine.db.get_state("__global__", "conflict_alert", None),
+            "feedback_issue_url": str(self.engine.cfg.feedback.github_issues or ""),
             "usage": {
                 "available": usage_rounds > 0,
                 "rounds": usage_rounds,
@@ -639,6 +641,24 @@ class PluginPageAPI:
             row = self.engine.facts.boost(int(fact_id), float(delta))
         except Exception as exc:  # noqa: BLE001
             return {"ok": False, "message": f"调整权重失败：{exc}"}
+        if row is None:
+            return {"ok": False, "message": "这条记忆不存在"}
+        return {"ok": True, "fact": row}
+
+    async def memory_undo(self) -> dict[str, Any]:
+        """Restore the values captured before the last click-to-deepen."""
+        payload = await self._json_body()
+        if payload.get("id") is None:
+            return {"ok": False, "message": "缺少记忆 id"}
+        try:
+            row = self.engine.facts.set_boost(
+                int(payload["id"]),
+                float(payload.get("manual_boost", 0)),
+                float(payload.get("importance", 0.5)),
+                str(payload.get("pool") or "") or None,
+            )
+        except Exception as exc:  # noqa: BLE001
+            return {"ok": False, "message": f"撤销失败：{exc}"}
         if row is None:
             return {"ok": False, "message": "这条记忆不存在"}
         return {"ok": True, "fact": row}

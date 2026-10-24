@@ -675,6 +675,39 @@ class FactBank:
         updated = self.db.fetchone("SELECT * FROM facts WHERE id=?", (int(fact_id),))
         return self._public(dict(updated), now) if updated else None
 
+    def set_boost(
+        self,
+        fact_id: int,
+        manual_boost: float,
+        importance: float,
+        pool: str | None = None,
+    ) -> dict[str, Any] | None:
+        """Restore the exact values saved before a click-to-deepen action."""
+        row = self.db.fetchone("SELECT * FROM facts WHERE id=?", (int(fact_id),))
+        if row is None:
+            return None
+        now = self.clock()
+        target_pool = str(pool or row["pool"] or "cycle")
+        if target_pool not in POOLS:
+            target_pool = "cycle"
+        self.db.execute(
+            "UPDATE facts SET manual_boost=?,importance=?,pool=?,weight=?,"
+            " trashed_at=CASE WHEN ?='trash' THEN trashed_at ELSE 0 END,"
+            " trash_reason=CASE WHEN ?='trash' THEN trash_reason ELSE '' END"
+            " WHERE id=?",
+            (
+                _clamp(manual_boost),
+                _clamp(importance),
+                target_pool,
+                _clamp(0.4 + float(manual_boost)),
+                target_pool,
+                target_pool,
+                int(fact_id),
+            ),
+        )
+        updated = self.db.fetchone("SELECT * FROM facts WHERE id=?", (int(fact_id),))
+        return self._public(dict(updated), now) if updated else None
+
     def trash(self, fact_id: int, reason: str = "manual") -> bool:
         row = self.db.fetchone("SELECT * FROM facts WHERE id=?", (int(fact_id),))
         if row is None:
