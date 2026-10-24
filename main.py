@@ -123,7 +123,7 @@ class ZhenxinPlugin(Star):
 
     async def _tick_style(self) -> None:
         cfg = self.engine.cfg.style_learning
-        if not (cfg.enabled and self.engine.cfg.aux.style):
+        if not cfg.enabled:
             return
         for user_key in self.engine.style_learning.due_users(limit=3):
             online = bool(cfg.online) and self.engine.style_learning.online_due(user_key)
