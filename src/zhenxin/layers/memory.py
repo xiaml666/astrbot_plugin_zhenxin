@@ -67,6 +67,15 @@ def _clamp(value: float) -> float:
     return max(0.0, min(1.0, float(value)))
 
 
+def _signed(value: Any, low: float = -0.5, high: float = 1.0) -> float:
+    """Signed manual weight: -0.5 (lightened) .. 1.0 (deepened)."""
+    try:
+        number = float(value or 0.0)
+    except (TypeError, ValueError):
+        number = 0.0
+    return max(low, min(high, number))
+
+
 def _row_get(row: Any, key: str, default: Any = 0) -> Any:
     try:
         value = row[key]
@@ -129,7 +138,7 @@ def fact_value(
         0.48 * _clamp(importance)
         + 0.32 * recency
         + 0.12 * usage
-        + 0.08 * _clamp(manual_boost)
+        + 0.08 * _signed(manual_boost)
     )
 
 
@@ -232,15 +241,15 @@ class FactBank:
             0.36 * _clamp(row.get("importance", 0.5))
             + 0.44 * retention(row, now, half_life_days=self.cfg.decay_half_life_days)
             + 0.12 * min(1.0, math.log1p(max(0, int(row.get("mentions", 1)))) / math.log(8.0))
-            + 0.08 * _clamp(row.get("manual_boost", 0.0))
+            + 0.08 * _signed(row.get("manual_boost", 0.0))
         )
 
     def weight_of(self, row: dict[str, Any], now: float | None = None) -> float:
         """0..1 colour depth shown by the memory page."""
         now = self.clock() if now is None else now
         strength = self._row_strength(row, now)
-        # Manual clicks should visibly deepen the dot even on an old memory.
-        return _clamp(strength + 0.28 * _clamp(row.get("manual_boost", 0.0)))
+        # Manual clicks move the dot both ways: deepen (+) or lighten (-).
+        return _clamp(strength + 0.28 * _signed(row.get("manual_boost", 0.0)))
 
     def _archive_rows(self, rows: list[dict[str, Any]], reason: str) -> int:
         """Delete full sentences, keep a keyword-only trace."""
@@ -648,29 +657,53 @@ class FactBank:
             "last_mentioned": float(row.get("last_mentioned") or 0),
             "trashed_at": float(row.get("trashed_at") or 0),
             "trash_reason": str(row.get("trash_reason") or ""),
-            "manual_boost": round(_clamp(row.get("manual_boost", 0.0)), 2),
+            "manual_boost": round(_signed(row.get("manual_boost", 0.0)), 2),
             "age_days": round(max(0.0, (now - created) / 86400.0), 1) if created else 0.0,
             "date": _date_of(created),
             "retention": round(retention(row, now, half_life_days=self.cfg.decay_half_life_days), 2),
         }
 
     def boost(self, fact_id: int, delta: float = 0.12) -> dict[str, Any] | None:
+        """Manual click on a node: positive deepens, negative lightens.
+
+        Both directions are symmetric (importance moves by 0.03, manual boost
+        by ``delta`` clamped to ±0.5).  A weaken click can demote a treasure
+        fact back to the cycle pool and a cycle fact to shallow, but it never
+        deletes anything — deleting stays an explicit action in the page.
+        """
         row = self.db.fetchone("SELECT * FROM facts WHERE id=?", (int(fact_id),))
         if row is None:
             return None
+        try:
+            step = max(-0.5, min(0.5, float(delta)))
+        except (TypeError, ValueError):
+            step = 0.12
+        if not step:
+            step = 0.12
         now = self.clock()
-        current = _clamp(row["manual_boost"])
-        new_boost = _clamp(current + max(-0.5, min(0.5, float(delta))))
-        importance = _clamp(float(row["importance"]) + (0.03 if delta > 0 else -0.01))
+        current = _signed(row["manual_boost"])
+        new_boost = _signed(current + step)
+        direction = 1.0 if step > 0 else -1.0
+        importance = _clamp(float(row["importance"]) + 0.03 * direction)
         pool = str(row["pool"] or "cycle")
         if pool == "trash":
             pool = "cycle"
         elif pool == "shallow" and new_boost > 0.05:
             pool = "cycle"
+        if direction < 0:
+            # Two lighten clicks demote one pool step.  A fresh fact's retention
+            # is too high to fall under the shallow threshold by strength alone,
+            # but clicking "lighten" twice obviously means "remember this less",
+            # so the pool follows the explicit intent.  It never reaches trash.
+            if new_boost <= -0.2:
+                if pool == "treasure":
+                    pool = "cycle"
+                elif pool == "cycle":
+                    pool = "shallow"
         self.db.execute(
             "UPDATE facts SET manual_boost=?,importance=?,pool=?,weight=?,"
             " trashed_at=0,trash_reason='' WHERE id=?",
-            (new_boost, importance, pool, min(1.0, 0.4 + new_boost), int(fact_id)),
+            (new_boost, importance, pool, _clamp(0.4 + new_boost), int(fact_id)),
         )
         updated = self.db.fetchone("SELECT * FROM facts WHERE id=?", (int(fact_id),))
         return self._public(dict(updated), now) if updated else None
@@ -682,7 +715,7 @@ class FactBank:
         importance: float,
         pool: str | None = None,
     ) -> dict[str, Any] | None:
-        """Restore the exact values saved before a click-to-deepen action."""
+        """Restore the exact values saved before a deepen/lighten click."""
         row = self.db.fetchone("SELECT * FROM facts WHERE id=?", (int(fact_id),))
         if row is None:
             return None
@@ -690,16 +723,17 @@ class FactBank:
         target_pool = str(pool or row["pool"] or "cycle")
         if target_pool not in POOLS:
             target_pool = "cycle"
+        restored_boost = _signed(manual_boost)
         self.db.execute(
             "UPDATE facts SET manual_boost=?,importance=?,pool=?,weight=?,"
             " trashed_at=CASE WHEN ?='trash' THEN trashed_at ELSE 0 END,"
             " trash_reason=CASE WHEN ?='trash' THEN trash_reason ELSE '' END"
             " WHERE id=?",
             (
-                _clamp(manual_boost),
+                restored_boost,
                 _clamp(importance),
                 target_pool,
-                _clamp(0.4 + float(manual_boost)),
+                _clamp(0.4 + restored_boost),
                 target_pool,
                 target_pool,
                 int(fact_id),
