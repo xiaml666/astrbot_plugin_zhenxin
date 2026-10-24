@@ -14,34 +14,48 @@
 
 <p align="center"><img src="docs/control-center.png" width="860" alt="真心控制中心"></p>
 
-真心是一个面向 QQ / 微信聊天机器人的上下文层插件。它默认**不检索**：大部分轮次只注入 2–3 条极短线索；只有出现指代、矛盾或未闭合事务时，才按需唤醒冷记忆。记忆写入、亮度更新、置信度更新、节奏计算全部走规则/计数，**零 LLM 调用**。上下文修剪只从尾部剥离临时片段，稳定前缀逐字节保持，以命中服务端提示缓存。
+> 0.3.2 · 74 个测试 · AstrBot 4.29.1 实测 · MIT
 
-## 为什么是真心（和市面插件的不同）
+## 一句话
 
-市面上的记忆插件大多在解决“怎么检索得更准”：每轮把用户消息做 embedding、召回 top-k、拼进系统提示。真心解决的是另一个问题：**每轮到底该让模型看到多少东西，才能又记得住、又不把上下文和缓存撑爆。**
+真心是给 AstrBot 用的长期记忆插件：**不换模型，只决定每轮让模型看到什么。**
 
-| 维度 | 常见记忆 / 上下文插件 | 真心 |
+- 平时只带 2–3 条极短线索，出现“你还记得…”才翻旧记忆
+- 写记忆不调用模型，只走规则，不额外花 token
+- 线索放请求末尾、稳定前缀不动，缓存持续命中
+- 100 轮实测：¥1.32 → ¥0.82（**-38%**）；第 101 轮仍记得第 5 轮说的细节
+- 记忆按重要性和时间自动减负，零价值的只留关键词
+- 自带控制中心：概览 / 记忆 / 花费 / 行为设置 / 高级 / 重置
+
+## 和其他记忆插件有什么不同
+
+| 常见做法 | 真心 |
+|---|---|
+| 每轮向量检索 top-k，或把记忆全量注入 | 默认不检索，只带 2–3 条线索；指代 / 矛盾 / 未完成事务才唤醒 |
+| 抽取、摘要、重排多次调用模型 | 写路径零 LLM 调用，一轮仍然只付一次 chat 的钱 |
+| 改系统提示，prefix cache 容易整段失效 | 线索放请求末尾，稳定前缀逐字节不变，缓存持续命中 |
+| 记忆只增不减 | 按重要性 + 时间线治理，30 天未用且低价值自动淡出，只留关键词 |
+| 依赖向量库 / 外部 embedding API | SQLite 单文件；可选本地 ONNX，没有就退化哈希向量，不联网 |
+
+**适合：** 想让它记住长期偏好 / 关系，又不想每轮多花 token；长对话越聊越贵；想先 shadow 观察再接管。
+
+## 不建议同时使用的插件
+
+真心会接管 `req.contexts` 和部分系统提示。下面这些插件不是“不能用”，而是**同时开容易重复注入、互相覆盖或抵消缓存收益**：
+
+| 插件类型 | 会发生什么 | 建议 |
 |---|---|---|
-| 召回方式 | 每轮向量检索 top-k，或把记忆全量注入 | **默认不检索**；只带 2–3 条极短线索，出现指代 / 矛盾 / 未闭事务才唤醒 |
-| 模型调用 | 抽取、摘要、重排可能多次调用模型 | 写路径 **零 LLM 调用**，一轮对话仍然只付一次 chat 的钱 |
-| 提示缓存 | 每轮改系统提示，prefix cache 容易整段失效 | 线索放请求**末尾**，稳定前缀逐字节不变，缓存持续命中 |
-| 成本曲线 | 对话越长，注入越多越贵 | 100 轮实测 ¥1.32 → ¥0.82（**-38%**），总输入 -50% |
-| 记忆治理 | 只增不减，越攒越多 | 按**重要性 + 时间线**治理，零价值条目自动淡出，只留关键词痕迹 |
-| 数据依赖 | 向量库 / 外部 embedding API | SQLite 单文件；可选本地 ONNX，没有就退化为哈希向量，**不联网** |
-| 可控性 | 改配置文件、看日志 | 自带控制中心：概览 / 记忆 / 花费 / 行为设置 / 高级 / 重置，可先 shadow 再接管 |
+| 其他“接管上下文 / 长期记忆”类插件（LivingMemory、mem0 类、自动摘要记忆） | 两边都改 `req.contexts`，记忆重复注入，成本翻倍 | 只留一个接管方；共存先把 `l3.host_context_mode` 设为 `off` |
+| 每轮自动总结 / 压缩历史的插件（idle_compact、compact 类） | 和真心的窗口修剪重复，同一段历史被压两次 | 关掉其中一个，或让真心 `host_context_mode=off` |
+| 每轮往 `system_prompt` 追加动态内容的插件（时间、状态栏、情绪面板） | 稳定前缀每轮变化，缓存命中下降，省钱效果被抵消 | 尽量关掉动态注入，或接受缓存收益下降 |
+| 全量 RAG / 知识库注入类插件 | 每轮注入大段检索结果，token 大头不在真心 | 可以共存，但要单独看总成本 |
+| 其他改写系统提示 / 人格的插件 | 可能覆盖人格锚点或改变注入顺序 | 可以共存，改完用 `/zhenxin` 看前缀稳定率 |
 
-**独有亮点：**
+> 最稳的共存方式：只让一个插件接管上下文。其他插件先关，再把真心切到 `host_context_mode=off` 做对照，确认没有重复注入后再逐项打开。
 
-- **缓存感知**：不是简单“截断历史”，而是让每轮请求的稳定前缀保持字节一致，专门服务 prompt cache。
-- **零调用写入**：L2 用正则/规则蒸馏线索，`strict_zero_llm` 会直接拦截写路径里的模型调用。
-- **问句不当事实**：“上次说的阿哲是不是搞摄影的”不会被记成“阿哲是摄影师”，减少模型自问自答。
-- **真实账单**：读取模型返回的真实 usage（非缓存/缓存/输出），页面直接显示每轮花了多少钱。
-- **可回退**：推荐设置、恢复默认、分范围重置（对话/记忆/统计），换模型或新开对话后不用手动清库。
-- **两种显式工具**：`zhenxin_recall` / `zhenxin_remember`，需要时模型可主动回忆或记住；平时不占调用。
+## 快速安装
 
-**运行环境：** AstrBot 4.x（另有 NoneBot2 薄适配）· Python 3.11+ · SQLite 单文件 · 本地 ONNX 可选（没有就退化为纯 Python 哈希向量，不联网）
-
-> **状态：0.3.1。** 74 个 unittest、真实 AstrBot 4.29.1 实机验证、100 轮成本 A/B。先开 shadow 跑真实数据，再决定是否 live。省 token 是条件性收益，不是对所有配置的保证；验证方法见 [`docs/validation.md`](docs/validation.md)。
+AstrBot 面板 → 插件 → 安装插件 → 搜索「真心」；或从 [Release](https://github.com/xiaml666/astrbot_plugin_zhenxin/releases/latest) 下载 zip。详细步骤见 §3。
 
 ## 0. 验证状态（请先读）
 
@@ -252,7 +266,7 @@ pip install -r astrbot_plugin_zhenxin/requirements.txt
 **方式三：从 Release 安装**
 
 下载 [最新 Release](https://github.com/xiaml666/astrbot_plugin_zhenxin/releases/latest) 里的
-`astrbot_plugin_zhenxin-0.3.1.zip`，AstrBot 面板 → 插件 → 安装插件 → 从文件安装。插件卡片会使用 [`logo.png`](logo.png)。
+`astrbot_plugin_zhenxin-0.3.2.zip`，AstrBot 面板 → 插件 → 安装插件 → 从文件安装。插件卡片会使用 [`logo.png`](logo.png)。
 
 > 0.3.1 起包目录为 `src/zhenxin/_aux`（`aux` 是 Windows 保留名），从 zip 安装不会再被系统改写。
 
@@ -539,7 +553,7 @@ python scripts/quality_sheet.py --pairs data/quality_pairs.example.jsonl
 ├── docs/astrbot-install.md     # 4.29.1 面板安装/新建验证对话
 ├── docs/astrbot-live-report.md # 4.29.1 实机验证记录
 ├── docs/cache-layout-rollout.md # 0.1.1 缓存布局改动：上线/验证/回滚
-└── dist/astrbot_plugin_zhenxin-0.3.1.zip
+└── dist/astrbot_plugin_zhenxin-0.3.2.zip
 ```
 
 ---
@@ -551,7 +565,7 @@ python scripts/quality_sheet.py --pairs data/quality_pairs.example.jsonl
 
 1. 仓库根目录保留 `main.py`、`metadata.yaml`、`_conf_schema.json`、`requirements.txt`、`logo.png`。
 2. `metadata.yaml` 的 `name` 用 `astrbot_plugin_zhenxin`，`repo` 指向本仓库，版本号与 Release 一致。
-3. 打 tag（如 `v0.3.1`）并上传 Release zip；zip 不超过 16MB（当前约 150KB）。
+3. 打 tag（如 `v0.3.2`）并上传 Release zip；zip 不超过 16MB（当前约 150KB）。
 4. 登录 [AstrBot Cloud](https://cloud.astrbot.app/) 的插件发布页，提交本仓库；审核通过后即可在
    AstrBot 面板「插件 → 安装插件」里搜索到。
 5. 不要提交 `data/*.sqlite3`、`logs/`、`.venv/`、`models/`、`reports/`、`.astrbot_cookies.txt`。
@@ -575,6 +589,7 @@ python scripts/quality_sheet.py --pairs data/quality_pairs.example.jsonl
 ## License
 
 MIT。见 [`LICENSE`](LICENSE)。
+
 
 
 

@@ -60,6 +60,11 @@ class PageApiTests(unittest.TestCase):
         # The bridge arrives after this script, so it must be looked up lazily.
         self.assertNotIn("const bridge = window.AstrBotPluginView", script)
         self.assertIn("waitForBridge", script)
+        # window.confirm is blocked inside AstrBot's sandboxed iframe; the
+        # clear/reset handlers must use the in-page dialog instead.
+        self.assertNotIn("confirm(", script)
+        self.assertIn("askConfirm", script)
+        self.assertIn("confirm-mask", page)
 
     def test_memory_list_separates_importance_and_keeps_keyword_traces(self):
         import asyncio

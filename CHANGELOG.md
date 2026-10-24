@@ -1,5 +1,13 @@
 # 更新日志
 
+## 0.3.2
+
+- 修复控制中心「清空记忆 / 重置 / 删除单条」点了没反应：AstrBot 插件页在
+  sandbox iframe 里，`window.confirm` 会被浏览器拦截并直接返回 false。
+  改为页面内自定义确认框。
+- README 与插件简介改成更短、偏“记忆插件”写法；新增「不建议同时使用的插件」清单。
+- 元数据描述同步精简。
+
 ## 0.3.1
 
 - 把 `src/zhenxin/aux` 改名为 `src/zhenxin/_aux`。`aux` 是 Windows 保留设备名，

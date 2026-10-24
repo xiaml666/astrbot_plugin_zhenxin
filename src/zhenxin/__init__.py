@@ -6,7 +6,8 @@ from .engine import ZhenxinEngine
 from .models import ContextPlan, TurnResult, TurnTrace
 
 __all__ = ["Config", "Database", "ZhenxinEngine", "ContextPlan", "TurnResult", "TurnTrace"]
-__version__ = "0.3.1"
+__version__ = "0.3.2"
+
 
 
 
