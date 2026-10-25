@@ -47,6 +47,16 @@ class SplitChainTests(unittest.TestCase):
         self.assertLessEqual(len(segments), 5)
         self.assertEqual(text, _join(segments))
 
+    def test_line_break_keeps_a_short_second_line_as_its_own_bubble(self):
+        # The reported case: two lines, second one is 9 chars (<10).  A line
+        # break is a deliberate bubble boundary, so it must not be merged back.
+        text = "还没呢，一直躺着等你说句话\n哥哥你呢，吃了没呀"
+        segments = split_chain(
+            [Plain(text)], plain_factory=Plain, max_segments=5, min_segment_chars=10
+        )
+        self.assertEqual(2, len(segments))
+        self.assertEqual(text.replace("\n", ""), _join(segments).replace("\n", ""))
+
     def test_short_reply_stays_one_bubble(self):
         segments = split_chain(
             [Plain("好。我在。")], plain_factory=Plain, max_segments=5, min_segment_chars=10

@@ -330,12 +330,19 @@ def split_chain(
             tail.extend(segment)
         segments = segments[: cap - 1] + [_merge_adjacent_plain(tail, plain_factory)]
 
-    # A tiny final bubble reads like a stray "好。" — merge it when safe.
+    # A tiny final bubble reads like a stray "好。" — merge it when safe.  A
+    # deliberate line break is different: a 9-char second line ("哥哥你呢，吃了没呀")
+    # should stay its own message, so don't merge multi-line replies unless the
+    # final fragment is really trivial.
+    has_line_break = any("\n" in _text(c) for c in components if _is_plain(c))
     if len(segments) >= 2:
         last = segments[-1]
         last_text = _segment_text(last).strip()
+        trivial = 0 < len(last_text) < minimum and not (
+            has_line_break and len(last_text) >= 3
+        )
         if (
-            0 < len(last_text) < minimum
+            trivial
             and not _has_non_text(last)
             and not _has_non_text(segments[-2])
         ):

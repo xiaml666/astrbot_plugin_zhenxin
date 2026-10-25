@@ -125,8 +125,10 @@ class ZhenxinPlugin(Star):
         if not cfg.enabled:
             return
         user_key = self.adapter.user_key(event)
-        if self.adapter.shadow_for(user_key):
-            return
+        # Segmentation is transport-only (the stored reply text and the prompt
+        # are unchanged), so it must also work in observation/shadow mode.
+        # Skipping it there made the switch look broken on installations that
+        # ran the recommended "only observe" profile.
         try:
             result = event.get_result()
         except Exception:
@@ -177,6 +179,12 @@ class ZhenxinPlugin(Star):
         segments = [segment for segment in segments if segment]
         if len(segments) <= 1:
             return
+        try:
+            from astrbot.api import logger  # type: ignore
+
+            logger.info(f"zhenxin split reply into {len(segments)} bubbles")
+        except Exception:
+            pass
         failed_from: int | None = None
         for index, segment in enumerate(segments[:-1]):
             try:
