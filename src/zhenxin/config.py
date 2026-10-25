@@ -221,19 +221,18 @@ class StyleLearningConfig:
 class SplitConfig:
     """Optional reply segmentation ("对话分段").
 
-    A long reply is sent as a few consecutive bubbles, like a real person
-    typing.  This is transport-only: no extra model call, no extra context
-    tokens, and the stored assistant turn remains the full text.  Off by
-    default because it is a visible product decision.
+    Defaults follow the proven ``astrbot_plugin_splitter`` simple mode: up to
+    5 bubbles, fragments under 10 chars merged, natural increasing delay.
+    This is transport-only: no extra model call, no extra context tokens, and
+    the stored assistant turn remains the full text.
     """
 
     enabled: bool = False
-    max_segments: int = 3
-    # Do not bother splitting short replies.
-    min_chars: int = 40
+    max_segments: int = 5
     # Fragments shorter than this are merged into a neighbour.
-    min_segment_chars: int = 8
-    delay_s: float = 0.6
+    min_segment_chars: int = 10
+    # natural: 0.5s + 0.1s per char of the next bubble; fast: 0.3s; slow: 2.5s.
+    delay_mode: str = "natural"
 
 
 @dataclass

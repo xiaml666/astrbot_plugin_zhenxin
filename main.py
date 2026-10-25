@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import sys
 from pathlib import Path
+from typing import Any
 
 _SRC = Path(__file__).resolve().parent / "src"
 if str(_SRC) not in sys.path:
@@ -148,43 +149,54 @@ class ZhenxinPlugin(Star):
         except Exception:
             return
         chain = list(result.chain)
-        if not chain or any(not isinstance(component, Plain) for component in chain):
+        if not chain:
             return
         # We send the first bubbles ourselves and rewrite the chain for the
         # final one.  If the chain cannot be rewritten, doing nothing is safer
         # than sending the first bubble twice.
-        if not hasattr(result.chain, "clear") or not hasattr(result.chain, "append"):
+        if not hasattr(result.chain, "clear") or not hasattr(result.chain, "extend"):
             return
         setattr(result, "zhenxin_split_done", True)
 
-        from zhenxin._aux.segments import split_reply
-
-        text = "".join(str(getattr(component, "text", "") or "") for component in chain)
-        segments = split_reply(
-            text,
-            max_segments=int(cfg.max_segments),
-            min_chars=int(cfg.min_chars),
-            min_segment_chars=int(cfg.min_segment_chars),
+        from zhenxin._aux.segments import (
+            calculate_delay,
+            merge_segments,
+            segment_text,
+            split_chain,
         )
+
+        try:
+            segments = split_chain(
+                chain,
+                plain_factory=Plain,
+                max_segments=int(cfg.max_segments),
+                min_segment_chars=int(cfg.min_segment_chars),
+            )
+        except Exception:  # noqa: BLE001 - a broken chain must not break the reply
+            return
+        segments = [segment for segment in segments if segment]
         if len(segments) <= 1:
             return
-        delay = max(0.0, min(5.0, float(cfg.delay_s)))
-        remaining: list[str] = []
+        failed_from: int | None = None
         for index, segment in enumerate(segments[:-1]):
             try:
-                if not await self._send_text(user_key, segment):
+                if not await self._send_chain(user_key, segment):
                     raise RuntimeError("send_message returned false")
             except Exception:
-                # Never drop text: merge this and every later bubble into the
-                # final one, which the framework will still send.
-                remaining = segments[index:]
+                # Never drop text/media: merge this and every later bubble into
+                # the final one, which the framework will still send.
+                failed_from = index
                 break
+            delay = calculate_delay(str(cfg.delay_mode), segment_text(segments[index + 1]))
             if delay:
                 await asyncio.sleep(delay)
-        final = "".join(remaining) if remaining else segments[-1]
+        if failed_from is not None:
+            final = merge_segments(segments[failed_from:], Plain)
+        else:
+            final = segments[-1]
         try:
             result.chain.clear()
-            result.chain.append(Plain(final))
+            result.chain.extend(final)
         except Exception:
             # If the result object cannot be rewritten, leave the original
             # chain untouched: a duplicated first bubble is worse.
@@ -365,15 +377,38 @@ class ZhenxinPlugin(Star):
 
     async def _send_text(self, user_key: str, text: str) -> bool:
         try:
-            from astrbot.api.all import MessageChain  # type: ignore
             from astrbot.api.message_components import Plain  # type: ignore
 
-            return bool(await self.context.send_message(user_key, MessageChain([Plain(text)])))
+            return await self._send_chain(user_key, [Plain(text)])
         except Exception:
             try:
                 from astrbot.api import logger  # type: ignore
 
                 logger.exception("zhenxin proactive send failed")
+            except Exception:
+                pass
+            return False
+
+    async def _send_chain(self, user_key: str, components: list[Any]) -> bool:
+        """Send one message chain (used by segmentation).
+
+        Direct ``context.send_message`` bypasses ``on_decorating_result``, so
+        the earlier bubbles are not split again.  Component order is kept
+        (Reply/images/At included).
+        """
+        if not components:
+            return False
+        try:
+            from astrbot.api.event import MessageChain  # type: ignore
+
+            chain = MessageChain()
+            chain.chain = list(components)
+            return bool(await self.context.send_message(user_key, chain))
+        except Exception:
+            try:
+                from astrbot.api import logger  # type: ignore
+
+                logger.exception("zhenxin segmented send failed")
             except Exception:
                 pass
             return False

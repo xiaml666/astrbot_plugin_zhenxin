@@ -39,7 +39,7 @@ class PageApiTests(unittest.TestCase):
         self.assertIs(api._coerce("aux.rhythm", False), False)
         self.assertEqual(api._coerce("split.enabled", "true"), True)
         self.assertEqual(api._coerce("split.max_segments", "4"), 4)
-        self.assertAlmostEqual(api._coerce("split.delay_s", "0.8"), 0.8)
+        self.assertEqual(api._coerce("split.delay_mode", "fast"), "fast")
 
     def test_page_assets_are_beginner_pro_and_jargon_free(self):
         page = (ROOT / "pages" / "zhenxin" / "index.html").read_text(encoding="utf-8")
@@ -172,8 +172,8 @@ class PageApiTests(unittest.TestCase):
         self.assertNotIn("aux.style", defaults)
         self.assertNotIn("style_learning.search_endpoint", defaults)
         self.assertEqual(defaults["split.enabled"], False)
-        self.assertEqual(defaults["split.max_segments"], 3)
-        self.assertEqual(defaults["split.delay_s"], 0.6)
+        self.assertEqual(defaults["split.max_segments"], 5)
+        self.assertEqual(defaults["split.delay_mode"], "natural")
 
     def test_reset_conversation_keeps_facts_and_metrics(self):
         import asyncio

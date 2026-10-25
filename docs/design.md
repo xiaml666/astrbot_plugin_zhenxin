@@ -291,11 +291,14 @@ prefix_stable = (hash_t == hash_{t-1})
 
 ### 9.2 对话分段（transport-only）
 
-`split.enabled` 只改变**发送方式**：`_aux/segments.py` 把最终文本按句号/问号/感叹号/省略号/换行切开，
-引号、括号、代码块内不切，碎片合并，超过 `max_segments` 的尾部并入最后一条。
-`main.py` 的 `on_decorating_result` 先发前 N-1 条（带 `delay_s` 间隔），最后一条留在
-`result.chain` 由 AstrBot 发送。模型调用、上下文、`turns` 里的完整助手文本都不变；
-图片/语音/@/引用消息、观察模式直接跳过。它和“对话分段Pro”类插件功能重复，二者只开一个。
+`split.enabled` 只改变**发送方式**。分段核心移植自 `astrbot_plugin_splitter` 简易模式：
+引用（Reply）挂第一条、图片单独一条、At 跟随下一段、Face 嵌入文字；引号/括号、代码块、
+`<think>` 与 Markdown 表格不切；均衡模式按总字数分配，`min_segment_chars`（默认 10）合并碎片，
+`max_segments`（默认 5）封顶并把尾部并入最后一条。发送速度 `natural` 为
+`0.5 + 0.1×下一段字数`（上限 5 秒），`fast` 0.3 秒，`slow` 2.5 秒。
+`main.py` 的 `on_decorating_result` 先发前 N-1 条，最后一条留在 `result.chain` 由 AstrBot 发送；
+失败时剩余分段合并回最后一条。模型调用、上下文、`turns` 里的完整助手文本都不变；
+观察模式直接跳过。它和“对话分段Pro”类插件功能重复，二者只开一个。
 
 ## 10. 策略门禁
 

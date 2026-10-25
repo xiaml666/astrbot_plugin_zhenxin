@@ -100,9 +100,8 @@ ALLOWED_PATHS = {
     "style_learning.max_chars",
     "split.enabled",
     "split.max_segments",
-    "split.min_chars",
     "split.min_segment_chars",
-    "split.delay_s",
+    "split.delay_mode",
     "metrics.enabled",
     "metrics.input_price_per_million",
     "metrics.cached_input_price_per_million",
@@ -138,7 +137,6 @@ _INT_PATHS = {
     "memory.top_k",
     "style_learning.max_chars",
     "split.max_segments",
-    "split.min_chars",
     "split.min_segment_chars",
     "proactive.min_idle_minutes",
     "proactive.max_per_day",
@@ -171,7 +169,6 @@ _FLOAT_PATHS = {
     "memory.shallow_threshold",
     "memory.trash_ttl_days",
     "style_learning.interval_days",
-    "split.delay_s",
     "proactive.min_interval_hours",
     "proactive.active_window_hours",
 }
@@ -651,6 +648,11 @@ class PluginPageAPI:
         if path == "l3.host_context_mode":
             value = str(raw)
             if value not in ("replace", "off"):
+                raise ValueError
+            return value
+        if path == "split.delay_mode":
+            value = str(raw or "natural").strip().lower()
+            if value not in ("natural", "fast", "slow"):
                 raise ValueError
             return value
         if path == "proactive.template":

@@ -516,18 +516,18 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
         <h2>对话分段</h2>
         <p class="lead">把一条长回复按句子拆成几条短消息发出去，像真人在连发。只改变发送方式：不增加模型调用，也不会让上下文变长；关闭时仍然一条发完。</p>
         <div class="row"><div class="txt"><b>启用对话分段</b>
-          <p>默认关闭。只有纯文字的模型回复会分段；图片、语音、@ 和引用消息不参与。</p></div>
+          <p>默认关闭。引用会挂在第一条，图片单独一条，@ 跟随下一段，表情嵌入文字。</p></div>
           <div class="ctl"><label class="switch"><input type="checkbox" data-path="split.enabled"><span></span></label></div></div>
         <div class="row"><div class="txt"><b>最多拆成几条</b>
-          <p>超过上限的句子会合并到最后一条，不会丢字。</p></div>
-          <div class="ctl"><input type="number" min="2" max="5" step="1" data-path="split.max_segments"></div></div>
-        <div class="row"><div class="txt"><b>短于多少字不拆</b>
-          <p>默认 40 字。一两句话的短回复保持一条，避免把“嗯，好”也拆开。</p></div>
-          <div class="ctl"><input type="number" min="10" max="200" step="10" data-path="split.min_chars"></div></div>
-        <div class="row"><div class="txt"><b>每段之间停顿</b>
-          <p>单位：秒，默认 0.6；0 表示连续发出。</p></div>
-          <div class="ctl"><input type="number" min="0" max="3" step="0.1" data-path="split.delay_s"></div></div>
-        <p class="hintline">引号、括号和代码块里的句号不会被切断；太短的句子会和相邻段合并。和“对话分段Pro”这类插件二选一，同时开会把一条回复拆两次。</p>
+          <p>默认 5 条。超过上限的句子会合并到最后一条，不会丢字。</p></div>
+          <div class="ctl"><input type="number" min="2" max="8" step="1" data-path="split.max_segments"></div></div>
+        <div class="row"><div class="txt"><b>每段少于多少字就合并</b>
+          <p>默认 10 字。太短的“好。”会并到相邻段，避免碎成一地。</p></div>
+          <div class="ctl"><input type="number" min="2" max="30" step="1" data-path="split.min_segment_chars"></div></div>
+        <div class="row"><div class="txt"><b>发送速度</b>
+          <p>自然：0.5 秒 + 0.1 秒×下一段字数（最长 5 秒）；快速：固定 0.3 秒；慢速：固定 2.5 秒。</p></div>
+          <div class="ctl"><select data-path="split.delay_mode"><option value="natural">自然</option><option value="fast">快速</option><option value="slow">慢速</option></select></div></div>
+        <p class="hintline">引号、括号、代码块、&lt;think&gt; 和 Markdown 表格不会被切断；均衡模式会按总字数把回复拆得长短接近。和“对话分段Pro”这类插件二选一，同时开会把一条回复拆两次。</p>
       </div>
 
       <div class="card">
@@ -872,10 +872,9 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
   // values take precedence.
   const PATH_DEFAULTS = {
     "split.enabled": false,
-    "split.max_segments": 3,
-    "split.min_chars": 40,
-    "split.min_segment_chars": 8,
-    "split.delay_s": 0.6,
+    "split.max_segments": 5,
+    "split.min_segment_chars": 10,
+    "split.delay_mode": "natural",
   };
   function get(path, def) {
     const value = String(path).split(".").reduce((o, k) => (o == null ? o : o[k]), state.config);
@@ -1054,7 +1053,7 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
       linkRow("◈", "向量后端", String(state.scorerName || "本地哈希"), "已就绪", "正常") +
       linkRow("⚡", "写入路径", "L2 规则蒸馏，不允许调用模型", num(m.l2_llm_calls, 0) === 0 ? "零调用" : "有调用", num(m.l2_llm_calls, 0) === 0 ? "" : "bad") +
       linkRow("◌", "说话偏好", get("style_learning.online", true) ? "每隔 " + get("style_learning.interval_days", 7) + " 天甄别一次网络常识" : "只学本人偏好", get("style_learning.enabled", true) ? "自动" : "关闭", get("style_learning.enabled", true) ? "" : "warn") +
-      linkRow("▤", "对话分段", get("split.enabled", false) ? "最多 " + get("split.max_segments", 3) + " 条 · 间隔 " + num(get("split.delay_s", .6), .6) + " 秒" : "关闭，一条发完", get("split.enabled", false) ? "已开启" : "关闭", get("split.enabled", false) ? "" : "warn") +
+      linkRow("▤", "对话分段", get("split.enabled", false) ? "最多 " + get("split.max_segments", 5) + " 条 · " + ({ natural: "自然速度", fast: "快速", slow: "慢速" }[get("split.delay_mode", "natural")] || "自然速度") : "关闭，一条发完", get("split.enabled", false) ? "已开启" : "关闭", get("split.enabled", false) ? "" : "warn") +
       linkRow("✉", "主动消息", get("proactive.enabled", false) ? "私聊 / 静默时段 / 每日上限" : "默认关闭，不打扰", get("proactive.enabled", false) ? "已开启" : "关闭", get("proactive.enabled", false) ? "" : "warn");
     const cycleDays = get("memory.cycle_days", 14);
     const proactive = get("proactive.enabled", false);

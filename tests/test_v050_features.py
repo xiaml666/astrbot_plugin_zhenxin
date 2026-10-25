@@ -516,23 +516,21 @@ class StyleLearnApiTests(unittest.TestCase):
         api._payload_override = {
             "values": {
                 "split.enabled": True,
-                "split.max_segments": 4,
-                "split.min_chars": 60,
-                "split.min_segment_chars": 6,
-                "split.delay_s": 1.2,
+                "split.max_segments": 6,
+                "split.min_segment_chars": 12,
+                "split.delay_mode": "slow",
             }
         }
         result = asyncio.run(api.save_config())
         self.assertTrue(result["ok"])
         self.assertTrue(engine.cfg.split.enabled)
-        self.assertEqual(4, engine.cfg.split.max_segments)
-        self.assertEqual(60, engine.cfg.split.min_chars)
-        self.assertEqual(6, engine.cfg.split.min_segment_chars)
-        self.assertAlmostEqual(1.2, engine.cfg.split.delay_s)
+        self.assertEqual(6, engine.cfg.split.max_segments)
+        self.assertEqual(12, engine.cfg.split.min_segment_chars)
+        self.assertEqual("slow", engine.cfg.split.delay_mode)
         saved = result["config"]["split"]
-        self.assertEqual(4, saved["max_segments"])
-        self.assertEqual(60, saved["min_chars"])
-        self.assertAlmostEqual(1.2, saved["delay_s"])
+        self.assertEqual(6, saved["max_segments"])
+        self.assertEqual(12, saved["min_segment_chars"])
+        self.assertEqual("slow", saved["delay_mode"])
 
 
 class ProactiveTests(unittest.TestCase):
