@@ -970,11 +970,13 @@ class PluginPageAPI:
             error = str(gathered.get("error") or "")
             pref: list[str] | None = None
             web: list[str] | None = None
-            if gathered.get("pref"):
+            has_pref = bool(gathered.get("pref_new"))
+            has_web = bool(gathered.get("web"))
+            if has_pref:
                 pref = await self._screen_knowledge("pref", gathered["pref"], user)
                 if pref is None:
                     error = join_note(error, "偏好甄别失败，保留上一次结果")
-            if gathered.get("web"):
+            if has_web:
                 web = await self._screen_knowledge("web", gathered["web"], user)
                 if web is None:
                     error = join_note(error, "网络知识甄别失败，保留上一次结果")
@@ -986,10 +988,26 @@ class PluginPageAPI:
                 error=error,
                 online=bool(gathered.get("online")),
             )
-            if pref is None and web is None:
-                result["message"] = "没有新的可学习内容（或没有可用模型），本次未写入"
+            if not has_pref and not has_web:
+                message = (
+                    "这段对话里还没有找到明确的说话偏好。"
+                    "像“以后说话短一点”“别老追问我”“叫我…”这类明确要求才会学习；"
+                    "闲聊和称呼名字不算。联网学习会按间隔自动进行。"
+                )
+                if gathered.get("online") and error:
+                    message += "本次联网搜索没有拿到可用结果。"
+                result["message"] = message
+            elif pref is None and web is None:
+                result["message"] = "找到了候选，但没有可用的甄别模型，本次未写入"
             elif not (pref or web):
-                result["message"] = "甄别后没有可写入的知识"
+                result["message"] = "模型甄别后没有可写入的内容"
+            else:
+                parts: list[str] = []
+                if pref:
+                    parts.append(f"{len(pref)} 条说话偏好")
+                if web:
+                    parts.append(f"{len(web)} 条网络常识")
+                result["message"] = "已写入" + "、".join(parts)
             return result
         except Exception as exc:  # noqa: BLE001
             self.engine.record_error("style_learn", str(exc))

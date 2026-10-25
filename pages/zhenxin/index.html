@@ -499,9 +499,9 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
           <div class="ctl"><input type="number" min="200" max="800" step="50" data-path="style_learning.max_chars"></div></div>
         <div class="tools" style="margin-top:12px">
           <select id="style-user" title="选择要查看的会话"></select>
-          <button class="btn" id="style-local">立即学一次（甄别后写入）</button>
+          <button class="btn" id="style-local">立即学一次（偏好+联网，甄别后写入）</button>
         </div>
-        <p class="hintline">联网学习会按上面的间隔自动进行，只搜论坛/聊天/社交平台并核对结果域名；广告落地页直接丢弃，再由模型甄别，模型不可用时不写入。</p>
+        <p class="hintline">联网学习会按上面的间隔自动进行；点“立即学一次”会同时试一次联网（“周期性从网络学习”打开时）。只搜论坛/聊天/社交平台并核对结果域名，广告落地页直接丢弃，再由模型甄别；模型不可用时不写入。</p>
         <div class="progress"><i id="kb-bar"></i></div>
         <div class="hintline" id="kb-meta">还没有学习结果，先聊几句，后台会自动学习。</div>
         <details class="adv" id="kb-details">
@@ -1745,9 +1745,10 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
     const user = state.style.selected || ((state.style.users[0] || {}).user || "");
     if (!user) { toast("还没有可学习的对话"); return; }
     const btn = $("#style-local");
-    btn.disabled = true; const old = btn.textContent; btn.textContent = "甄别中…";
+    const online = Boolean(get("style_learning.online", true));
+    btn.disabled = true; const old = btn.textContent; btn.textContent = online ? "联网+甄别中…" : "甄别中…";
     try {
-      const data = await callPost("page/style/learn", { user, online: false });
+      const data = await callPost("page/style/learn", { user, online });
       if (data && data.status) {
         const s = data.status;
         $("#kb-box").textContent = s.knowledge || "（空）";

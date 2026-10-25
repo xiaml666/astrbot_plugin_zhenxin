@@ -510,6 +510,16 @@ class StyleLearnApiTests(unittest.TestCase):
         self.assertIn("短一点", data["status"]["knowledge"])
         self.assertIn("pref", data["status"]["sources"])
 
+    def test_manual_learn_explains_when_there_is_no_preference_sentence(self):
+        engine, _ = make_engine(**{"shortcircuit.enabled": False, "style_learning.min_turns": 1})
+        say(engine, "你好，今天在家写小说", 1)
+        api = PluginPageAPI(FakePlugin(FakeContext()), engine, {})
+        api._payload_override = {"user": "u1", "online": False}
+        data = asyncio.run(api.style_learn())
+        self.assertTrue(data["ok"])
+        self.assertIn("没有找到明确的说话偏好", data["message"])
+        self.assertIn("称呼名字不算", data["message"])
+
     def test_split_settings_round_trip_through_the_page(self):
         engine, _ = make_engine()
         api = PluginPageAPI(FakePlugin(FakeContext()), engine, {})
