@@ -430,6 +430,19 @@ class ZhenxinEngine:
             plan.prompt = compressed.text
         return plan
 
+    def record_proactive_turn(self, user_key: str, text: str) -> None:
+        """Persist an unsolicited assistant message as a normal turn.
+
+        Without this the next user reply ("?") sees a history that does not
+        contain what the bot just said, so the model explains a message it never
+        sent.  The proactive text is stored exactly as sent.
+        """
+        value = str(text or "").strip()
+        if not value:
+            return
+        turn_no = int(self.db.get_state(user_key, "round_no", 0) or 0)
+        self.db.append_turn(user_key, turn_no, "assistant", value, self.clock())
+
     def complete_turn(
         self,
         plan: ContextPlan,

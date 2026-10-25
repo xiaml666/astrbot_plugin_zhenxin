@@ -81,6 +81,11 @@ GENERIC_GREETINGS: tuple[str, ...] = (
     "刚看到个东西，想到你了。",
 )
 
+# Facts that must never become a proactive opener: identity statements,
+# extraction fragments and retractions.  "突然想到，你叫“蓝心心”" is the
+# reported case: the user had no idea what the bot was talking about.
+_NOISE_FACT_RE = re.compile(r"(你叫|我叫|称呼|名字|提到|更正|撤回|算了)")
+
 
 def _band(hour: int) -> str:
     if 5 <= hour < 8:
@@ -200,16 +205,26 @@ class ProactiveScheduler:
         )
 
     def _top_fact(self, user_key: str) -> str:
+        """A concrete statement that still makes sense out of the blue.
+
+        Identity rows ("你叫蓝心心"), fragments ("提到“有啊”") and mood rows are
+        not topics the user raised, so "突然想到，{fact}" reads as nonsense and
+        the model cannot explain it afterwards.  Skip them; a greeting is a
+        better proactive message than a mystery line.
+        """
         rows = self.db.fetchall(
             "SELECT text,importance,mentions FROM facts WHERE user_key=?"
-            " AND pool IN ('treasure','cycle') AND kind NOT IN ('emotion','address')"
-            " ORDER BY importance DESC,mentions DESC LIMIT 3",
+            " AND pool IN ('treasure','cycle') AND kind IN ('fact','unclosed')"
+            " ORDER BY importance DESC,mentions DESC LIMIT 5",
             (user_key,),
         )
         for row in rows:
             text = str(row["text"] or "").strip()
-            if 2 <= len(text) <= 40 and "更正" not in text:
-                return text
+            if not (5 <= len(text) <= 40):
+                continue
+            if _NOISE_FACT_RE.search(text):
+                continue
+            return text
         return ""
 
     def _sent_count(self, user_key: str) -> int:

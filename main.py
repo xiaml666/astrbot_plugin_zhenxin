@@ -474,6 +474,10 @@ class ZhenxinPlugin(Star):
             sent = await self._send_text(user_key, text)
             if sent:
                 self.engine.proactive.mark_sent(user_key, text, kind, now)
+                # Keep the sent line in history: the next reply must know what
+                # the bot said, otherwise "?" gets an explanation of a message
+                # that was never sent.
+                self.engine.record_proactive_turn(user_key, text)
             await asyncio.sleep(1)
 
     async def _polish_proactive(self, user_key: str, draft: str) -> str:
