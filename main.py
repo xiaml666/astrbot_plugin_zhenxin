@@ -118,8 +118,9 @@ class ZhenxinPlugin(Star):
 
         AstrBot sends the last component list itself; we send the earlier
         bubbles here and leave the final one in ``result.chain``.  Rules:
-        transport only, no model call; only plain-text LLM replies; images,
-        voice, @ and reply-quotes are never touched.
+        transport only, no model call; the whole chain is handled (Reply stays
+        on the first bubble, Image alone, At/Face follow the text), but
+        streaming results are left to the framework.
         """
         cfg = self.engine.cfg.split
         if not cfg.enabled:
@@ -134,6 +135,13 @@ class ZhenxinPlugin(Star):
         except Exception:
             return
         if result is None or not getattr(result, "chain", None):
+            return
+        # AstrBot returns immediately after the hooks for streaming-finish
+        # results; sending all but the last bubble there would lose the final
+        # text.  Leave streaming to the framework.
+        content_type = getattr(result, "result_content_type", None)
+        type_name = str(getattr(content_type, "name", content_type) or "").upper()
+        if "STREAMING" in type_name:
             return
         if getattr(result, "zhenxin_split_done", False):
             return
@@ -267,9 +275,7 @@ class ZhenxinPlugin(Star):
                     if pref is None:
                         error = join_note(error, "偏好甄别失败，保留上一次结果")
                 if gathered.get("web"):
-                    web = await self.screen_knowledge(
-                        "web", gathered["web"], user_key, topics=gathered.get("topics")
-                    )
+                    web = await self.screen_knowledge("web", gathered["web"], user_key)
                     if web is None:
                         error = join_note(error, "网络知识甄别失败，保留上一次结果")
                 await asyncio.to_thread(
@@ -305,7 +311,7 @@ class ZhenxinPlugin(Star):
             return None
 
     async def screen_knowledge(
-        self, kind: str, items: list[str], user_key: str = "", topics: list[str] | None = None
+        self, kind: str, items: list[str], user_key: str = ""
     ) -> list[str] | None:
         """Screen style-knowledge candidates; ``None`` means "keep old".
 
@@ -317,7 +323,7 @@ class ZhenxinPlugin(Star):
 
         if not items:
             return []
-        prompt = screen_prompt(kind, items, topics=topics)
+        prompt = screen_prompt(kind, items)
         provider = await self._host_provider(user_key)
         if provider is not None:
             try:
@@ -329,9 +335,7 @@ class ZhenxinPlugin(Star):
             except Exception:  # noqa: BLE001 - fall back to the gateway
                 pass
         try:
-            return await asyncio.to_thread(
-                self.engine.screen_knowledge, kind, items, topics
-            )
+            return await asyncio.to_thread(self.engine.screen_knowledge, kind, items)
         except Exception:  # noqa: BLE001
             return None
 

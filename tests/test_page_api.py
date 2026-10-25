@@ -171,7 +171,7 @@ class PageApiTests(unittest.TestCase):
         self.assertEqual(defaults["aux.rhythm"], True)
         self.assertNotIn("aux.style", defaults)
         self.assertNotIn("style_learning.search_endpoint", defaults)
-        self.assertEqual(defaults["split.enabled"], False)
+        self.assertEqual(defaults["split.enabled"], True)
         self.assertEqual(defaults["split.max_segments"], 5)
         self.assertEqual(defaults["split.delay_mode"], "natural")
 

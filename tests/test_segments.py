@@ -141,9 +141,9 @@ class SplitChainTests(unittest.TestCase):
         self.assertAlmostEqual(2.5, calculate_delay("slow", "x"))
         self.assertLessEqual(calculate_delay("natural", "x" * 200), 5.0)
 
-    def test_engine_defaults_follow_the_splitter_plugin(self):
+    def test_engine_defaults_enable_segmentation(self):
         engine, _ = make_engine()
-        self.assertFalse(engine.cfg.split.enabled)
+        self.assertTrue(engine.cfg.split.enabled)
         self.assertEqual(5, engine.cfg.split.max_segments)
         self.assertEqual(10, engine.cfg.split.min_segment_chars)
         self.assertEqual("natural", engine.cfg.split.delay_mode)

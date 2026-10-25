@@ -444,14 +444,6 @@ class StyleLearningTests(unittest.TestCase):
         self.assertIn("web", result["status"]["sources"])
         self.assertIn("短句", result["status"]["knowledge"])
 
-    def test_topic_queries_follow_the_conversation_not_generic_pages(self):
-        queries, topics = style_learning.topic_queries(
-            ["在家写小说", "今天又卡文了", "新书没思路", "卡文的时候你会怎么办"]
-        )
-        self.assertIn("小说", topics)
-        self.assertNotIn("知道", topics)
-        self.assertTrue(any("小说" in query for query in queries))
-
     def test_360_results_are_parsed_and_network_errors_are_hidden(self):
         page = (
             '<h3 class="res-title"><a data-mdurl="https://www.v2ex.com/t/1">x</a></h3>'
@@ -459,16 +451,16 @@ class StyleLearningTests(unittest.TestCase):
         )
         with mock.patch.object(style_learning, "_fetch", return_value=page):
             snippets, error = style_learning.search_notes(
-                queries=("小说 怎么聊",), timeout=1
+                queries=("聊天 怎么接话",), timeout=1
             )
         self.assertEqual(["论坛里大家聊天更爱用短句，一次只说一件事。"], snippets)
         self.assertEqual("", error)
 
-    def test_web_candidates_accept_topic_knowledge(self):
+    def test_web_candidates_only_keep_speaking_behaviour(self):
         self.assertEqual(
-            ["小说卡文时可以先放松一下，再回头改大纲"],
+            [],
             style_learning.web_candidates(
-                ["小说卡文时可以先放松一下，再回头改大纲。"], topics=["小说"]
+                ["小说卡文时可以先放松一下，再回头改大纲。"]
             ),
         )
 

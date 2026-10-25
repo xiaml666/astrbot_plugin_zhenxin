@@ -147,7 +147,7 @@ style_learning:
 
 split:
   # Transport-only: send a long reply as a few consecutive bubbles.
-  enabled: false
+  enabled: true
   max_segments: 5
   min_segment_chars: 10
   delay_mode: "natural"   # natural | fast | slow

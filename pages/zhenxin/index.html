@@ -516,7 +516,7 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
         <h2>对话分段</h2>
         <p class="lead">把一条长回复按句子拆成几条短消息发出去，像真人在连发。只改变发送方式：不增加模型调用，也不会让上下文变长；关闭时仍然一条发完。</p>
         <div class="row"><div class="txt"><b>启用对话分段</b>
-          <p>默认关闭。引用会挂在第一条，图片单独一条，@ 跟随下一段，表情嵌入文字。</p></div>
+          <p>默认开启。引用会挂在第一条，图片单独一条，@ 跟随下一段，表情嵌入文字；不想拆可关掉。</p></div>
           <div class="ctl"><label class="switch"><input type="checkbox" data-path="split.enabled"><span></span></label></div></div>
         <div class="row"><div class="txt"><b>最多拆成几条</b>
           <p>默认 5 条。超过上限的句子会合并到最后一条，不会丢字。</p></div>
@@ -871,7 +871,7 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
   // even though the schema has defaults.  After the backend restart the real
   // values take precedence.
   const PATH_DEFAULTS = {
-    "split.enabled": false,
+    "split.enabled": true,
     "split.max_segments": 5,
     "split.min_segment_chars": 10,
     "split.delay_mode": "natural",
@@ -1053,7 +1053,7 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
       linkRow("◈", "向量后端", String(state.scorerName || "本地哈希"), "已就绪", "正常") +
       linkRow("⚡", "写入路径", "L2 规则蒸馏，不允许调用模型", num(m.l2_llm_calls, 0) === 0 ? "零调用" : "有调用", num(m.l2_llm_calls, 0) === 0 ? "" : "bad") +
       linkRow("◌", "说话偏好", get("style_learning.online", true) ? "每隔 " + get("style_learning.interval_days", 7) + " 天甄别一次网络常识" : "只学本人偏好", get("style_learning.enabled", true) ? "自动" : "关闭", get("style_learning.enabled", true) ? "" : "warn") +
-      linkRow("▤", "对话分段", get("split.enabled", false) ? "最多 " + get("split.max_segments", 5) + " 条 · " + ({ natural: "自然速度", fast: "快速", slow: "慢速" }[get("split.delay_mode", "natural")] || "自然速度") : "关闭，一条发完", get("split.enabled", false) ? "已开启" : "关闭", get("split.enabled", false) ? "" : "warn") +
+      linkRow("▤", "对话分段", get("split.enabled", true) ? "最多 " + get("split.max_segments", 5) + " 条 · " + ({ natural: "自然速度", fast: "快速", slow: "慢速" }[get("split.delay_mode", "natural")] || "自然速度") : "关闭，一条发完", get("split.enabled", true) ? "已开启" : "关闭", get("split.enabled", true) ? "" : "warn") +
       linkRow("✉", "主动消息", get("proactive.enabled", false) ? "私聊 / 静默时段 / 每日上限" : "默认关闭，不打扰", get("proactive.enabled", false) ? "已开启" : "关闭", get("proactive.enabled", false) ? "" : "warn");
     const cycleDays = get("memory.cycle_days", 14);
     const proactive = get("proactive.enabled", false);

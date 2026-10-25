@@ -660,12 +660,12 @@
   "split": {
     "description": "对话分段 · 像真人一样连发几条",
     "type": "object",
-    "hint": "默认关闭。只改变发送方式：把一条长回复按句子拆成几条短消息，不增加模型调用，也不会让上下文变长。引用会挂在第一条，图片单独一条，表情嵌入文字。",
+    "hint": "默认开启。只改变发送方式：把一条长回复按句子拆成几条短消息，不增加模型调用，也不会让上下文变长。引用会挂在第一条，图片单独一条，表情嵌入文字。",
     "items": {
       "enabled": {
         "description": "启用对话分段",
         "type": "bool",
-        "default": false,
+        "default": true,
         "obvious_hint": true
       },
       "max_segments": {

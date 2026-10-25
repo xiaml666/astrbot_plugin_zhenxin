@@ -977,9 +977,7 @@ class PluginPageAPI:
                 if pref is None:
                     error = join_note(error, "偏好甄别失败，保留上一次结果")
             if has_web:
-                web = await self._screen_knowledge(
-                    "web", gathered["web"], user, topics=gathered.get("topics")
-                )
+                web = await self._screen_knowledge("web", gathered["web"], user)
                 if web is None:
                     error = join_note(error, "网络知识甄别失败，保留上一次结果")
             result = await asyncio.to_thread(
@@ -1016,7 +1014,7 @@ class PluginPageAPI:
             return {"ok": False, "message": f"学习失败：{exc}"}
 
     async def _screen_knowledge(
-        self, kind: str, items: list[str], user: str, topics: list[str] | None = None
+        self, kind: str, items: list[str], user: str
     ) -> list[str] | None:
         """Model screen for knowledge-base candidates.
 
@@ -1026,17 +1024,17 @@ class PluginPageAPI:
         """
         screener = getattr(self.plugin, "screen_knowledge", None)
         if callable(screener):
-            for args in ((kind, items, user, topics), (kind, items, user), (kind, items)):
+            try:
+                return await screener(kind, items, user)
+            except TypeError:
                 try:
-                    return await screener(*args)
-                except TypeError:
-                    continue
+                    return await screener(kind, items)
                 except Exception:  # noqa: BLE001
                     return None
+            except Exception:  # noqa: BLE001
+                return None
         try:
-            return await asyncio.to_thread(
-                self.engine.screen_knowledge, kind, items, topics
-            )
+            return await asyncio.to_thread(self.engine.screen_knowledge, kind, items)
         except Exception:  # noqa: BLE001
             return None
 

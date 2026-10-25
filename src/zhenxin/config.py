@@ -227,7 +227,7 @@ class SplitConfig:
     the stored assistant turn remains the full text.
     """
 
-    enabled: bool = False
+    enabled: bool = True
     max_segments: int = 5
     # Fragments shorter than this are merged into a neighbour.
     min_segment_chars: int = 10
