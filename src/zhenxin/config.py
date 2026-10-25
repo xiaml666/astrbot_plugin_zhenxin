@@ -219,7 +219,7 @@ class StyleLearningConfig:
 
 @dataclass
 class SplitConfig:
-    """Optional reply segmentation ("对话分段").
+    """Reply segmentation ("对话分段"), on by default.
 
     Defaults follow the proven ``astrbot_plugin_splitter`` simple mode: up to
     5 bubbles, fragments under 10 chars merged, natural increasing delay.

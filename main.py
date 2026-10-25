@@ -146,13 +146,15 @@ class ZhenxinPlugin(Star):
         if getattr(result, "zhenxin_split_done", False):
             return
         checker = getattr(result, "is_model_result", None)
-        is_model = False
+        marker = bool(getattr(event, "zhenxin_is_llm_reply", False))
         if callable(checker):
             try:
-                is_model = bool(checker())
+                if not bool(checker()):
+                    return
             except Exception:
-                is_model = False
-        if not is_model and not bool(getattr(event, "zhenxin_is_llm_reply", False)):
+                if not marker:
+                    return
+        elif not marker:
             return
         try:
             from astrbot.api.message_components import Plain  # type: ignore
