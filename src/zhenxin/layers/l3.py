@@ -61,7 +61,13 @@ class ContextBuilder:
         self.db = db
         self.cfg = cfg
 
-    def build_prefix(self, system_prompt: str, persona: str, l0_block: str) -> str:
+    def build_prefix(
+        self,
+        system_prompt: str,
+        persona: str,
+        l0_block: str,
+        capabilities: str = "",
+    ) -> str:
         parts = [system_prompt.strip()]
         if persona.strip():
             parts.append("【人格锚点】" + persona.strip())
@@ -69,6 +75,10 @@ class ContextBuilder:
         # Without it the model answers a guessed clue as if the user had said
         # it (see reports: "阿哲是不是搞摄影的" -> fabricated role).
         parts.append(BOUNDARY)
+        # Stable host capability notes (e.g. "voice is available").  They only
+        # change when the host configuration changes, so the cache stays warm.
+        if capabilities.strip():
+            parts.append(capabilities.strip())
         if l0_block:
             parts.append(l0_block)
         return "\n\n".join(p for p in parts if p)

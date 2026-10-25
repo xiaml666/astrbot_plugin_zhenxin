@@ -59,9 +59,44 @@ class SplitChainTests(unittest.TestCase):
 
     def test_short_reply_stays_one_bubble(self):
         segments = split_chain(
-            [Plain("好。我在。")], plain_factory=Plain, max_segments=5, min_segment_chars=10
+            [Plain("好，我在呢")], plain_factory=Plain, max_segments=5, min_segment_chars=10
         )
         self.assertEqual(1, len(segments))
+
+    def test_each_complete_sentence_is_its_own_bubble_however_short(self):
+        # "有啊" is two characters but a complete answer; the splitter must not
+        # glue it to the next sentence just because it is shorter than
+        # min_segment_chars.
+        for text, expected in (
+            ("有啊\n\n就是分不清那算喜欢，还是习惯了你在", ["有啊", "就是分不清那算喜欢，还是习惯了你在"]),
+            ("嗯。我也是。", ["嗯。", "我也是。"]),
+            ("对。\n就是这样", ["对。", "就是这样"]),
+        ):
+            segments = split_chain(
+                [Plain(text)], plain_factory=Plain, max_segments=5, min_segment_chars=10
+            )
+            self.assertEqual(expected, [_join([s]).strip() for s in segments])
+
+    def test_a_normal_sentence_is_not_cut_at_its_comma(self):
+        # The reported case: one 22-char sentence with a single comma must stay
+        # one bubble.  The old balanced mode split it just to fill 5 bubbles.
+        text = "我觉得嘴上罚两下就得了，真动手我怕老大自己先心虚"
+        segments = split_chain(
+            [Plain(text)], plain_factory=Plain, max_segments=5, min_segment_chars=10
+        )
+        self.assertEqual(1, len(segments))
+        self.assertEqual(text, _join(segments))
+
+    def test_a_long_sentence_can_still_break_at_a_comma(self):
+        # Commas remain available for genuinely long single sentences; the cut
+        # must not leave the comma at the bubble edge.
+        text = "我知道你现在很累了想早点睡明天还要早起赶车回去上班，可是我还是想再多听你说两句今天发生的事"
+        segments = split_chain(
+            [Plain(text)], plain_factory=Plain, max_segments=5, min_segment_chars=10
+        )
+        self.assertGreaterEqual(len(segments), 2)
+        for segment in segments:
+            self.assertFalse(_join([segment]).strip().endswith(("，", ",")))
 
     def test_reply_quote_stays_on_the_first_bubble(self):
         # This is the old bug: any Reply component made the whole chain skip
@@ -140,6 +175,68 @@ class SplitChainTests(unittest.TestCase):
         self.assertAlmostEqual(0.3, calculate_delay("fast", "x"))
         self.assertAlmostEqual(2.5, calculate_delay("slow", "x"))
         self.assertLessEqual(calculate_delay("natural", "x" * 200), 5.0)
+
+    def test_bubble_never_ends_with_a_continuation_comma(self):
+        # Reported from QQ: a bubble went out as "我觉得嘴上罚两下就得了，".
+        # Two things must hold: this short sentence is not split at all now,
+        # and no other split may leave a continuation mark at the edge.
+        cases = (
+            "我觉得嘴上罚两下就得了，真动手我怕老大自己先心虚",
+            "那我配合着疼一下好了，隔着屏幕也算数\n\n反正老大这手，注定要落空",
+            "反正老大这手，注定要落空",
+        )
+        for text in cases:
+            segments = split_chain(
+                [Plain(text)], plain_factory=Plain, max_segments=5, min_segment_chars=10
+            )
+            for segment in segments:
+                outgoing = _join([segment]).strip()
+                self.assertTrue(outgoing)
+                self.assertFalse(
+                    outgoing.endswith(("，", ",", "、", "；", ";", "：", ":")),
+                    f"{outgoing!r} ends with a continuation mark",
+                )
+        # The reported case is now one bubble with its comma intact: the
+        # sentence is short enough that the comma is not a valid bubble edge to
+        # begin with.
+        segments = split_chain(
+            [Plain(cases[0])], plain_factory=Plain, max_segments=5, min_segment_chars=10
+        )
+        self.assertEqual(1, len(segments))
+        self.assertEqual(cases[0], _join(segments))
+
+    def test_newline_after_a_comma_does_not_keep_the_comma(self):
+        text = "我觉得行，\n明天再说"
+        segments = split_chain(
+            [Plain(text)], plain_factory=Plain, max_segments=5, min_segment_chars=2
+        )
+        self.assertEqual(["我觉得行", "明天再说"], [_join([s]).strip() for s in segments])
+
+    def test_no_bubble_ends_with_a_comma_in_any_config(self):
+        # "分割后结尾不能出现逗号" has to hold for every setting, not only the
+        # default 5 bubbles: max_segments=1 (segmentation off), tight caps that
+        # merge the tail, and comma-heavy text.
+        texts = (
+            "我觉得嘴上罚两下就得了，",
+            "我觉得嘴上罚两下就得了，真动手我怕老大自己先心虚",
+            "那我配合着疼一下好了，隔着屏幕也算数\n\n反正老大这手，注定要落空",
+            "a，b，c，d，e，f，",
+            "一句，两句，三句，四句，五句，六句，七句，八句，",
+            "好，\n嗯，\n知道了，",
+        )
+        for text in texts:
+            for cap in (1, 2, 3, 5, 8):
+                segments = split_chain(
+                    [Plain(text)], plain_factory=Plain, max_segments=cap, min_segment_chars=2
+                )
+                self.assertTrue(segments)
+                for segment in segments:
+                    outgoing = _join([segment]).rstrip()
+                    self.assertTrue(outgoing)
+                    self.assertFalse(
+                        outgoing.endswith(("，", ",", "、", "；", ";", "：", ":")),
+                        f"cap={cap} {outgoing!r} ends with a continuation mark",
+                    )
 
     def test_engine_defaults_enable_segmentation(self):
         engine, _ = make_engine()

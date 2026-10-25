@@ -40,7 +40,29 @@ class ZhenxinPlugin(Star):
         self.page_api = PluginPageAPI(self, self.engine, config)
         self.page_api.register()
         self._background: asyncio.Task | None = None
+        self._sync_capabilities()
         self._ensure_background()
+
+    def _sync_capabilities(self) -> None:
+        """Tell the engine which host features the prompt should mention.
+
+        AstrBot's TTS settings live in the host config, not in this plugin's
+        config.  Without this the model keeps answering "我没有嗓子" even though
+        replies are being synthesised into voice.
+        """
+        capabilities = {"voice": False}
+        try:
+            config = self.context.get_config()
+            tts = config.get("provider_tts_settings") or {}
+            capabilities["voice"] = bool(tts.get("enable")) and bool(
+                str(tts.get("provider_id") or "").strip()
+            )
+        except Exception:
+            pass
+        try:
+            self.engine.set_capabilities(capabilities)
+        except Exception:
+            pass
 
     def _ensure_background(self) -> None:
         """Start the 60s loop, from __init__ or the loaded hook.
@@ -60,6 +82,8 @@ class ZhenxinPlugin(Star):
     @filter.on_astrbot_loaded()
     async def zhenxin_on_loaded(self, event=None):
         self._ensure_background()
+        # The host config is fully loaded by now; re-read the capability flags.
+        self._sync_capabilities()
         # Record the current enabled-plugin set without alerting; from now on
         # only a *newly* enabled conflict triggers the page/AI reminder.
         try:

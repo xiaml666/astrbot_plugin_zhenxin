@@ -7,6 +7,7 @@ import time
 from typing import Any, Callable, Sequence
 
 from ._aux.compression import CompressedInbound, compress_inbound
+from ._aux.directives import REDO_HINT, capability_block, is_redo_request
 from ._aux.lexicon import Lexicon
 from ._aux.negative import NegativePatterns
 from ._aux.open_loops import OpenLoops
@@ -41,6 +42,8 @@ class ZhenxinEngine:
     ) -> None:
         self.cfg = config or Config()
         self.clock = clock
+        # Host capability notes (e.g. voice/TTS) baked into the stable prefix.
+        self.capability_text = ""
         self.db = db or Database(self.cfg.db_path)
         self.ledger = LLMCallLedger()
         self.scorer = LocalScorer(self.cfg.embedding)
@@ -89,6 +92,16 @@ class ZhenxinEngine:
             else self._build_provider(self.cfg.decision_model)
         )
         self.gateway = LLMGateway(main, decision, self.ledger, strict=self.cfg.strict_zero_llm)
+
+    def set_capabilities(self, capabilities: dict[str, Any] | None) -> None:
+        """Declare host features that the model should know about.
+
+        Currently only ``voice``: when the host has TTS enabled, the prefix says
+        so and the model stops claiming it has no voice.  The text is stable, so
+        it rides in the cached prefix instead of the per-turn tail.
+        """
+        caps = {str(k): bool(v) for k, v in (capabilities or {}).items()}
+        self.capability_text = capability_block(caps)
 
     @staticmethod
     def _build_provider(cfg: Any) -> Any:
@@ -221,6 +234,10 @@ class ZhenxinEngine:
         wake_trigger = ""
         wake_detail: dict[str, Any] = {}
         ephemeral_parts: list[str] = []
+        # "重来" is an instruction about the *previous* reply, so it goes first:
+        # the hint budget truncates from the end, and this must survive.
+        if is_redo_request(raw):
+            ephemeral_parts.append(REDO_HINT)
         # Long-term fact bank: pull the few facts that actually match this
         # message.  They ride in the tail, so depth is free (no prefix cache hit
         # is lost) and facts that left the recent window are still reachable.
@@ -300,7 +317,7 @@ class ZhenxinEngine:
         # onward on every clue change.
         tail_l0 = bool(self.cfg.l0.tail_injection) and bool(l0_block)
         stable_prefix = self.l3.build_prefix(
-            host_system, self.cfg.persona, "" if tail_l0 else l0_block
+            host_system, self.cfg.persona, "" if tail_l0 else l0_block, self.capability_text
         )
         previous_ephemeral = self.db.get_state(user_key, "last_ephemeral", "") or ""
         built: BuiltContext = self.l3.build(
@@ -544,12 +561,16 @@ class ZhenxinEngine:
         import hashlib
 
         l0_in_prefix = plan.l0_block if not self.cfg.l0.tail_injection else ""
-        plan.stable_prefix = self.l3.build_prefix(host_system_prompt, self.cfg.persona, l0_in_prefix)
+        plan.stable_prefix = self.l3.build_prefix(
+            host_system_prompt, self.cfg.persona, l0_in_prefix, self.capability_text
+        )
         plan.prefix_hash = hashlib.sha256(plan.stable_prefix.encode("utf-8")).hexdigest()
 
     def _baseline_plan(self, plan: ContextPlan) -> ContextPlan:
         base = copy.copy(plan)
-        base.stable_prefix = self.l3.build_prefix(self.cfg.system_prompt, self.cfg.persona, "")
+        base.stable_prefix = self.l3.build_prefix(
+            self.cfg.system_prompt, self.cfg.persona, "", self.capability_text
+        )
         base.prompt = plan.compressed_text
         base.ephemeral_tail = ""
         base.recall = ""
