@@ -494,26 +494,6 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
         <div class="row"><div class="txt"><b>联网学习间隔</b>
           <p>单位：天。太频繁没必要，7–14 天足够。</p></div>
           <div class="ctl"><input type="number" min="1" max="30" step="1" data-path="style_learning.interval_days"></div></div>
-        <div class="row"><div class="txt"><b>搜索 API 地址（可选，GET）</b>
-          <p>留空就用内置的公开搜索。可以填 SearXNG、Bing、Google CSE、Tavily 等接口；用 <code>{query}</code> 表示 URL 编码后的关键词，<code>{key}</code> 表示 URL 编码后的 API Key。</p></div>
-          <div class="ctl" style="flex:1 1 320px"><input type="text" data-path="style_learning.search_endpoint" maxlength="500" placeholder="https://searx.example.com/search?q={query}&format=json" style="width:100%"></div></div>
-        <div class="row"><div class="txt"><b>搜索 API 返回格式</b>
-          <p>HTML 用内置解析；JSON 会从 snippet / content / description / summary 等字段提取摘要。</p></div>
-          <div class="ctl"><select data-path="style_learning.search_api_format"><option value="html">HTML</option><option value="json">JSON</option></select></div></div>
-        <div class="row"><div class="txt"><b>搜索 API Key（可选）</b>
-          <p id="search-key-state">未设置。Key 只保存在插件配置里，不会回显到页面。</p></div>
-          <div class="ctl" style="flex:1 1 320px;display:flex;gap:8px">
-            <input type="password" id="search-key" maxlength="500" placeholder="留空 = 不修改" autocomplete="off" style="flex:1">
-            <button class="btn small" id="search-key-clear" type="button">清除</button>
-          </div></div>
-        <div class="row"><div class="txt"><b>Key 请求头</b>
-          <p>默认 Authorization，会自动加 Bearer 前缀；有的接口用 X-API-KEY。</p></div>
-          <div class="ctl"><input type="text" data-path="style_learning.search_api_header" maxlength="80" placeholder="Authorization"></div></div>
-        <div class="tools" style="margin-top:8px">
-          <button class="btn small" id="search-test" type="button">测试搜索 API</button>
-          <span class="hintline">用已保存的配置搜一条，不会写入知识库，也不调用模型；改了参数请先保存。</span>
-        </div>
-        <p class="hintline" id="search-test-result"></p>
         <div class="row"><div class="txt"><b>知识库字数上限</b>
           <p>超过会自动删减；默认 500 字。</p></div>
           <div class="ctl"><input type="number" min="200" max="800" step="50" data-path="style_learning.max_chars"></div></div>
@@ -521,7 +501,7 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
           <select id="style-user" title="选择要查看的会话"></select>
           <button class="btn" id="style-local">立即学一次（甄别后写入）</button>
         </div>
-        <p class="hintline">联网学习会按上面的间隔自动进行；没有可用模型时不会写入任何知识，避免把广告或误判塞进知识库。</p>
+        <p class="hintline">联网学习会按上面的间隔自动进行，只搜论坛/聊天/社交平台并核对结果域名；广告落地页直接丢弃，再由模型甄别，模型不可用时不写入。</p>
         <div class="progress"><i id="kb-bar"></i></div>
         <div class="hintline" id="kb-meta">还没有学习结果，先聊几句，后台会自动学习。</div>
         <details class="adv" id="kb-details">
@@ -773,7 +753,6 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
     series: [], facts: [], traces: [], archivedTotal: 0, pools: {}, dates: [],
     mem: { view: "day", date: "", pool: "" }, lastBoost: null,
     style: { users: [], selected: "" }, dirty: false, build: {}, usage: {}, proactive: null,
-    clearSearchKey: false,
     lastScan: null, feedbackIssueUrl: "https://github.com/xiaml666/astrbot_plugin_zhenxin/issues/new",
     lastFeedbackText: "", lastFeedbackUrl: ""
   };
@@ -887,8 +866,22 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
   });
 
   // ------------------------------------------------------------- config
+  // Fallbacks for fields introduced by this page: a running backend that has
+  // not been restarted yet does not return them, so inputs would look empty
+  // even though the schema has defaults.  After the backend restart the real
+  // values take precedence.
+  const PATH_DEFAULTS = {
+    "split.enabled": false,
+    "split.max_segments": 3,
+    "split.min_chars": 40,
+    "split.min_segment_chars": 8,
+    "split.delay_s": 0.6,
+  };
   function get(path, def) {
-    return String(path).split(".").reduce((o, k) => (o == null ? o : o[k]), state.config) ?? def;
+    const value = String(path).split(".").reduce((o, k) => (o == null ? o : o[k]), state.config);
+    if (value !== undefined && value !== null) return value;
+    if (Object.prototype.hasOwnProperty.call(PATH_DEFAULTS, path)) return PATH_DEFAULTS[path];
+    return def;
   }
   function setPath(path, value) {
     const parts = String(path).split(".");
@@ -931,58 +924,6 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
     });
     syncLabels();
   }
-  function renderSearchKeyState() {
-    const label = $("#search-key-state");
-    const clear = $("#search-key-clear");
-    if (!label) return;
-    const saved = Boolean(get("style_learning.search_api_key_set", false));
-    if (state.clearSearchKey) {
-      label.textContent = "保存后会清除已保存的 Key。";
-    } else {
-      label.textContent = saved
-        ? "已保存一个 Key（不会回显）；留空保存表示不修改。"
-        : "未设置（可选）。Key 只保存在插件配置里，不会回显到页面。";
-    }
-    if (clear) clear.disabled = !saved && !state.clearSearchKey;
-  }
-  $("#search-key-clear")?.addEventListener("click", () => {
-    state.clearSearchKey = true;
-    const input = $("#search-key");
-    if (input) input.value = "";
-    renderSearchKeyState();
-    markDirty();
-  });
-  $("#search-test")?.addEventListener("click", async () => {
-    const btn = $("#search-test");
-    const out = $("#search-test-result");
-    const old = btn.textContent;
-    btn.disabled = true;
-    btn.textContent = "搜索中…";
-    out.textContent = "正在用当前配置搜索…";
-    try {
-      // Uses the saved config; the hint above tells users to save first.
-      const data = await callPost("page/style/search-test", {});
-      if (data && data.ok) {
-        const snippets = data.snippets || [];
-        out.textContent = data.count
-          ? "拿到 " + data.count + " 条结果" + (data.custom ? "（自定义 API）" : "（内置搜索）") +
-            (data.error ? "；提示：" + data.error : "") +
-            (snippets.length ? "；例如：" + snippets[0] : "")
-          : "搜索成功但没有解析到可用结果" + (data.error ? "：" + data.error : "") +
-            "。检查返回格式是否选对（HTML/JSON）。";
-        out.style.color = data.count ? "var(--good)" : "var(--warn)";
-      } else {
-        out.textContent = (data && data.message) || "搜索失败";
-        out.style.color = "var(--warn)";
-      }
-    } catch (e) {
-      out.textContent = "搜索失败：" + e.message;
-      out.style.color = "var(--warn)";
-    } finally {
-      btn.disabled = false;
-      btn.textContent = old;
-    }
-  });
   function syncLabels() {
     $("#v-l0").textContent = get("l0.inject", 3);
     $("#v-recent").textContent = get("l3.recent_turns", 8);
@@ -1011,7 +952,6 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
     $("#ver").title = "版本来源：" + (state.build.source || "metadata.yaml");
     $("#memcount").textContent = fmt(state.health.facts || 0);
     bindConfig();
-    renderSearchKeyState();
     renderRealtime();
     renderConflictAlert(data.conflict_alert);
     $("#save").disabled = true;
@@ -1144,14 +1084,6 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
     });
     const host = get("l3.host_context_mode");
     if (host !== undefined) values["l3.host_context_mode"] = host;
-    // The API key is never echoed by the server.  Only send it when the user
-    // typed a new one, or explicitly asked to clear the saved key.
-    const keyInput = $("#search-key");
-    if (keyInput) {
-      const key = keyInput.value.trim();
-      if (key) values["style_learning.search_api_key"] = key;
-      else if (state.clearSearchKey) values["style_learning.search_api_key"] = "";
-    }
     return values;
   }
   $("#save").addEventListener("click", async () => {
@@ -1161,17 +1093,12 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
     try {
       const data = await callPost("page/config", { values });
       state.config = (data && data.config) || state.config;
-      state.clearSearchKey = false;
-      const keyField = $("#search-key");
-      if (keyField) keyField.value = "";
       bindConfig();
-      renderSearchKeyState();
       // Round-trip verification: a stale server-side value used to silently
       // turn "线索放末尾" back off right after saving.
       const bad = [];
       Object.keys(values).forEach((path) => {
         if (path === "l0.inject") return; // server clamps to 1..slots
-        if (path === "style_learning.search_api_key") return; // never echoed
         const got = get(path);
         if (JSON.stringify(got) !== JSON.stringify(values[path])) bad.push(path);
       });
@@ -1207,7 +1134,6 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
     }
     state.config = (data && data.config) || state.config;
     bindConfig();
-    renderSearchKeyState();
     renderRealtime();
     if (state.proactive) loadProactive();
     const message = ((data && data.messages) || []).join("；") || "设置已应用";

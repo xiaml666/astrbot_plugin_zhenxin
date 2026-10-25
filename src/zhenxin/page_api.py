@@ -14,7 +14,6 @@ import asyncio
 import inspect
 import json
 import os
-import re
 import sqlite3
 import time
 from pathlib import Path
@@ -99,10 +98,6 @@ ALLOWED_PATHS = {
     "style_learning.online",
     "style_learning.interval_days",
     "style_learning.max_chars",
-    "style_learning.search_endpoint",
-    "style_learning.search_api_format",
-    "style_learning.search_api_key",
-    "style_learning.search_api_header",
     "split.enabled",
     "split.max_segments",
     "split.min_chars",
@@ -362,7 +357,6 @@ class PluginPageAPI:
             ("memory/clear", self.memory_clear, ["POST"], "Zhenxin memory clear"),
             ("style", self.style_status, ["GET"], "Zhenxin style knowledge"),
             ("style/learn", self.style_learn, ["POST"], "Zhenxin style learn"),
-            ("style/search-test", self.style_search_test, ["POST"], "Zhenxin search API test"),
             ("proactive", self.proactive_status, ["GET"], "Zhenxin proactive status"),
             ("proactive/test", self.proactive_test, ["POST"], "Zhenxin proactive test"),
             ("health", self.health_scan, ["GET"], "Zhenxin plugin conflict scan"),
@@ -410,20 +404,6 @@ class PluginPageAPI:
             return default
 
     # ---------------------------------------------------------------- basics
-    def _public_config(self) -> dict[str, Any]:
-        """Config for the page, with the search API key masked.
-
-        The endpoint/format are safe to show and edit; the key must never be
-        sent back to the browser.  ``search_api_key_set`` lets the page show
-        "已保存" without exposing the value.
-        """
-        data = self.engine.cfg.to_dict()
-        style = data.get("style_learning")
-        if isinstance(style, dict):
-            style["search_api_key_set"] = bool(style.get("search_api_key"))
-            style["search_api_key"] = ""
-        return data
-
     async def _persist_config(self) -> None:
         for name in ("save_config_async", "save_config"):
             save = getattr(self.config, name, None)
@@ -455,13 +435,7 @@ class PluginPageAPI:
             await self._persist_config()
         except Exception as exc:  # noqa: BLE001
             return {"ok": False, "message": f"写入配置失败：{exc}"}
-        # Never echo the search API key back, not even in the "saved" echo.
-        saved = {
-            path: value
-            for path, value in clean.items()
-            if path != "style_learning.search_api_key"
-        }
-        return {"ok": True, "saved": saved, "config": self._public_config()}
+        return {"ok": True, "saved": clean, "config": self.engine.cfg.to_dict()}
 
     def _apply(self, path: str, value: Any) -> None:
         _set_path(self.engine.cfg, path, value)
@@ -647,7 +621,7 @@ class PluginPageAPI:
             "applied": True,
             "mode": mode,
             "values": applied,
-            "config": self._public_config(),
+            "config": self.engine.cfg.to_dict(),
             "messages": messages,
             "conflicts": [
                 {
@@ -679,20 +653,6 @@ class PluginPageAPI:
             if value not in ("replace", "off"):
                 raise ValueError
             return value
-        if path == "style_learning.search_api_format":
-            value = str(raw or "html").strip().lower()
-            if value not in ("html", "json"):
-                raise ValueError
-            return value
-        if path == "style_learning.search_endpoint":
-            return str(raw or "").strip()[:500]
-        if path == "style_learning.search_api_key":
-            return str(raw or "").strip()[:500]
-        if path == "style_learning.search_api_header":
-            value = (str(raw or "").strip() or "Authorization")[:80]
-            if not re.fullmatch(r"[A-Za-z0-9-]+", value):
-                raise ValueError
-            return value
         if path == "proactive.template":
             return str(raw)[:200]
         return raw
@@ -702,7 +662,7 @@ class PluginPageAPI:
         from ._version import build_info
 
         stats = self.engine.stats(None)
-        cfg = self._public_config()
+        cfg = self.engine.cfg.to_dict()
         pools = stats.get("memory_pools", {})
         usage_rounds = int(stats.get("actual_usage_rounds", 0) or 0)
         series = self._series(30)
@@ -1057,36 +1017,6 @@ class PluginPageAPI:
             return await asyncio.to_thread(self.engine.screen_knowledge, kind, items)
         except Exception:  # noqa: BLE001
             return None
-
-    async def style_search_test(self) -> dict[str, Any]:
-        """Run one search with the currently configured API (no model call)."""
-        from ._aux.style_learning import search_notes
-
-        cfg = self.engine.cfg.style_learning
-        try:
-            snippets, error = await asyncio.to_thread(
-                search_notes,
-                ("聊天 语气 自然",),
-                timeout=float(cfg.search_timeout_s),
-                endpoint=str(cfg.search_endpoint or ""),
-                api_format=str(cfg.search_api_format or "html"),
-                api_key=str(cfg.search_api_key or ""),
-                api_header=str(cfg.search_api_header or "Authorization"),
-            )
-        except Exception as exc:  # noqa: BLE001
-            return {"ok": False, "message": f"搜索失败：{exc}"}
-        return {
-            "ok": bool(snippets),
-            "count": len(snippets),
-            "snippets": snippets[:3],
-            "error": error,
-            "custom": bool(cfg.search_endpoint),
-            "message": (
-                ""
-                if snippets
-                else "没有拿到结果" + (f"：{error}" if error else "，检查地址/返回格式/Key")
-            ),
-        }
 
     # ------------------------------------------------------------ proactive
     async def proactive_status(self) -> dict[str, Any]:
@@ -1503,7 +1433,7 @@ class PluginPageAPI:
             return {"ok": False, "message": f"重置失败：{exc}"}
         response: dict[str, Any] = {"ok": True, "scope": scope, "deleted": deleted}
         if scope == "all":
-            response["config"] = self._public_config()
+            response["config"] = self.engine.cfg.to_dict()
         return response
 
     def _delete_rows(self, table: str, user: str = "") -> int:

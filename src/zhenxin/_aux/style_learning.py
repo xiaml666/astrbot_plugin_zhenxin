@@ -226,8 +226,8 @@ def _clean(text: str) -> str:
     return _WS_RE.sub(" ", text).strip()
 
 
-def _fetch(url: str, timeout: float, headers: dict[str, str] | None = None) -> str:
-    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, **(headers or {})})
+def _fetch(url: str, timeout: float) -> str:
+    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     with urllib.request.urlopen(request, timeout=max(2.0, float(timeout))) as response:
         raw = response.read(700_000)
     for encoding in ("utf-8", "gbk", "latin-1"):
@@ -243,86 +243,6 @@ def _host(url: str) -> str:
         return urllib.parse.urlsplit(url).netloc or url[:40]
     except Exception:  # noqa: BLE001
         return url[:40]
-
-
-def _redact(text: str, secret: str) -> str:
-    if not secret:
-        return text
-    text = text.replace(secret, "***")
-    encoded = urllib.parse.quote(secret)
-    if encoded != secret:
-        text = text.replace(encoded, "***")
-    return text
-
-
-def _safe_error(exc: Exception, api_key: str) -> str:
-    """Error text without URLs/query strings or the API key.
-
-    Provider errors sometimes embed the request URL; if the key was passed as
-    ``?key=`` that would leak it into the page's status field.
-    """
-    text = _redact(str(exc), api_key)
-    return re.sub(r"https?://\S+", lambda match: _host(match.group(0)) + "/…", text)
-
-
-def _api_headers(api_key: str, api_header: str) -> dict[str, str]:
-    key = (api_key or "").strip()
-    header = (api_header or "Authorization").strip() or "Authorization"
-    if not re.fullmatch(r"[A-Za-z0-9-]+", header):
-        header = "Authorization"
-    if not key:
-        return {}
-    if header.lower() == "authorization" and not key.lower().startswith(("bearer ", "token ")):
-        key = "Bearer " + key
-    return {header: key}
-
-
-def _json_snippets(payload: Any, limit: int = 10) -> list[str]:
-    """Pull human-readable snippets out of common search-API JSON shapes.
-
-    SearXNG (``results[].content``), Bing (``webPages.value[].snippet``),
-    Google CSE (``items[].snippet``) and Tavily (``results[].content``) all
-    expose one of these keys.  Unknown shapes are walked recursively.
-    """
-    keys = ("snippet", "content", "description", "summary", "abstract", "text", "body")
-    out: list[str] = []
-
-    def walk(node: Any, depth: int) -> None:
-        if len(out) >= limit or depth > 8:
-            return
-        if isinstance(node, str):
-            text = _WS_RE.sub(" ", node).strip()
-            if 10 <= len(text) <= 300:
-                out.append(text)
-            return
-        if isinstance(node, list):
-            for item in node:
-                walk(item, depth + 1)
-            return
-        if not isinstance(node, dict):
-            return
-        for key in keys:
-            value = node.get(key)
-            if isinstance(value, str):
-                text = _WS_RE.sub(" ", value).strip()
-                if 10 <= len(text) <= 300:
-                    out.append(text)
-        for key, value in node.items():
-            if key in keys:
-                continue
-            if isinstance(value, (dict, list)):
-                walk(value, depth + 1)
-
-    walk(payload, 0)
-    seen: set[str] = set()
-    unique: list[str] = []
-    for item in out:
-        marker = item[:40]
-        if marker in seen:
-            continue
-        seen.add(marker)
-        unique.append(item)
-    return unique[:limit]
 
 
 def _site_filter(query: str) -> str:
@@ -406,16 +326,7 @@ def _results(page: str) -> list[tuple[str, str]]:
         clean = _clean(snippet.group(1))
         if href and 10 <= len(clean) <= 260:
             out.append((_real_url(href.group(1)), clean))
-    # Fallback: page description has no URL and is only accepted when the
-    # caller has no site restriction (custom API / trusted endpoint).
-    if not out:
-        meta = re.search(
-            r'<meta[^>]+name="description"[^>]+content="([^"]+)"', page, re.I
-        )
-        if meta:
-            clean = _clean(meta.group(1))
-            if 10 <= len(clean) <= 260:
-                out.append(("", clean))
+    # No URL means no way to verify the domain; the caller drops it anyway.
     seen: set[str] = set()
     unique: list[tuple[str, str]] = []
     for url, text in out:
@@ -431,71 +342,38 @@ def search_notes(
     queries: tuple[str, ...] = _QUERIES,
     *,
     timeout: float = 8.0,
-    endpoint: str = "",
-    api_format: str = "html",
-    api_key: str = "",
-    api_header: str = "Authorization",
 ) -> tuple[list[str], str]:
-    """Best-effort search restricted to discussion platforms.
+    """Best-effort built-in search restricted to discussion platforms.
 
-    ``endpoint`` may be any search API URL.  It supports two placeholders:
-    ``{query}`` (URL-encoded keywords) and ``{key}`` (URL-encoded API key, for
-    APIs that take the key as a query parameter).  When it is empty the
-    built-in DuckDuckGo/Bing HTML endpoints are used.  ``api_format`` is
-    ``html`` for HTML pages or ``json`` for common search-API shapes.
-
-    Returns ``(snippets, error)``; a blocked network is not an exception.
+    Every result URL is checked against the query's ``site:`` domain, because
+    search engines sometimes ignore the operator and return advertisement
+    landing pages.  Returns ``(snippets, error)``; a blocked network is not an
+    exception.
     """
     collected: list[str] = []
     errors: list[str] = []
     deadline = time.time() + max(4.0, float(timeout) * 3.0)
-    headers = _api_headers(api_key, api_header)
-    json_mode = str(api_format or "html").strip().lower() == "json"
     for query in queries:
         if time.time() >= deadline:
             break
         encoded = urllib.parse.quote(query)
-        # Built-in queries carry a site: restriction; enforce it on the result
-        # URLs because search engines sometimes ignore the operator and return
-        # advertisement landing pages.  A custom API is trusted as-is.
-        site = "" if endpoint else _site_filter(query)
-        urls: list[tuple[str, bool]] = []
-        if endpoint:
-            url = endpoint
-            if "{query}" in url:
-                url = url.replace("{query}", encoded)
-            else:
-                url = url + encoded
-            url = url.replace("{key}", urllib.parse.quote(api_key or ""))
-            urls.append((url, json_mode))
-        else:
-            urls.extend(
-                [
-                    (SEARCH_URL.format(query=encoded), False),
-                    (BING_URL.format(query=encoded), False),
-                ]
-            )
-        for url, as_json in urls:
+        site = _site_filter(query)
+        for url in (
+            SEARCH_URL.format(query=encoded),
+            BING_URL.format(query=encoded),
+        ):
             if time.time() >= deadline:
                 break
             try:
-                page = _fetch(url, timeout, headers)
+                page = _fetch(url, timeout)
             except Exception as exc:  # noqa: BLE001 - network is best effort
-                errors.append(f"{_host(url)}: {_safe_error(exc, api_key)}")
+                errors.append(f"{_host(url)}: {exc}")
                 continue
-            if as_json:
-                try:
-                    payload = json.loads(page)
-                except ValueError:
-                    errors.append(f"{_host(url)}: 返回的不是 JSON")
-                    continue
-                found = _json_snippets(payload)
-            else:
-                found = [
-                    text
-                    for result_url, text in _results(page)
-                    if _url_allowed(result_url, site)
-                ]
+            found = [
+                text
+                for result_url, text in _results(page)
+                if _url_allowed(result_url, site)
+            ]
             if found:
                 collected.extend(found)
                 break
@@ -882,10 +760,6 @@ class HumanStyleLearner:
         if online and self.cfg.online:
             snippets, error = search_notes(
                 timeout=float(self.cfg.search_timeout_s),
-                endpoint=str(self.cfg.search_endpoint or ""),
-                api_format=str(self.cfg.search_api_format or "html"),
-                api_key=str(self.cfg.search_api_key or ""),
-                api_header=str(self.cfg.search_api_header or "Authorization"),
             )
             if snippets:
                 web = web_candidates(snippets)

@@ -426,62 +426,6 @@ class StyleLearningTests(unittest.TestCase):
         self.assertIn("web", result["status"]["sources"])
         self.assertIn("短句", result["status"]["knowledge"])
 
-    def test_search_api_key_header_is_optional_and_bearer_by_default(self):
-        self.assertEqual({}, style_learning._api_headers("", "Authorization"))
-        self.assertEqual(
-            {"Authorization": "Bearer abc"},
-            style_learning._api_headers("abc", "Authorization"),
-        )
-        self.assertEqual(
-            {"X-API-KEY": "abc"},
-            style_learning._api_headers("abc", "X-API-KEY"),
-        )
-
-    def test_custom_json_search_api_is_parsed(self):
-        payload = (
-            '{"results": [{"content": "论坛里大家聊天更爱用短句，一次只说一件事。"},'
-            ' {"content": "共情的关键是先接住情绪，再给建议。"}]}'
-        )
-        endpoint = "https://searx.example/search?q={query}&format=json&key={key}"
-        with mock.patch.object(style_learning, "_fetch", return_value=payload) as fetch:
-            snippets, error = style_learning.search_notes(
-                queries=("聊天 语气",),
-                endpoint=endpoint,
-                api_format="json",
-                api_key="k-1",
-                api_header="X-API-KEY",
-            )
-        self.assertEqual("", error)
-        self.assertEqual(2, len(snippets))
-        args, _kwargs = fetch.call_args
-        self.assertIn("q=%E8%81%8A%E5%A4%A9%20%E8%AF%AD%E6%B0%94", args[0])
-        self.assertIn("key=k-1", args[0])
-        self.assertEqual("k-1", args[2]["X-API-KEY"])
-
-    def test_json_search_api_reports_invalid_json(self):
-        with mock.patch.object(style_learning, "_fetch", return_value="<html>nope</html>"):
-            snippets, error = style_learning.search_notes(
-                queries=("q",), endpoint="https://x.example/search?q={query}", api_format="json"
-            )
-        self.assertEqual([], snippets)
-        self.assertIn("不是 JSON", error)
-
-    def test_search_errors_do_not_leak_the_api_key(self):
-        with mock.patch.object(
-            style_learning,
-            "_fetch",
-            side_effect=RuntimeError("bad https://x.example/search?key=secret"),
-        ):
-            snippets, error = style_learning.search_notes(
-                queries=("q",),
-                endpoint="https://x.example/search?q={query}&key={key}",
-                api_format="json",
-                api_key="secret",
-            )
-        self.assertEqual([], snippets)
-        self.assertNotIn("secret", error)
-        self.assertIn("x.example", error)
-
     def test_search_results_must_match_the_requested_site(self):
         page = (
             '<li class="b_algo"><h2><a href="https://www.yomiclub.com/">x</a></h2>'
@@ -566,66 +510,29 @@ class StyleLearnApiTests(unittest.TestCase):
         self.assertIn("短一点", data["status"]["knowledge"])
         self.assertIn("pref", data["status"]["sources"])
 
-    def test_search_api_key_is_masked_and_can_be_saved(self):
+    def test_split_settings_round_trip_through_the_page(self):
         engine, _ = make_engine()
-        engine.cfg.style_learning.search_api_key = "secret-key"
         api = PluginPageAPI(FakePlugin(FakeContext()), engine, {})
-        data = asyncio.run(api.status())
-        style = data["config"]["style_learning"]
-        self.assertTrue(style["search_api_key_set"])
-        self.assertEqual("", style["search_api_key"])
-        self.assertNotIn("secret-key", str(data))
-
         api._payload_override = {
             "values": {
-                "style_learning.search_endpoint": "https://searx.example/search?q={query}",
-                "style_learning.search_api_format": "json",
-                "style_learning.search_api_key": "new-key",
-                "style_learning.search_api_header": "X-API-KEY",
+                "split.enabled": True,
+                "split.max_segments": 4,
+                "split.min_chars": 60,
+                "split.min_segment_chars": 6,
+                "split.delay_s": 1.2,
             }
         }
         result = asyncio.run(api.save_config())
         self.assertTrue(result["ok"])
-        self.assertEqual("new-key", engine.cfg.style_learning.search_api_key)
-        self.assertEqual("json", engine.cfg.style_learning.search_api_format)
-        self.assertEqual("X-API-KEY", engine.cfg.style_learning.search_api_header)
-        self.assertEqual("", result["config"]["style_learning"]["search_api_key"])
-        self.assertNotIn("new-key", str(result))
-
-    def test_clearing_the_search_api_key_is_explicit(self):
-        engine, _ = make_engine()
-        engine.cfg.style_learning.search_api_key = "secret-key"
-        api = PluginPageAPI(FakePlugin(FakeContext()), engine, {})
-        api._payload_override = {"values": {"style_learning.search_api_key": ""}}
-        result = asyncio.run(api.save_config())
-        self.assertTrue(result["ok"])
-        self.assertEqual("", engine.cfg.style_learning.search_api_key)
-        self.assertFalse(result["config"]["style_learning"]["search_api_key_set"])
-
-    def test_search_test_uses_the_saved_config_without_writing(self):
-        engine, _ = make_engine()
-        cfg = engine.cfg.style_learning
-        cfg.search_endpoint = "https://searx.example/search?q={query}"
-        cfg.search_api_format = "json"
-        cfg.search_api_key = "k-1"
-        cfg.search_api_header = "X-API-KEY"
-        calls = {}
-
-        def fake(queries, **kwargs):
-            calls["queries"] = queries
-            calls["kwargs"] = kwargs
-            return (["论坛里大家聊天更爱用短句，一次只说一件事。"], "")
-
-        with mock.patch.object(style_learning, "search_notes", side_effect=fake):
-            api = PluginPageAPI(FakePlugin(FakeContext()), engine, {})
-            data = asyncio.run(api.style_search_test())
-        self.assertTrue(data["ok"])
-        self.assertEqual(1, data["count"])
-        self.assertTrue(data["custom"])
-        self.assertEqual("https://searx.example/search?q={query}", calls["kwargs"]["endpoint"])
-        self.assertEqual("json", calls["kwargs"]["api_format"])
-        self.assertEqual("k-1", calls["kwargs"]["api_key"])
-        self.assertNotIn("k-1", str(data))
+        self.assertTrue(engine.cfg.split.enabled)
+        self.assertEqual(4, engine.cfg.split.max_segments)
+        self.assertEqual(60, engine.cfg.split.min_chars)
+        self.assertEqual(6, engine.cfg.split.min_segment_chars)
+        self.assertAlmostEqual(1.2, engine.cfg.split.delay_s)
+        saved = result["config"]["split"]
+        self.assertEqual(4, saved["max_segments"])
+        self.assertEqual(60, saved["min_chars"])
+        self.assertAlmostEqual(1.2, saved["delay_s"])
 
 
 class ProactiveTests(unittest.TestCase):
@@ -759,7 +666,6 @@ class ConfigRoundTripTests(unittest.TestCase):
             "memory.top_k",
             "memory.weight_semantic",
             "style_learning.max_chars",
-            "style_learning.search_endpoint",
             "split.enabled",
             "proactive.enabled",
             "l0.tail_injection",

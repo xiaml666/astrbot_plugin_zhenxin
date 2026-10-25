@@ -26,12 +26,11 @@ class PageApiTests(unittest.TestCase):
         config = {}
         api = PluginPageAPI(FakePlugin(context), engine, config)
         api.register()
-        self.assertEqual(len(context.routes), 19)
+        self.assertEqual(len(context.routes), 18)
         self.assertTrue(context.routes[0][0].endswith("/page/status"))
         self.assertTrue(any(r[0].endswith("/page/preset") for r in context.routes))
         self.assertTrue(any(r[0].endswith("/page/reset") for r in context.routes))
         self.assertTrue(any(r[0].endswith("/page/memory") for r in context.routes))
-        self.assertTrue(any(r[0].endswith("/page/style/search-test") for r in context.routes))
         self.assertEqual(api._coerce("shadow_mode", "true"), True)
         self.assertEqual(api._coerce("l0.inject", "2"), 2)
         self.assertEqual(api._coerce("l3.host_context_mode", "off"), "off")
@@ -41,8 +40,6 @@ class PageApiTests(unittest.TestCase):
         self.assertEqual(api._coerce("split.enabled", "true"), True)
         self.assertEqual(api._coerce("split.max_segments", "4"), 4)
         self.assertAlmostEqual(api._coerce("split.delay_s", "0.8"), 0.8)
-        with self.assertRaises(ValueError):
-            api._coerce("style_learning.search_api_header", "X-Bad\nInjected: 1")
 
     def test_page_assets_are_beginner_pro_and_jargon_free(self):
         page = (ROOT / "pages" / "zhenxin" / "index.html").read_text(encoding="utf-8")
@@ -130,9 +127,10 @@ class PageApiTests(unittest.TestCase):
         self.assertIn('data-path="style_learning.enabled"', page)
         self.assertIn('data-path="split.enabled"', page)
         self.assertIn("对话分段", page)
-        self.assertIn('data-path="style_learning.search_endpoint"', page)
-        self.assertIn('id="search-key"', page)
-        self.assertIn('id="search-test"', page)
+        # The search API configuration was removed: built-in search + model
+        # screening only.
+        self.assertNotIn('data-path="style_learning.search_endpoint"', page)
+        self.assertNotIn('id="search-key"', page)
         # The old statistical imitation switch is gone for good.
         self.assertNotIn('data-path="aux.style"', page)
 
@@ -172,6 +170,7 @@ class PageApiTests(unittest.TestCase):
         self.assertEqual(defaults["metrics.output_price_per_million"], 8.0)
         self.assertEqual(defaults["aux.rhythm"], True)
         self.assertNotIn("aux.style", defaults)
+        self.assertNotIn("style_learning.search_endpoint", defaults)
         self.assertEqual(defaults["split.enabled"], False)
         self.assertEqual(defaults["split.max_segments"], 3)
         self.assertEqual(defaults["split.delay_s"], 0.6)

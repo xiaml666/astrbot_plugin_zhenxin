@@ -283,10 +283,7 @@ prefix_stable = (hash_t == hash_{t-1})
    模型再把候选（含上一轮已确认的偏好）合并审核，改写成“对方…”或“称呼…”，拒绝口头禅统计。
 2. **论坛/聊天/社交平台常识**：只搜 V2EX、豆瓣小组、贴吧、知乎、NGA、虎扑、微博、小红书；
    搜索结果会核对 URL 域名（`site:` 被搜索引擎忽略时直接丢弃），再做广告/SEO/英语课程规则过滤，
-   最后由同一模型剔除广告、无关内容和重复句。
-   搜索源可换成自己的 API（`style_learning.search_endpoint`）：地址支持 `{query}` / `{key}`，
-   返回格式可选 HTML 或 JSON（兼容 SearXNG / Bing / Google CSE / Tavily 的 `content`/`snippet` 等字段）；
-   API Key 只存配置，页面回包只给 `search_api_key_set`，不回显明文。
+   最后由同一模型剔除广告、无关内容和重复句。不提供独立搜索 API 配置。
 
 **没有模型审核就不写入**：模型不可用、返回无法解析、或没有 `style_screen` 权限时，保留上一次知识库。
 知识库上限 500 字，每轮只取约 110 字放进 ephemeral；升级时 `PRAGMA user_version` 会一次性清掉

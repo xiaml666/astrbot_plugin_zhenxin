@@ -143,12 +143,6 @@ style_learning:
   min_turns: 12
   max_chars: 500
   hint_chars: 110
-  # Optional search API: {query} = URL-encoded keywords, {key} = URL-encoded key.
-  # Leave empty to use the built-in DuckDuckGo/Bing HTML endpoints.
-  search_endpoint: ""
-  search_api_format: "html"   # html | json
-  search_api_key: ""
-  search_api_header: "Authorization"
   search_timeout_s: 8
 
 split:

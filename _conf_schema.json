@@ -632,35 +632,7 @@
         "description": "周期性联网学习",
         "type": "bool",
         "default": true,
-        "hint": "低频（默认 7 天一次）只搜论坛/聊天/社交平台；广告、SEO、英语学习页会在规则和模型两层被剔除。"
-      },
-      "search_endpoint": {
-        "description": "搜索 API 地址（可选）",
-        "type": "string",
-        "default": "",
-        "hint": "留空用内置的公开搜索。可填 SearXNG / Bing / Google CSE / Tavily 等接口；{query} 表示 URL 编码后的关键词，{key} 表示 URL 编码后的 API Key。"
-      },
-      "search_api_format": {
-        "description": "搜索 API 返回格式",
-        "type": "string",
-        "default": "html",
-        "options": [
-          "html",
-          "json"
-        ],
-        "hint": "html 用内置解析；json 会从 snippet/content/description/summary 等字段提取摘要。"
-      },
-      "search_api_key": {
-        "description": "搜索 API Key（可选）",
-        "type": "string",
-        "default": "",
-        "hint": "只保存在插件配置里，不会回显到页面。留空表示不使用；接口需要 query 参数时也可以在地址里用 {key}。"
-      },
-      "search_api_header": {
-        "description": "API Key 请求头",
-        "type": "string",
-        "default": "Authorization",
-        "hint": "默认 Authorization，会自动加 Bearer 前缀；有的接口用 X-API-KEY。"
+        "hint": "低频（默认 7 天一次）只搜论坛/聊天/社交平台；会核对结果域名，广告、SEO、英语学习页会被剔除。"
       },
       "interval_days": {
         "description": "联网学习间隔（天）",

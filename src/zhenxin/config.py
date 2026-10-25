@@ -213,15 +213,7 @@ class StyleLearningConfig:
     min_turns: int = 6
     max_chars: int = 500
     hint_chars: int = 110
-    # Optional search API.  Empty endpoint = the built-in DuckDuckGo/Bing HTML
-    # endpoints restricted to discussion platforms.  A custom endpoint may use
-    # ``{query}`` and ``{key}`` placeholders.
-    search_endpoint: str = ""
-    # html: parse result snippets; json: read common search-API shapes
-    # (SearXNG / Bing / Google CSE / Tavily all expose snippet or content).
-    search_api_format: str = "html"
-    search_api_key: str = ""
-    search_api_header: str = "Authorization"
+    # Built-in public search only (forums/chat platforms + result-domain check).
     search_timeout_s: float = 8.0
 
 
