@@ -132,6 +132,10 @@ class ZhenxinEngine:
             if not self.db.get_state(user_key, "identity_repair_v2", False):
                 self.facts.repair_identity(user_key)
                 self.db.set_state(user_key, "identity_repair_v2", True)
+            # The old emotion regex treated 天气/麻烦/困难 as feelings.
+            if not self.db.get_state(user_key, "emotion_repair_v3", False):
+                self.facts.repair_emotions(user_key)
+                self.db.set_state(user_key, "emotion_repair_v3", True)
         except Exception:  # noqa: BLE001 - recovery must never break a turn
             pass
         self._import_history(user_key, history)

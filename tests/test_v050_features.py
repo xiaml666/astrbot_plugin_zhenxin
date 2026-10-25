@@ -223,6 +223,24 @@ class MemoryV2Tests(unittest.TestCase):
         self.assertEqual([], zero_value.identity_facts("我叫外卖了"))
         self.assertEqual([], zero_value.identity_facts("我叫你不要熬夜"))
 
+    def test_weather_message_does_not_create_an_anger_fact(self):
+        engine, _ = make_engine(**{"shortcircuit.enabled": False})
+        say(engine, "我在巨野，这里明天的天气怎么样？", 1)
+        texts = {row["text"] for row in engine.facts.list_facts()}
+        self.assertFalse(any("生气" in text for text in texts))
+
+    def test_repair_emotions_removes_weather_anger_but_keeps_real_emotion(self):
+        engine, _ = make_engine(**{"shortcircuit.enabled": False})
+        engine.facts.add("u1", "最近生气（明天）", "emotion", importance=0.73)
+        engine.facts.add("u1", "最近疲惫（甲方）", "emotion", importance=0.8)
+        engine.db.append_turn("u1", 1, "user", "我在巨野，这里明天的天气怎么样？", 1.0)
+        engine.db.append_turn("u1", 2, "user", "今天好累，甲方又改需求", 1.1)
+        removed = engine.facts.repair_emotions("u1")
+        self.assertEqual(1, removed)
+        texts = {row["text"] for row in engine.facts.list_facts()}
+        self.assertNotIn("最近生气（明天）", texts)
+        self.assertIn("最近疲惫（甲方）", texts)
+
     def test_repair_identity_removes_legacy_garbage_and_keeps_real_names(self):
         engine, _ = make_engine()
         engine.facts.add("u1", "称呼我“你小肥鱼好不好”", "address", importance=0.98)

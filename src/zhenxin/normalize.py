@@ -38,14 +38,33 @@ TIME_RE = re.compile(
     r"上午|下午|中午|晚上|早上|凌晨|半夜|一会儿|晚点|回头)"
 )
 EMOTION_WORDS = {
-    "累": "疲惫", "困": "疲惫", "疲惫": "疲惫", "烦": "烦躁", "气": "生气", "焦虑": "焦虑",
+    "累": "疲惫", "困": "疲惫", "疲惫": "疲惫", "烦": "烦躁",
+    "生气": "生气", "气死": "生气", "气疯": "生气", "气炸": "生气",
+    "来气": "生气", "火大": "生气", "焦虑": "焦虑",
     "难过": "低落", "想哭": "低落", "开心": "开心", "高兴": "开心", "爽": "开心",
     "委屈": "委屈", "害怕": "害怕", "孤单": "孤单", "想": "想念", "崩": "崩溃", "无语": "无语",
 }
 _EMOTION_KEYS = sorted((k for k in EMOTION_WORDS if k != "想"), key=len, reverse=True)
-# "想" is only an emotion when it points at a person/place, not "想看电影".
+
+
+def _emotion_pattern(key: str) -> str:
+    # Single-character emotions are full of false positives in Chinese:
+    # 天气/语气/客气 contain 气, 麻烦 contains 烦, 积累/连累 contain 累,
+    # 困难/困境 contain 困.  Only match them as real emotional words.
+    if key == "烦":
+        return r"(?<!麻)烦"
+    if key == "累":
+        return r"(?<!积)(?<!连)(?<!拖)(?<!负)累"
+    if key == "困":
+        return r"困(?!难|境|惑|扰)"
+    return re.escape(key)
+
+
 EMOTION_RE = re.compile(
-    "|".join([re.escape(k) for k in _EMOTION_KEYS] + [r"想(?=你|他|她|它|家|妈|爸)"])
+    "|".join(
+        [_emotion_pattern(k) for k in _EMOTION_KEYS]
+        + [r"想(?=你|他|她|它|家|妈|爸)"]
+    )
 )
 RELATION_RE = re.compile(r"喜欢|讨厌|不喜欢|爱吃|不吃|习惯|总是|每次|最怕|最烦|离不开|上瘾")
 FUTURE_ACTION_RE = re.compile(

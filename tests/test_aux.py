@@ -19,6 +19,18 @@ class AuxTests(unittest.TestCase):
         self.assertIn("你帮我", out.text)
         self.assertLess(len(out.text), len(text))
 
+    def test_weather_and_common_words_are_not_emotions(self):
+        from zhenxin._aux.compression import detect_emotion
+
+        self.assertEqual("", detect_emotion("我在巨野，这里明天的天气怎么样？"))
+        self.assertEqual("", detect_emotion("你说这话的语气有点客气"))
+        self.assertEqual("", detect_emotion("麻烦你帮我看看这个"))
+        self.assertEqual("", detect_emotion("积累了很多经验"))
+        self.assertEqual("", detect_emotion("困难有点大"))
+        self.assertEqual("生气", detect_emotion("气死我了"))
+        self.assertEqual("疲惫", detect_emotion("今天好累"))
+        self.assertEqual("烦躁", detect_emotion("烦死了"))
+
     def test_topic_stack_depth(self):
         from zhenxin._aux.topic_stack import TopicStack
 

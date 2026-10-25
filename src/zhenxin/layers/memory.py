@@ -32,6 +32,7 @@ from .._aux.compression import keywords_for_seed
 from ..config import MemoryConfig
 from ..db import Database
 from ..embeddings import LocalScorer
+from ..normalize import EMOTION_RE, EMOTION_WORDS
 
 MAX_FACTS = 300
 # Calibrated on the bundled dialogue: related questions score 0.20-0.60,
@@ -551,6 +552,45 @@ class FactBank:
             )
         ]
         return {user: self.backfill_from_turns(user, limit) for user in users}
+
+    def repair_emotions(self, user_key: str) -> int:
+        """Drop emotion facts that the old detector invented.
+
+        Version ≤0.6.6-beta matched the single character ``气``, so
+        "明天天气怎么样" produced ``最近生气（明天）``.  The detector is fixed
+        now; this removes already-stored emotion facts whose label no longer
+        appears in the recent conversation.  A genuinely angry turn keeps its
+        emotion fact.
+        """
+        if not self.cfg.enabled or not user_key:
+            return 0
+        rows = self.db.fetchall(
+            "SELECT id,text FROM facts WHERE user_key=? AND kind='emotion'", (user_key,)
+        )
+        if not rows:
+            return 0
+        turns = self.db.fetchall(
+            "SELECT content FROM turns WHERE user_key=? AND role='user'"
+            " ORDER BY id DESC LIMIT 400",
+            (user_key,),
+        )
+        actual: set[str] = set()
+        for turn in turns:
+            for match in EMOTION_RE.finditer(str(turn["content"] or "")):
+                label = EMOTION_WORDS.get(match.group(0))
+                if label:
+                    actual.add(label)
+        labels = set(EMOTION_WORDS.values())
+        removed = 0
+        for row in rows:
+            text = str(row["text"] or "")
+            if not text.startswith("最近"):
+                continue
+            label = text[2:].split("（", 1)[0].strip()
+            if label in labels and label not in actual:
+                self.db.execute("DELETE FROM facts WHERE id=?", (int(row["id"]),))
+                removed += 1
+        return removed
 
     def repair_identity(self, user_key: str) -> int:
         """Remove identity facts that older versions mis-parsed.
