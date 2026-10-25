@@ -11,7 +11,6 @@ from ._aux.lexicon import Lexicon
 from ._aux.negative import NegativePatterns
 from ._aux.open_loops import OpenLoops
 from ._aux.rhythm import RhythmController
-from ._aux.style import StyleLearner
 from ._aux.style_learning import HumanStyleLearner
 from ._aux.topic_stack import TopicStack
 from .config import Config
@@ -56,9 +55,8 @@ class ZhenxinEngine:
         self.rhythm = RhythmController(
             self.db, self.cfg.aux.rhythm, self.cfg.aux.rhythm_postprocess
         )
-        self.style = StyleLearner(self.db, self.cfg.aux.style, clock)
         self.style_learning = HumanStyleLearner(
-            self.db, self.cfg.style_learning, self.style, clock
+            self.db, self.cfg.style_learning, clock=clock
         )
         self.proactive = ProactiveScheduler(self.db, self.cfg.proactive, clock)
         self.lexicon = Lexicon(self.db, self.cfg.aux.lexicon_aliases, self.cfg.aux.lexicon)
@@ -129,6 +127,11 @@ class ZhenxinEngine:
             if not self.db.get_state(user_key, "identity_backfill_done", False):
                 self.facts.backfill_from_turns(user_key)
                 self.db.set_state(user_key, "identity_backfill_done", True)
+            # Repair identity facts written by the old address regex
+            # ("那我叫你小肥鱼好不好" -> 称呼我“你小肥鱼好不好”).
+            if not self.db.get_state(user_key, "identity_repair_v2", False):
+                self.facts.repair_identity(user_key)
+                self.db.set_state(user_key, "identity_repair_v2", True)
         except Exception:  # noqa: BLE001 - recovery must never break a turn
             pass
         self._import_history(user_key, history)
@@ -155,7 +158,6 @@ class ZhenxinEngine:
         self.l2.bootstrap(user_key, raw)
         self.db.set_state(user_key, "last_inbound_text", raw)
         self.rhythm.observe(user_key, raw)
-        self.style.observe(user_key, raw)
         self.topic.observe(user_key, compressed.text)
         loop_state = self.loops.observe(user_key, raw, round_no)
         self.l0.decay(user_key)
@@ -258,12 +260,8 @@ class ZhenxinEngine:
             if topic_hint:
                 ephemeral_parts.append(topic_hint)
             rhythm = self.rhythm.compute(user_key, raw)
-            rhythm = self.style.adjust(user_key, rhythm)
             if rhythm.hint:
                 ephemeral_parts.append(rhythm.hint)
-            style_hint = self.style.hint(user_key, rhythm)
-            if style_hint:
-                ephemeral_parts.append(style_hint)
             human_hint = self.style_learning.hint(user_key)
             if human_hint:
                 ephemeral_parts.append(human_hint)
@@ -290,7 +288,6 @@ class ZhenxinEngine:
                     self.db.set_state("__global__", "conflict_alert", alert)
         else:
             rhythm = self.rhythm.compute(user_key, raw)
-            rhythm = self.style.adjust(user_key, rhythm)
 
         host_system = host_system_prompt or self.cfg.system_prompt
         # Cache-safe layout: everything that can change between rounds (the L0
@@ -381,9 +378,7 @@ class ZhenxinEngine:
     ) -> TurnResult:
         if plan.completed:
             raise RuntimeError("turn already completed")
-        rhythm = self.style.adjust(
-            plan.user_key, self.rhythm.compute(plan.user_key, plan.text)
-        )
+        rhythm = self.rhythm.compute(plan.user_key, plan.text)
         if plan.shadow:
             # The host already sent this exact text.  Post-processing it would
             # make the baseline arm look different from what the user saw and
@@ -494,6 +489,24 @@ class ZhenxinEngine:
             if 0 <= int(idx) < len(candidates):
                 mapped.append(candidates[int(idx)].row_id)
         return mapped
+
+    def screen_knowledge(self, kind: str, items: list[str]) -> list[str] | None:
+        """Screen style-knowledge candidates with the decision/main model.
+
+        Used by the standalone library and as the fallback when the AstrBot
+        host provider is unavailable.  ``None`` means "screening impossible";
+        the learner then keeps its previous knowledge instead of writing raw
+        web text.
+        """
+        from ._aux.style_learning import SCREEN_SYSTEM, parse_screened, screen_prompt
+
+        if not items:
+            return []
+        try:
+            raw = self.gateway.screen(screen_prompt(kind, items), SCREEN_SYSTEM)
+        except Exception:  # noqa: BLE001 - no provider / provider error
+            return None
+        return parse_screened(raw)
 
     def default_generate(self, plan: ContextPlan) -> str:
         if self.gateway.main_provider is None:

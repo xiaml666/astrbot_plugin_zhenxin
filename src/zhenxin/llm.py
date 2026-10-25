@@ -1,13 +1,16 @@
 """LLM boundary with a hard policy gate.
 
-Only three stages are allowed to touch a model:
+Only four stages are allowed to touch a model:
 
 * ``main_generate``    - the final reply
 * ``solidify_small``   - optional shaped generation for a solidified path
 * ``l1_rerank``        - optional rerank of already-retrieved local candidates
+* ``style_screen``     - low-frequency screening of style-knowledge candidates
 
-Everything else is a policy violation.  The write path never even receives a
-gateway, which makes the zero-call guarantee structural as well as audited.
+Everything else is a policy violation.  The per-turn write path never even
+receives a gateway, which makes the zero-call guarantee structural as well as
+audited.  ``style_screen`` runs only inside the periodic learner (at most a few
+times per day/week), never per turn.
 """
 
 from __future__ import annotations
@@ -41,7 +44,7 @@ FORBIDDEN_STAGES = {
     "prune",
     "prune_l3",
 }
-ALLOWED_STAGES = {"main_generate", "solidify_small", "l1_rerank"}
+ALLOWED_STAGES = {"main_generate", "solidify_small", "l1_rerank", "style_screen"}
 
 
 class PolicyViolation(RuntimeError):
@@ -193,6 +196,21 @@ class LLMGateway:
         except Exception:
             pass
         return []
+
+    def screen(self, prompt: str, system: str = "") -> str:
+        """Low-frequency model screen for the style knowledge base.
+
+        Prefers the small decision model; falls back to the main one when no
+        decision model is configured.  Raises when neither exists, so the
+        caller can keep the previous knowledge instead of storing raw text.
+        """
+        provider = self.decision_provider or self.main_provider
+        return self._call(
+            "style_screen",
+            provider,
+            [{"role": "user", "content": prompt}],
+            system,
+        )
 
     def _call(
         self,

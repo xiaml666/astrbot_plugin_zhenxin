@@ -28,6 +28,31 @@ class PolicyTests(unittest.TestCase):
         self.assertEqual(engine.ledger.count("l2_write"), 0)
         self.assertEqual(engine.ledger.count(), 0)
 
+    def test_style_screen_stage_is_allowed(self):
+        ledger = LLMCallLedger()
+        main = CallableProvider(lambda messages, kwargs: "unused", "main")
+        decision = CallableProvider(lambda messages, kwargs: '["对方希望回复短一点"]', "small")
+        gateway = LLMGateway(main, decision, ledger)
+        raw = gateway.screen("待审核：以后说话短一点")
+        self.assertIn("短一点", raw)
+        self.assertEqual(ledger.count("style_screen"), 1)
+        self.assertEqual(ledger.count("main_generate"), 0)
+
+    def test_engine_screen_returns_none_without_a_model(self):
+        engine, _ = make_engine()
+        self.assertIsNone(engine.screen_knowledge("pref", ["以后说话短一点"]))
+
+    def test_engine_screen_parses_the_model_output(self):
+        engine, _ = make_engine()
+        provider = CallableProvider(
+            lambda messages, kwargs: '["对方希望回复短一点"]', "small"
+        )
+        engine.gateway = LLMGateway(provider, provider, engine.ledger)
+        self.assertEqual(
+            ["对方希望回复短一点"],
+            engine.screen_knowledge("pref", ["以后说话短一点"]),
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

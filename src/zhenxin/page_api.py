@@ -14,6 +14,7 @@ import asyncio
 import inspect
 import json
 import os
+import re
 import sqlite3
 import time
 from pathlib import Path
@@ -75,7 +76,6 @@ ALLOWED_PATHS = {
     "aux.compression",
     "aux.compression_threshold",
     "aux.rhythm",
-    "aux.style",
     "aux.rhythm_postprocess",
     "aux.lexicon",
     "aux.open_loops",
@@ -96,10 +96,18 @@ ALLOWED_PATHS = {
     "memory.shallow_threshold",
     "memory.trash_ttl_days",
     "style_learning.enabled",
-    "style_learning.learn_user",
     "style_learning.online",
     "style_learning.interval_days",
     "style_learning.max_chars",
+    "style_learning.search_endpoint",
+    "style_learning.search_api_format",
+    "style_learning.search_api_key",
+    "style_learning.search_api_header",
+    "split.enabled",
+    "split.max_segments",
+    "split.min_chars",
+    "split.min_segment_chars",
+    "split.delay_s",
     "metrics.enabled",
     "metrics.input_price_per_million",
     "metrics.cached_input_price_per_million",
@@ -108,10 +116,8 @@ ALLOWED_PATHS = {
 
 _BOOL_PATHS = {p for p in ALLOWED_PATHS if p.endswith((".enabled", "shadow_mode"))} | {
     "l0.tail_injection",
-    "aux.style",
     "proactive.only_private",
     "proactive.use_llm",
-    "style_learning.learn_user",
     "style_learning.online",
 }
 _INT_PATHS = {
@@ -136,6 +142,9 @@ _INT_PATHS = {
     "aux.compression_threshold",
     "memory.top_k",
     "style_learning.max_chars",
+    "split.max_segments",
+    "split.min_chars",
+    "split.min_segment_chars",
     "proactive.min_idle_minutes",
     "proactive.max_per_day",
     "proactive.quiet_start",
@@ -167,6 +176,7 @@ _FLOAT_PATHS = {
     "memory.shallow_threshold",
     "memory.trash_ttl_days",
     "style_learning.interval_days",
+    "split.delay_s",
     "proactive.min_interval_hours",
     "proactive.active_window_hours",
 }
@@ -209,7 +219,6 @@ RECOMMENDED_VALUES = {
     "aux.topic_stack": True,
     "aux.compression": True,
     "aux.rhythm": True,
-    "aux.style": True,
     "aux.lexicon": True,
     "aux.open_loops": True,
     "l1.wake_cooldown_rounds": 8,
@@ -224,7 +233,6 @@ RECOMMENDED_VALUES = {
     "memory.exact_boost": 0.12,
     "memory.address_boost": 0.22,
     "style_learning.enabled": True,
-    "style_learning.learn_user": True,
     "style_learning.online": True,
     "proactive.enabled": False,
     "proactive.min_idle_minutes": 180,
@@ -260,7 +268,6 @@ TAKEOVER_VALUES = {
     "memory.exact_boost": 0.12,
     "memory.address_boost": 0.22,
     "style_learning.enabled": True,
-    "style_learning.learn_user": True,
     "style_learning.online": True,
     "proactive.enabled": False,
     "proactive.min_idle_minutes": 240,
@@ -274,7 +281,6 @@ TAKEOVER_VALUES = {
     "aux.topic_stack": True,
     "aux.compression": True,
     "aux.rhythm": True,
-    "aux.style": True,
     "aux.lexicon": True,
     "aux.open_loops": True,
 }
@@ -334,6 +340,8 @@ class PluginPageAPI:
         self.engine = engine
         self.config = config
         self._scan_cache: tuple[float, dict[str, Any]] | None = None
+        self._alert_checked_at = 0.0
+        self._scan_fingerprint = ""
 
     def register(self) -> None:
         register = getattr(self.plugin.context, "register_web_api", None)
@@ -354,6 +362,7 @@ class PluginPageAPI:
             ("memory/clear", self.memory_clear, ["POST"], "Zhenxin memory clear"),
             ("style", self.style_status, ["GET"], "Zhenxin style knowledge"),
             ("style/learn", self.style_learn, ["POST"], "Zhenxin style learn"),
+            ("style/search-test", self.style_search_test, ["POST"], "Zhenxin search API test"),
             ("proactive", self.proactive_status, ["GET"], "Zhenxin proactive status"),
             ("proactive/test", self.proactive_test, ["POST"], "Zhenxin proactive test"),
             ("health", self.health_scan, ["GET"], "Zhenxin plugin conflict scan"),
@@ -401,6 +410,20 @@ class PluginPageAPI:
             return default
 
     # ---------------------------------------------------------------- basics
+    def _public_config(self) -> dict[str, Any]:
+        """Config for the page, with the search API key masked.
+
+        The endpoint/format are safe to show and edit; the key must never be
+        sent back to the browser.  ``search_api_key_set`` lets the page show
+        "已保存" without exposing the value.
+        """
+        data = self.engine.cfg.to_dict()
+        style = data.get("style_learning")
+        if isinstance(style, dict):
+            style["search_api_key_set"] = bool(style.get("search_api_key"))
+            style["search_api_key"] = ""
+        return data
+
     async def _persist_config(self) -> None:
         for name in ("save_config_async", "save_config"):
             save = getattr(self.config, name, None)
@@ -432,7 +455,13 @@ class PluginPageAPI:
             await self._persist_config()
         except Exception as exc:  # noqa: BLE001
             return {"ok": False, "message": f"写入配置失败：{exc}"}
-        return {"ok": True, "saved": clean, "config": self.engine.cfg.to_dict()}
+        # Never echo the search API key back, not even in the "saved" echo.
+        saved = {
+            path: value
+            for path, value in clean.items()
+            if path != "style_learning.search_api_key"
+        }
+        return {"ok": True, "saved": saved, "config": self._public_config()}
 
     def _apply(self, path: str, value: Any) -> None:
         _set_path(self.engine.cfg, path, value)
@@ -446,8 +475,6 @@ class PluginPageAPI:
             self.engine.topic.enabled = bool(value)
         elif path == "aux.rhythm":
             self.engine.rhythm.enabled = bool(value)
-        elif path == "aux.style":
-            self.engine.style.enabled = bool(value)
         elif path == "aux.lexicon":
             self.engine.lexicon.enabled = bool(value)
         elif path == "aux.open_loops":
@@ -582,6 +609,12 @@ class PluginPageAPI:
             if proactive:
                 values["proactive.enabled"] = False
                 messages.append("已有主动消息插件，推荐关闭真心的主动消息")
+            splitters = [
+                item for item in conflicts if "split" in str(item.get("name") or "").lower()
+            ]
+            if splitters:
+                values["split.enabled"] = False
+                messages.append("已有对话分段插件，推荐关闭真心的对话分段，避免一条回复被拆两次")
             memoryish = [item for item in conflicts if item.get("memoryish")]
             if memoryish:
                 values["memory.top_k"] = 2
@@ -614,7 +647,7 @@ class PluginPageAPI:
             "applied": True,
             "mode": mode,
             "values": applied,
-            "config": self.engine.cfg.to_dict(),
+            "config": self._public_config(),
             "messages": messages,
             "conflicts": [
                 {
@@ -643,7 +676,21 @@ class PluginPageAPI:
             return float(raw)
         if path == "l3.host_context_mode":
             value = str(raw)
-            if value not in ("replace", "prepend", "off"):
+            if value not in ("replace", "off"):
+                raise ValueError
+            return value
+        if path == "style_learning.search_api_format":
+            value = str(raw or "html").strip().lower()
+            if value not in ("html", "json"):
+                raise ValueError
+            return value
+        if path == "style_learning.search_endpoint":
+            return str(raw or "").strip()[:500]
+        if path == "style_learning.search_api_key":
+            return str(raw or "").strip()[:500]
+        if path == "style_learning.search_api_header":
+            value = (str(raw or "").strip() or "Authorization")[:80]
+            if not re.fullmatch(r"[A-Za-z0-9-]+", value):
                 raise ValueError
             return value
         if path == "proactive.template":
@@ -655,7 +702,7 @@ class PluginPageAPI:
         from ._version import build_info
 
         stats = self.engine.stats(None)
-        cfg = self.engine.cfg.to_dict()
+        cfg = self._public_config()
         pools = stats.get("memory_pools", {})
         usage_rounds = int(stats.get("actual_usage_rounds", 0) or 0)
         series = self._series(30)
@@ -680,7 +727,7 @@ class PluginPageAPI:
                 "enabled": bool(self.engine.cfg.proactive.enabled),
                 **stats.get("proactive", {}),
             },
-            "conflict_alert": self.engine.db.get_state("__global__", "conflict_alert", None),
+            "conflict_alert": await asyncio.to_thread(self.check_conflicts),
             "feedback_issue_url": str(self.engine.cfg.feedback.github_issues or ""),
             "usage": {
                 "available": usage_rounds > 0,
@@ -940,7 +987,6 @@ class PluginPageAPI:
             "users": users,
             "selected": user,
             "status": status,
-            "profile": self.engine.style.describe(user) if user else "还在观察",
         }
 
     async def style_learn(self) -> dict[str, Any]:
@@ -952,14 +998,95 @@ class PluginPageAPI:
             user = users[0]["user"] if users else ""
         if not user:
             return {"ok": False, "message": "还没有可学习的对话"}
+        from ._aux.style_learning import join_note
+
+        learner = self.engine.style_learning
         try:
+            gathered = await asyncio.to_thread(learner.gather, user, online=online)
+            if not gathered.get("ok"):
+                return {"ok": False, "message": str(gathered.get("message") or "说话学习已关闭")}
+            error = str(gathered.get("error") or "")
+            pref: list[str] | None = None
+            web: list[str] | None = None
+            if gathered.get("pref"):
+                pref = await self._screen_knowledge("pref", gathered["pref"], user)
+                if pref is None:
+                    error = join_note(error, "偏好甄别失败，保留上一次结果")
+            if gathered.get("web"):
+                web = await self._screen_knowledge("web", gathered["web"], user)
+                if web is None:
+                    error = join_note(error, "网络知识甄别失败，保留上一次结果")
             result = await asyncio.to_thread(
-                self.engine.style_learning.refresh, user, online=online
+                learner.apply,
+                user,
+                pref=pref,
+                web=web,
+                error=error,
+                online=bool(gathered.get("online")),
             )
+            if pref is None and web is None:
+                result["message"] = "没有新的可学习内容（或没有可用模型），本次未写入"
+            elif not (pref or web):
+                result["message"] = "甄别后没有可写入的知识"
+            return result
         except Exception as exc:  # noqa: BLE001
             self.engine.record_error("style_learn", str(exc))
             return {"ok": False, "message": f"学习失败：{exc}"}
-        return result
+
+    async def _screen_knowledge(
+        self, kind: str, items: list[str], user: str
+    ) -> list[str] | None:
+        """Model screen for knowledge-base candidates.
+
+        Prefers the AstrBot plugin hook (host provider), falls back to the
+        engine gateway.  ``None`` means screening was impossible, so the
+        learner keeps its previous knowledge instead of storing raw text.
+        """
+        screener = getattr(self.plugin, "screen_knowledge", None)
+        if callable(screener):
+            try:
+                return await screener(kind, items, user)
+            except TypeError:
+                try:
+                    return await screener(kind, items)
+                except Exception:  # noqa: BLE001
+                    return None
+            except Exception:  # noqa: BLE001
+                return None
+        try:
+            return await asyncio.to_thread(self.engine.screen_knowledge, kind, items)
+        except Exception:  # noqa: BLE001
+            return None
+
+    async def style_search_test(self) -> dict[str, Any]:
+        """Run one search with the currently configured API (no model call)."""
+        from ._aux.style_learning import search_notes
+
+        cfg = self.engine.cfg.style_learning
+        try:
+            snippets, error = await asyncio.to_thread(
+                search_notes,
+                ("聊天 语气 自然",),
+                timeout=float(cfg.search_timeout_s),
+                endpoint=str(cfg.search_endpoint or ""),
+                api_format=str(cfg.search_api_format or "html"),
+                api_key=str(cfg.search_api_key or ""),
+                api_header=str(cfg.search_api_header or "Authorization"),
+            )
+        except Exception as exc:  # noqa: BLE001
+            return {"ok": False, "message": f"搜索失败：{exc}"}
+        return {
+            "ok": bool(snippets),
+            "count": len(snippets),
+            "snippets": snippets[:3],
+            "error": error,
+            "custom": bool(cfg.search_endpoint),
+            "message": (
+                ""
+                if snippets
+                else "没有拿到结果" + (f"：{error}" if error else "，检查地址/返回格式/Key")
+            ),
+        }
 
     # ------------------------------------------------------------ proactive
     async def proactive_status(self) -> dict[str, Any]:
@@ -1019,20 +1146,80 @@ class PluginPageAPI:
     async def health_scan(self) -> dict[str, Any]:
         try:
             payload = await asyncio.to_thread(self._scan_plugins, True)
-            alert = await asyncio.to_thread(self._update_conflict_alert, payload)
+            alert = await asyncio.to_thread(self._update_conflict_alert, payload, alert_on_first=True)
             return {**payload, "alert": alert}
         except Exception as exc:  # noqa: BLE001
             return {"ok": False, "message": f"插件体检失败：{exc}", "plugins": []}
 
-    def _scan_plugins(self, force: bool = False) -> dict[str, Any]:
+    def check_conflicts(self) -> dict[str, Any] | None:
+        """Alert immediately when the page opens, not only on the next poll.
+
+        The 60-second background tick alone is not enough: a plugin enabled
+        and then immediately followed by opening the config page would stay
+        silent until the next tick, while the 体检 tab (which scans on demand)
+        already alerted.  A cheap fingerprint of the plugin directory, metadata
+        mtimes and the persisted enable/disable list decides whether a full
+        scan is needed; at most one full scan every 15 seconds.
+        """
+        current = self.engine.db.get_state("__global__", "conflict_alert", None)
         now = time.time()
-        if not force and self._scan_cache and now - self._scan_cache[0] < 30:
-            return dict(self._scan_cache[1])
+        if now - self._alert_checked_at < 15:
+            return current
+        self._alert_checked_at = now
+        try:
+            plugins_dir = self._plugins_dir()
+            fingerprint = self._plugins_fingerprint(plugins_dir)
+            if fingerprint and fingerprint == self._scan_fingerprint:
+                return current
+            self._scan_fingerprint = fingerprint
+            alert = self._update_conflict_alert(
+                self._scan_plugins(True), alert_on_first=True
+            )
+        except Exception:  # noqa: BLE001 - the status page must never fail here
+            return current
+        return alert or self.engine.db.get_state("__global__", "conflict_alert", None)
+
+    @staticmethod
+    def _plugins_dir() -> Path:
         plugins_dir = Path(__file__).resolve().parents[3]
         if plugins_dir.name != "plugins":
             guess = Path.cwd() / "data" / "plugins"
             if guess.is_dir():
                 plugins_dir = guess
+        return plugins_dir
+
+    def _plugins_fingerprint(self, plugins_dir: Path) -> str:
+        """Cheap "did the enabled plugin set change" signature.
+
+        Reads only directory names, ``metadata.yaml`` mtimes and AstrBot's
+        persisted disabled list.  The full source scan (the expensive part) only
+        runs when this signature actually changes.
+        """
+        if not plugins_dir.is_dir():
+            return ""
+        inactive = self._inactive_plugins(plugins_dir)
+        parts: list[str] = []
+        try:
+            for child in sorted(plugins_dir.iterdir()):
+                if not child.is_dir() or child.name.startswith((".", "_")):
+                    continue
+                if child.name == PLUGIN_NAME:
+                    continue
+                meta = child / "metadata.yaml"
+                try:
+                    mtime = meta.stat().st_mtime_ns
+                except OSError:
+                    mtime = 0
+                parts.append(f"{child.name}:{mtime}:{1 if child.name in inactive else 0}")
+        except OSError:
+            return ""
+        return "|".join(parts)
+
+    def _scan_plugins(self, force: bool = False) -> dict[str, Any]:
+        now = time.time()
+        if not force and self._scan_cache and now - self._scan_cache[0] < 30:
+            return dict(self._scan_cache[1])
+        plugins_dir = self._plugins_dir()
         results: list[dict[str, Any]] = []
         inactive = self._inactive_plugins(plugins_dir)
         disabled = 0
@@ -1070,14 +1257,18 @@ class PluginPageAPI:
         return payload
 
     def _update_conflict_alert(
-        self, payload: dict[str, Any], *, baseline: bool = False
+        self,
+        payload: dict[str, Any],
+        *,
+        baseline: bool = False,
+        alert_on_first: bool = False,
     ) -> dict[str, Any] | None:
         """Compare enabled direct/warning plugins with the last scan.
 
-        The first scan only records a baseline, so an existing installation
-        does not get an alert storm.  Both the background poll and the health
-        page call this, so opening 体检与反馈 catches a plugin enabled since the
-        last poll instead of waiting for the next 60s tick.
+        The background poll records a baseline on the very first scan, so an
+        existing installation does not get an alert storm.  A *user-initiated*
+        scan (page boot / 体检与反馈) passes ``alert_on_first`` so existing
+        conflicts are shown immediately instead of looking like a silent bug.
         """
         current = [
             item
@@ -1086,16 +1277,24 @@ class PluginPageAPI:
         ]
         names = [item["name"] for item in current]
         known_raw = self.engine.db.get_state("__global__", "health_known_plugins", None)
-        if known_raw is None or baseline:
+        first = known_raw is None
+        if first:
             self.engine.db.set_state("__global__", "health_known_plugins", names)
-            return None
-        known = set(str(x) for x in (known_raw or []))
-        fresh = [item for item in current if item["name"] not in known]
-        self.engine.db.set_state("__global__", "health_known_plugins", names)
-        if not fresh:
-            return None
+            if not alert_on_first or not current:
+                return None
+            fresh = list(current)
+        else:
+            if baseline:
+                self.engine.db.set_state("__global__", "health_known_plugins", names)
+                return None
+            known = set(str(x) for x in (known_raw or []))
+            fresh = [item for item in current if item["name"] not in known]
+            self.engine.db.set_state("__global__", "health_known_plugins", names)
+            if not fresh:
+                return None
         alert = {
             "at": time.time(),
+            "first": first,
             "items": [
                 {
                     "name": item["name"],
@@ -1304,7 +1503,7 @@ class PluginPageAPI:
             return {"ok": False, "message": f"重置失败：{exc}"}
         response: dict[str, Any] = {"ok": True, "scope": scope, "deleted": deleted}
         if scope == "all":
-            response["config"] = self.engine.cfg.to_dict()
+            response["config"] = self._public_config()
         return response
 
     def _delete_rows(self, table: str, user: str = "") -> int:

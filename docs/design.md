@@ -1,6 +1,6 @@
 # 真心 · 设计说明
 
-本文解释每个模块与“默认不检索”原则的对应关系，以及为什么所有更新路径都可以做到零 LLM 调用。
+本文解释每个模块与“默认不检索”原则的对应关系，以及为什么记忆/线索更新路径都可以做到零 LLM 调用。唯一的低频例外是说话偏好甄别：候选句子必须先由模型审核，才能进入知识库（见 §9.1），代价是每个用户每天最多一次小模型调用，而不是每轮一次。
 
 ## 1. 目标与非目标
 
@@ -9,7 +9,7 @@
 - 每一轮只为模型准备“足够好”的上下文，而不是“尽可能多”的上下文。
 - 大部分轮次不检索：稳定前缀 + 最近窗口 + 少量动态提示。
 - 对话越长，注入量接近常数；回复的拟人感不因轮次增加而衰减。
-- 写路径、亮度、置信度、节奏全部规则化，零 LLM 调用。
+- 写路径、亮度、置信度、节奏全部规则化，零 LLM 调用；说话偏好知识库是唯一例外，且只在低频学习时调用小模型审核。
 - 稳定前缀逐字节稳定，尽量命中服务端提示缓存。
 
 **非目标**
@@ -274,15 +274,43 @@ prefix_stable = (hash_t == hash_{t-1})
 
 每个模块都在 `begin_turn`/`complete_turn` 外侧有显式 `if` 开关，关闭后不会写库、不会注入。
 
+### 9.1 说话偏好知识库（模型甄别）
+
+0.6.6 起不再统计/模仿用户的口头禅（旧版会把一条消息中间偶然出现的“就是”写成“开口常说就是”）。
+现在只有两类候选：
+
+1. **明确偏好**：句子必须含“希望/喜欢/别/不要/叫我/说短/回复/语气…”等偏好线索，且不是反问句；
+   模型再把候选（含上一轮已确认的偏好）合并审核，改写成“对方…”或“称呼…”，拒绝口头禅统计。
+2. **论坛/聊天/社交平台常识**：只搜 V2EX、豆瓣小组、贴吧、知乎、NGA、虎扑、微博、小红书；
+   搜索结果会核对 URL 域名（`site:` 被搜索引擎忽略时直接丢弃），再做广告/SEO/英语课程规则过滤，
+   最后由同一模型剔除广告、无关内容和重复句。
+   搜索源可换成自己的 API（`style_learning.search_endpoint`）：地址支持 `{query}` / `{key}`，
+   返回格式可选 HTML 或 JSON（兼容 SearXNG / Bing / Google CSE / Tavily 的 `content`/`snippet` 等字段）；
+   API Key 只存配置，页面回包只给 `search_api_key_set`，不回显明文。
+
+**没有模型审核就不写入**：模型不可用、返回无法解析、或没有 `style_screen` 权限时，保留上一次知识库。
+知识库上限 500 字，每轮只取约 110 字放进 ephemeral；升级时 `PRAGMA user_version` 会一次性清掉
+旧版 `local`（模仿）和 `web`（仅规则过滤）行，下一次审核刷新重新写入可用内容。
+
+### 9.2 对话分段（transport-only）
+
+`split.enabled` 只改变**发送方式**：`_aux/segments.py` 把最终文本按句号/问号/感叹号/省略号/换行切开，
+引号、括号、代码块内不切，碎片合并，超过 `max_segments` 的尾部并入最后一条。
+`main.py` 的 `on_decorating_result` 先发前 N-1 条（带 `delay_s` 间隔），最后一条留在
+`result.chain` 由 AstrBot 发送。模型调用、上下文、`turns` 里的完整助手文本都不变；
+图片/语音/@/引用消息、观察模式直接跳过。它和“对话分段Pro”类插件功能重复，二者只开一个。
+
 ## 10. 策略门禁
 
 `src/zhenxin/llm.py`：
 
 ```python
 FORBIDDEN_STAGES = {"l2_write", "l0_score", "brightness", "confidence", ...}
-ALLOWED_STAGES = {"main_generate", "solidify_small", "l1_rerank"}
+ALLOWED_STAGES = {"main_generate", "solidify_small", "l1_rerank", "style_screen"}
 ```
 
+`style_screen` 只由低频说话偏好学习调用（每天最多一次偏好审核、每周一次联网审核），
+不属于每轮路径；`complete_turn` 也只统计 `solidify_small`/`l1_rerank`，不会把它算进每轮成本。
 任何调用在发出网络请求前先 `ledger.record(stage)`；禁止 stage 直接 `PolicyViolation`。这保证“新增代码不小心把 LLM 带进写路径”会在单测/首轮就炸掉，而不是悄悄产生账单。
 
 ## 11. AstrBot 适配
@@ -299,7 +327,7 @@ ALLOWED_STAGES = {"main_generate", "solidify_small", "l1_rerank"}
 
 `on_llm_response` 会读取 `LLMResponse.usage` 的 `input_other / input_cached / output`，写入 `metrics` 的 `actual_*` 字段；这是账单口径。provider 不返回 usage 时这些字段为 0，`validate_metrics.py` 会明确提示“只能看估算”。
 
-`l3.host_context_mode` 提供三种共存策略：`replace`（默认，接管最近窗口）、`prepend`（保留宿主 contexts 再追加）、`off`（完全不碰宿主 contexts，只注入稳定前缀/临时尾部）。它是冲突排查开关，不是“免费兼容”承诺。`replace` 下窗口本身按 §8.2 粗粒度回收，所以“接管”不再等于“每轮滑动、缓存全丢”。
+`l3.host_context_mode` 提供两种共存策略：`replace`（默认，接管最近窗口）、`off`（完全不碰宿主 contexts，只注入稳定前缀/临时尾部）。它是冲突排查开关，不是“免费兼容”承诺。旧版的 `prepend`（宿主 contexts + 插件窗口各发一份，token 约翻倍）已在 0.6.6 删除；老配置里残留的 `prepend` 按 `off` 处理。`replace` 下窗口本身按 §8.2 粗粒度回收，所以“接管”不再等于“每轮滑动、缓存全丢”。
 
 ## 12. 验收指标如何得到
 

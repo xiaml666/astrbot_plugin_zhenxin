@@ -214,9 +214,9 @@ class AstrBotAdapter:
             mode = self.engine.cfg.l3.host_context_mode
             if mode == "replace":
                 req.contexts = plan.recent_messages
-            elif mode == "prepend":
-                req.contexts = list(contexts) + list(plan.recent_messages)
-            # off: deliberately leave the host's own contexts untouched.
+            # off (and a legacy "prepend" value from an old config) leaves the
+            # host's own contexts untouched: duplicating them cost roughly 2x
+            # the context tokens, so that mode was removed in 0.6.6.
         except Exception:
             log.warning("could not set req.contexts")
         try:

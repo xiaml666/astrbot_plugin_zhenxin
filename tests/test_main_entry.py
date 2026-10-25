@@ -42,6 +42,13 @@ class _Filter:
         return deco
 
     @staticmethod
+    def on_decorating_result(*args, **kwargs):
+        def deco(fn):
+            return fn
+
+        return deco
+
+    @staticmethod
     def llm_tool(*args, **kwargs):
         def deco(fn):
             return fn
@@ -110,6 +117,7 @@ class MainEntryTests(unittest.TestCase):
             self.assertTrue(hasattr(plugin, "zhenxin_on_message"))
             self.assertTrue(hasattr(plugin, "zhenxin_on_llm_request"))
             self.assertTrue(hasattr(plugin, "zhenxin_on_llm_response"))
+            self.assertTrue(hasattr(plugin, "zhenxin_on_decorating_result"))
             self.assertTrue(hasattr(plugin, "zhenxin_recall"))
             self.assertTrue(hasattr(plugin, "zhenxin_remember"))
 

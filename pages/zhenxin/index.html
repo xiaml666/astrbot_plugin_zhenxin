@@ -319,7 +319,7 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
       <div>
         <div class="kicker" id="page-kicker">ZHENXIN · CONTROL CENTER</div>
         <h1 id="page-title">运行总览</h1>
-        <p class="sub" id="page-sub">上下文、记忆、说话习惯与花费状态集中在这里；刷新只读本地数据库。</p>
+        <p class="sub" id="page-sub">上下文、记忆、说话偏好与花费状态集中在这里；刷新只读本地数据库。</p>
       </div>
       <button class="refresh" id="refresh" title="重新读取数据库里的实时状态"><span class="r">⟳</span>刷新状态</button>
     </div>
@@ -481,33 +481,47 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
 
     <section id="tab-voice">
       <h1>说话与主动</h1>
-      <p class="sub">一边模仿你本人的句长、语气词、表情和追问习惯，一边周期性从网络补充聊天知识；主动消息也放在这里，方便和说话风格一起调。</p>
+      <p class="sub">不再模仿你的口头禅。真心只学你明确说过的偏好（怎么称呼、说短还是说细、要不要追问），再周期性地去论坛/聊天/社交平台补一点真人聊天的常识；进入知识库前会先让模型甄别，广告和无关内容会被剔除。长回复还可以拆成几条发出去，更像真人连发。</p>
       <div class="card">
-        <h2>像真人一样说话</h2>
-        <p class="lead">知识库最多 500 字，每轮只取其中约 110 字放进请求末尾，不会把上下文撑长；学习过程不调用主模型。</p>
-        <div class="row"><div class="txt"><b>启用说话学习</b>
-          <p>关闭后不再学习，也不再把“像真人”的提示带进请求。</p></div>
+        <h2>越聊越合拍</h2>
+        <p class="lead">知识库最多 500 字，每轮只取其中约 110 字放进请求末尾，不会把上下文撑长。每轮不调用模型；只有低频学习时用小模型甄别一次。</p>
+        <div class="row"><div class="txt"><b>启用说话偏好学习</b>
+          <p>关闭后不再学习，也不再把“说话偏好”的提示带进请求。</p></div>
           <div class="ctl"><label class="switch"><input type="checkbox" data-path="style_learning.enabled"><span></span></label></div></div>
-        <div class="row"><div class="txt"><b>基础风格自适应</b>
-          <p>老版的句长/表情/追问统计；关掉就只保留下面的真人知识库。</p></div>
-          <div class="ctl"><label class="switch"><input type="checkbox" data-path="aux.style"><span></span></label></div></div>
-        <div class="row"><div class="txt"><b>模仿用户本人</b>
-          <p>从你最近的消息里统计句长、口头禅、笑声、标点、表情和提问频率。</p></div>
-          <div class="ctl"><label class="switch"><input type="checkbox" data-path="style_learning.learn_user"><span></span></label></div></div>
         <div class="row"><div class="txt"><b>周期性从网络学习</b>
-          <p>默认 7 天一次，搜索公开的聊天习惯资料，用规则提炼成短句；网络失败会保留上一次结果。</p></div>
+          <p>默认 7 天一次，只搜论坛/聊天/社交平台（V2EX、豆瓣小组、贴吧、知乎、NGA、虎扑、微博、小红书）。广告、SEO 和英语学习页先由规则剔除，再由模型甄别；网络失败会保留上一次结果。</p></div>
           <div class="ctl"><label class="switch"><input type="checkbox" data-path="style_learning.online"><span></span></label></div></div>
         <div class="row"><div class="txt"><b>联网学习间隔</b>
           <p>单位：天。太频繁没必要，7–14 天足够。</p></div>
           <div class="ctl"><input type="number" min="1" max="30" step="1" data-path="style_learning.interval_days"></div></div>
+        <div class="row"><div class="txt"><b>搜索 API 地址（可选）</b>
+          <p>留空就用内置的公开搜索。可以填 SearXNG、Bing、Google CSE、Tavily 等接口；用 <code>{query}</code> 表示 URL 编码后的关键词，<code>{key}</code> 表示 URL 编码后的 API Key。</p></div>
+          <div class="ctl" style="flex:1 1 320px"><input type="text" data-path="style_learning.search_endpoint" maxlength="500" placeholder="https://searx.example.com/search?q={query}&format=json" style="width:100%"></div></div>
+        <div class="row"><div class="txt"><b>搜索 API 返回格式</b>
+          <p>HTML 用内置解析；JSON 会从 snippet / content / description / summary 等字段提取摘要。</p></div>
+          <div class="ctl"><select data-path="style_learning.search_api_format"><option value="html">HTML</option><option value="json">JSON</option></select></div></div>
+        <div class="row"><div class="txt"><b>搜索 API Key（可选）</b>
+          <p id="search-key-state">未设置。Key 只保存在插件配置里，不会回显到页面。</p></div>
+          <div class="ctl" style="flex:1 1 320px;display:flex;gap:8px">
+            <input type="password" id="search-key" maxlength="500" placeholder="留空 = 不修改" autocomplete="off" style="flex:1">
+            <button class="btn small" id="search-key-clear" type="button">清除</button>
+          </div></div>
+        <div class="row"><div class="txt"><b>Key 请求头</b>
+          <p>默认 Authorization，会自动加 Bearer 前缀；有的接口用 X-API-KEY。</p></div>
+          <div class="ctl"><input type="text" data-path="style_learning.search_api_header" maxlength="80" placeholder="Authorization"></div></div>
+        <div class="tools" style="margin-top:8px">
+          <button class="btn small" id="search-test" type="button">测试搜索 API</button>
+          <span class="hintline">用已保存的配置搜一条，不会写入知识库，也不调用模型；改了参数请先保存。</span>
+        </div>
+        <p class="hintline" id="search-test-result"></p>
         <div class="row"><div class="txt"><b>知识库字数上限</b>
           <p>超过会自动删减；默认 500 字。</p></div>
           <div class="ctl"><input type="number" min="200" max="800" step="50" data-path="style_learning.max_chars"></div></div>
         <div class="tools" style="margin-top:12px">
           <select id="style-user" title="选择要查看的会话"></select>
-          <button class="btn" id="style-local">立即学习一次（本地）</button>
+          <button class="btn" id="style-local">立即学一次（甄别后写入）</button>
         </div>
-        <p class="hintline">联网学习会按上面的间隔自动进行，不需要手动点；网络失败会保留上一次知识库。</p>
+        <p class="hintline">联网学习会按上面的间隔自动进行；没有可用模型时不会写入任何知识，避免把广告或误判塞进知识库。</p>
         <div class="progress"><i id="kb-bar"></i></div>
         <div class="hintline" id="kb-meta">还没有学习结果，先聊几句，后台会自动学习。</div>
         <details class="adv" id="kb-details">
@@ -516,6 +530,24 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
           <div class="src" id="kb-src"></div>
           <p class="hintline" id="kb-error"></p>
         </details>
+      </div>
+
+      <div class="card">
+        <h2>对话分段</h2>
+        <p class="lead">把一条长回复按句子拆成几条短消息发出去，像真人在连发。只改变发送方式：不增加模型调用，也不会让上下文变长；关闭时仍然一条发完。</p>
+        <div class="row"><div class="txt"><b>启用对话分段</b>
+          <p>默认关闭。只有纯文字的模型回复会分段；图片、语音、@ 和引用消息不参与。</p></div>
+          <div class="ctl"><label class="switch"><input type="checkbox" data-path="split.enabled"><span></span></label></div></div>
+        <div class="row"><div class="txt"><b>最多拆成几条</b>
+          <p>超过上限的句子会合并到最后一条，不会丢字。</p></div>
+          <div class="ctl"><input type="number" min="2" max="5" step="1" data-path="split.max_segments"></div></div>
+        <div class="row"><div class="txt"><b>短于多少字不拆</b>
+          <p>默认 40 字。一两句话的短回复保持一条，避免把“嗯，好”也拆开。</p></div>
+          <div class="ctl"><input type="number" min="10" max="200" step="10" data-path="split.min_chars"></div></div>
+        <div class="row"><div class="txt"><b>每段之间停顿</b>
+          <p>单位：秒，默认 0.6；0 表示连续发出。</p></div>
+          <div class="ctl"><input type="number" min="0" max="3" step="0.1" data-path="split.delay_s"></div></div>
+        <p class="hintline">引号、括号和代码块里的句号不会被切断；太短的句子会和相邻段合并。和“对话分段Pro”这类插件二选一，同时开会把一条回复拆两次。</p>
       </div>
 
       <div class="card">
@@ -695,9 +727,9 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
       <div class="card"><h2>长期记忆</h2>
         <p class="lead">清空记忆库（“不吃香菜”“养了猫叫团子”这类），包括回收池和关键词痕迹。</p>
         <button class="btn danger" data-reset="memory">清空记忆库</button></div>
-      <div class="card"><h2>说话习惯与主动消息记录</h2>
-        <p class="lead">清空学到的说话知识库和主动消息发送记录，下一条消息重新开始学。</p>
-        <button class="btn danger" data-reset="style">清空说话学习</button></div>
+      <div class="card"><h2>说话偏好与主动消息记录</h2>
+        <p class="lead">清空学到的说话偏好知识和主动消息发送记录，下一轮重新开始学。</p>
+        <button class="btn danger" data-reset="style">清空说话偏好</button></div>
       <div class="card"><h2>花费与错误统计</h2>
         <p class="lead">清空花费曲线、轮次记录和错误计数，方便从今天重新观察。</p>
         <button class="btn danger" data-reset="metrics">清空统计</button></div>
@@ -741,6 +773,7 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
     series: [], facts: [], traces: [], archivedTotal: 0, pools: {}, dates: [],
     mem: { view: "day", date: "", pool: "" }, lastBoost: null,
     style: { users: [], selected: "" }, dirty: false, build: {}, usage: {}, proactive: null,
+    clearSearchKey: false,
     lastScan: null, feedbackIssueUrl: "https://github.com/xiaml666/astrbot_plugin_zhenxin/issues/new",
     lastFeedbackText: "", lastFeedbackUrl: ""
   };
@@ -819,13 +852,13 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
     $$("aside nav button").forEach((b) => b.classList.toggle("on", b === btn));
     $$("main section").forEach((s) => s.classList.toggle("on", s.id === "tab-" + btn.dataset.tab));
     const meta = {
-      behavior: ["运行总览", "上下文、记忆、说话习惯与花费状态集中在这里；刷新只读本地数据库。", "ZHENXIN · CONTROL CENTER"],
+      behavior: ["运行总览", "上下文、记忆、说话偏好与花费状态集中在这里；刷新只读本地数据库。", "ZHENXIN · CONTROL CENTER"],
       chat: ["对话设置", "推荐组合置顶：接管前查冲突，推荐设置按已装插件自动适配，默认回到刚安装状态。", "CHAT · CONTEXT CONTROL"],
       memory: ["记忆花园", "按时间浏览记忆；滚轮缩放整张点阵、拖空白处平移，点节点可加深或减轻。", "MEMORY · RETRIEVAL & FORGETTING"],
-      voice: ["说话与主动", "模仿用户 + 周期联网学习，知识库默认收起；主动消息也在这里调。", "STYLE · HUMAN-LIKE SPEECH"],
+      voice: ["说话与主动", "只学你明确说过的偏好 + 论坛/聊天平台的真人常识，进入知识库前先由模型甄别；对话分段和主动消息也在这里调。", "STYLE · PREFERENCES"],
       health: ["体检与反馈", "只扫描当前启用的插件；媒体类插件不计入上下文冲突。", "HEALTH · COMPATIBILITY"],
       advanced: ["高级设置", "检索权重、遗忘周期和换线索节奏。", "ADVANCED · WEIGHTS & CYCLE"],
-      reset: ["重置", "清理对话状态、记忆、说话学习或统计。", "RESET · MAINTENANCE"],
+      reset: ["重置", "清理对话状态、记忆、说话偏好或统计。", "RESET · MAINTENANCE"],
     }[btn.dataset.tab];
     if (meta) {
       $("#page-title").textContent = meta[0];
@@ -898,6 +931,58 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
     });
     syncLabels();
   }
+  function renderSearchKeyState() {
+    const label = $("#search-key-state");
+    const clear = $("#search-key-clear");
+    if (!label) return;
+    const saved = Boolean(get("style_learning.search_api_key_set", false));
+    if (state.clearSearchKey) {
+      label.textContent = "保存后会清除已保存的 Key。";
+    } else {
+      label.textContent = saved
+        ? "已保存一个 Key（不会回显）；留空保存表示不修改。"
+        : "未设置（可选）。Key 只保存在插件配置里，不会回显到页面。";
+    }
+    if (clear) clear.disabled = !saved && !state.clearSearchKey;
+  }
+  $("#search-key-clear")?.addEventListener("click", () => {
+    state.clearSearchKey = true;
+    const input = $("#search-key");
+    if (input) input.value = "";
+    renderSearchKeyState();
+    markDirty();
+  });
+  $("#search-test")?.addEventListener("click", async () => {
+    const btn = $("#search-test");
+    const out = $("#search-test-result");
+    const old = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "搜索中…";
+    out.textContent = "正在用当前配置搜索…";
+    try {
+      // Uses the saved config; the hint above tells users to save first.
+      const data = await callPost("page/style/search-test", {});
+      if (data && data.ok) {
+        const snippets = data.snippets || [];
+        out.textContent = data.count
+          ? "拿到 " + data.count + " 条结果" + (data.custom ? "（自定义 API）" : "（内置搜索）") +
+            (data.error ? "；提示：" + data.error : "") +
+            (snippets.length ? "；例如：" + snippets[0] : "")
+          : "搜索成功但没有解析到可用结果" + (data.error ? "：" + data.error : "") +
+            "。检查返回格式是否选对（HTML/JSON）。";
+        out.style.color = data.count ? "var(--good)" : "var(--warn)";
+      } else {
+        out.textContent = (data && data.message) || "搜索失败";
+        out.style.color = "var(--warn)";
+      }
+    } catch (e) {
+      out.textContent = "搜索失败：" + e.message;
+      out.style.color = "var(--warn)";
+    } finally {
+      btn.disabled = false;
+      btn.textContent = old;
+    }
+  });
   function syncLabels() {
     $("#v-l0").textContent = get("l0.inject", 3);
     $("#v-recent").textContent = get("l3.recent_turns", 8);
@@ -926,6 +1011,7 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
     $("#ver").title = "版本来源：" + (state.build.source || "metadata.yaml");
     $("#memcount").textContent = fmt(state.health.facts || 0);
     bindConfig();
+    renderSearchKeyState();
     renderRealtime();
     renderConflictAlert(data.conflict_alert);
     $("#save").disabled = true;
@@ -937,7 +1023,7 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
     const box = $("#conflict-alert");
     if (!alert || !(alert.items || []).length) { box.hidden = true; return; }
     const items = alert.items || [];
-    $("#conflict-title").textContent = "检测到新启用的插件";
+    $("#conflict-title").textContent = alert.first ? "发现可能冲突的插件" : "检测到新启用的插件";
     $("#conflict-text").textContent = items.map((item) =>
       (item.display || item.name) + "（" + (item.severity === "direct" ? "直接冲突" : "需注意") + "）"
     ).join("、") + "。如果发现记忆重复、回复变慢或变贵，可到这里调整接管方式或停用其中一个。";
@@ -1027,13 +1113,14 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
       linkRow("▤", "SQLite 数据库", h.db_ok ? (h.db_kb + " KB · WAL") : "不可用", h.db_ok ? "正常" : "异常", h.db_ok ? "" : "bad") +
       linkRow("◈", "向量后端", String(state.scorerName || "本地哈希"), "已就绪", "正常") +
       linkRow("⚡", "写入路径", "L2 规则蒸馏，不允许调用模型", num(m.l2_llm_calls, 0) === 0 ? "零调用" : "有调用", num(m.l2_llm_calls, 0) === 0 ? "" : "bad") +
-      linkRow("◌", "说话学习", get("style_learning.online", true) ? "每隔 " + get("style_learning.interval_days", 7) + " 天自动联网" : "仅本地学习", get("style_learning.enabled", true) ? "自动" : "关闭", get("style_learning.enabled", true) ? "" : "warn") +
+      linkRow("◌", "说话偏好", get("style_learning.online", true) ? "每隔 " + get("style_learning.interval_days", 7) + " 天甄别一次网络常识" : "只学本人偏好", get("style_learning.enabled", true) ? "自动" : "关闭", get("style_learning.enabled", true) ? "" : "warn") +
+      linkRow("▤", "对话分段", get("split.enabled", false) ? "最多 " + get("split.max_segments", 3) + " 条 · 间隔 " + num(get("split.delay_s", .6), .6) + " 秒" : "关闭，一条发完", get("split.enabled", false) ? "已开启" : "关闭", get("split.enabled", false) ? "" : "warn") +
       linkRow("✉", "主动消息", get("proactive.enabled", false) ? "私聊 / 静默时段 / 每日上限" : "默认关闭，不打扰", get("proactive.enabled", false) ? "已开启" : "关闭", get("proactive.enabled", false) ? "" : "warn");
     const cycleDays = get("memory.cycle_days", 14);
     const proactive = get("proactive.enabled", false);
     $("#rhythm").innerHTML =
       linkRow("◷", "记忆遗忘周期", "每 " + cycleDays + " 天评估珍藏 / 浅忆 / 回收", "运行中") +
-      linkRow("↻", "说话知识库", "每 " + get("style_learning.interval_days", 7) + " 天自动更新，上限 " + get("style_learning.max_chars", 500) + " 字", get("style_learning.online", true) ? "自动" : "本地") +
+      linkRow("↻", "说话知识库", "每 " + get("style_learning.interval_days", 7) + " 天甄别更新，上限 " + get("style_learning.max_chars", 500) + " 字", get("style_learning.online", true) ? "自动" : "仅偏好") +
       linkRow("✉", "主动消息节奏", proactive ? ("空闲 " + get("proactive.min_idle_minutes", 180) + " 分钟后，每天最多 " + get("proactive.max_per_day", 2) + " 条") : "未开启", proactive ? "待触发" : "关闭", proactive ? "" : "warn") +
       linkRow("◷", "最近一轮", whenRound, h.last_error ? "有错误" : "正常", h.last_error ? "bad" : "");
     const modeText = shadow ? "观察模式" : "生效中";
@@ -1057,6 +1144,14 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
     });
     const host = get("l3.host_context_mode");
     if (host !== undefined) values["l3.host_context_mode"] = host;
+    // The API key is never echoed by the server.  Only send it when the user
+    // typed a new one, or explicitly asked to clear the saved key.
+    const keyInput = $("#search-key");
+    if (keyInput) {
+      const key = keyInput.value.trim();
+      if (key) values["style_learning.search_api_key"] = key;
+      else if (state.clearSearchKey) values["style_learning.search_api_key"] = "";
+    }
     return values;
   }
   $("#save").addEventListener("click", async () => {
@@ -1066,12 +1161,17 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
     try {
       const data = await callPost("page/config", { values });
       state.config = (data && data.config) || state.config;
+      state.clearSearchKey = false;
+      const keyField = $("#search-key");
+      if (keyField) keyField.value = "";
       bindConfig();
+      renderSearchKeyState();
       // Round-trip verification: a stale server-side value used to silently
       // turn "线索放末尾" back off right after saving.
       const bad = [];
       Object.keys(values).forEach((path) => {
         if (path === "l0.inject") return; // server clamps to 1..slots
+        if (path === "style_learning.search_api_key") return; // never echoed
         const got = get(path);
         if (JSON.stringify(got) !== JSON.stringify(values[path])) bad.push(path);
       });
@@ -1107,6 +1207,7 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
     }
     state.config = (data && data.config) || state.config;
     bindConfig();
+    renderSearchKeyState();
     renderRealtime();
     if (state.proactive) loadProactive();
     const message = ((data && data.messages) || []).join("；") || "设置已应用";
@@ -1698,20 +1799,20 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
         : '<option value="">还没有对话</option>';
       select.onchange = () => { state.style.selected = select.value; loadStyle(); };
       const kb = status.knowledge || "";
-      $("#kb-box").textContent = kb || "（空）还没有学习结果。先聊几句，再点“立即从本地对话学习”。";
+      $("#kb-box").textContent = kb || "（空）还没有学习结果。先聊几句，或点“立即学一次”。";
       const max = num(status.max_chars, 500), chars = num(status.chars, kb.length);
       $("#kb-bar").style.width = Math.min(100, Math.round(chars / max * 100)) + "%";
       $("#kb-chars").textContent = chars;
       $("#kb-max").textContent = max;
-      $("#kb-meta").textContent = "会话：" + (status.user || "—") + " · " + chars + " / " + max + " 字 · 最近自动学习 " + when(status.updated_at) +
-        " · 下次本地 " + (status.next_at ? when(status.next_at) : "待触发") +
+      $("#kb-meta").textContent = "会话：" + (status.user || "—") + " · " + chars + " / " + max + " 字 · 最近学习 " + when(status.updated_at) +
+        " · 下次偏好 " + (status.next_at ? when(status.next_at) : "待触发") +
         " · 下次联网 " + (status.online_next_at ? when(status.online_next_at) : "待触发");
       $("#kb-src").innerHTML = Object.keys(status.sources || {}).map((key) =>
         '<span class="tag' + (key === "web" ? " web" : "") + '">' +
-        (key === "web" ? "网络知识" : key === "seed" ? "内置常识" : "本人习惯") +
+        (key === "web" ? "网络常识" : key === "seed" ? "内置常识" : "本人偏好") +
         " · " + (status.sources[key].chars || 0) + " 字</span>"
       ).join("") || '<span class="tag">还没有来源</span>';
-      $("#kb-error").textContent = status.last_error ? "上次联网学习失败：" + status.last_error : "";
+      $("#kb-error").textContent = status.last_error ? "上次学习提示：" + status.last_error : "";
       $("#kb-error").style.color = status.last_error ? "var(--warn)" : "var(--muted)";
     } catch (e) { $("#kb-meta").textContent = "读取失败：" + e.message; }
   }
@@ -1719,7 +1820,7 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
     const user = state.style.selected || ((state.style.users[0] || {}).user || "");
     if (!user) { toast("还没有可学习的对话"); return; }
     const btn = $("#style-local");
-    btn.disabled = true; const old = btn.textContent; btn.textContent = "学习中…";
+    btn.disabled = true; const old = btn.textContent; btn.textContent = "甄别中…";
     try {
       const data = await callPost("page/style/learn", { user, online: false });
       if (data && data.status) {
@@ -1727,9 +1828,9 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
         $("#kb-box").textContent = s.knowledge || "（空）";
         $("#kb-bar").style.width = Math.min(100, Math.round((s.chars || 0) / (s.max_chars || 500) * 100)) + "%";
         $("#kb-meta").textContent = "会话：" + (s.user || user) + " · " + (s.chars || 0) + " / " + (s.max_chars || 500) + " 字 · 最近学习 " + when(s.updated_at);
-        $("#kb-error").textContent = data.error ? "联网搜索提示：" + data.error : "";
+        $("#kb-error").textContent = data.error ? "学习提示：" + data.error : "";
       }
-      toast("本地学习完成");
+      toast((data && data.message) || (data && data.ok ? "已按偏好更新知识库" : "没有写入"));
       loadStyle();
     } catch (e) { toast("学习失败：" + e.message); }
     finally { btn.disabled = false; btn.textContent = old; }
@@ -1905,9 +2006,9 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
   const RESET_CONFIRM = {
     conversation: "重置所有会话的对话状态？最近窗口、线索、话题栈和固化路径会清空，长期记忆保留。",
     memory: "清空全部长期记忆（包括回收池和关键词痕迹）？这个操作不能撤销。",
-    style: "清空说话知识库和主动消息记录？下一条消息会重新开始学。",
+    style: "清空说话偏好知识和主动消息记录？下一轮重新开始学。",
     metrics: "清空花费与错误统计？真实对话不受影响。",
-    all: "全部恢复初始？对话状态、长期记忆、说话习惯、统计和配置都会重置，不能撤销。"
+    all: "全部恢复初始？对话状态、长期记忆、说话偏好、统计和配置都会重置，不能撤销。"
   };
   $$("button[data-reset]").forEach((btn) => {
     btn.addEventListener("click", async () => {
@@ -1960,6 +2061,10 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13px}
     }
     try {
       const status = await loadStatus(false);
+      // Fill the 体检 tab and make sure a just-enabled conflicting plugin pops
+      // up immediately on entry (the backend status check covers the banner;
+      // this pre-fills the scan list so the tab is not empty).
+      await runScan();
       const mode = (status.config || {}).shadow_mode;
       $("#dock-hint").textContent = mode
         ? "当前是观察模式。改动会在下一轮生效，不需要重启"

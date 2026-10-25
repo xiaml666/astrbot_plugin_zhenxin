@@ -82,13 +82,14 @@ class ZhenxinPlugin(Star):
         stats = self.engine.stats(user_key)
         currency = stats.get("actual_currency", "CNY")
         pools = stats.get("memory_pools", {})
+        preference = self.engine.style_learning.status(user_key)
         yield event.plain_result(
             "真心状态 v" + VERSION + "\n"
             f"轮次：{stats.get('rounds', 0)}  L1 唤醒：{stats.get('wake_rate', 0):.1%}\n"
             f"前缀末20稳定：{stats.get('prefix_stable_last20', 0):.1%}  L0：{stats.get('l0_chars_max', 0)} 字\n"
             f"记忆：周期 {pools.get('cycle', 0)} / 珍藏 {pools.get('treasure', 0)}"
             f" / 浅忆 {pools.get('shallow', 0)} / 回收 {pools.get('trash', 0)}\n"
-            f"风格：{self.engine.style.describe(user_key)}\n"
+            f"说话偏好：{int(preference.get('chars', 0) or 0)} / {int(preference.get('max_chars', 0) or 0)} 字\n"
             f"真实 usage：{stats.get('actual_usage_rounds', 0)}/{stats.get('rounds', 0)} 轮  "
             f"{currency} {stats.get('actual_cost', 0):.4f}"
         )
@@ -104,7 +105,90 @@ class ZhenxinPlugin(Star):
 
     @filter.on_llm_response(priority=100)
     async def zhenxin_on_llm_response(self, event: AstrMessageEvent, resp):
+        try:
+            setattr(event, "zhenxin_is_llm_reply", True)
+        except Exception:
+            pass
         await self.adapter.on_llm_response(event, resp)
+
+    @filter.on_decorating_result(priority=-100_000_000_000_000_000)
+    async def zhenxin_on_decorating_result(self, event: AstrMessageEvent):
+        """Optional reply segmentation ("对话分段").
+
+        AstrBot sends the last component list itself; we send the earlier
+        bubbles here and leave the final one in ``result.chain``.  Rules:
+        transport only, no model call; only plain-text LLM replies; images,
+        voice, @ and reply-quotes are never touched.
+        """
+        cfg = self.engine.cfg.split
+        if not cfg.enabled:
+            return
+        user_key = self.adapter.user_key(event)
+        if self.adapter.shadow_for(user_key):
+            return
+        try:
+            result = event.get_result()
+        except Exception:
+            return
+        if result is None or not getattr(result, "chain", None):
+            return
+        if getattr(result, "zhenxin_split_done", False):
+            return
+        checker = getattr(result, "is_model_result", None)
+        is_model = False
+        if callable(checker):
+            try:
+                is_model = bool(checker())
+            except Exception:
+                is_model = False
+        if not is_model and not bool(getattr(event, "zhenxin_is_llm_reply", False)):
+            return
+        try:
+            from astrbot.api.message_components import Plain  # type: ignore
+        except Exception:
+            return
+        chain = list(result.chain)
+        if not chain or any(not isinstance(component, Plain) for component in chain):
+            return
+        # We send the first bubbles ourselves and rewrite the chain for the
+        # final one.  If the chain cannot be rewritten, doing nothing is safer
+        # than sending the first bubble twice.
+        if not hasattr(result.chain, "clear") or not hasattr(result.chain, "append"):
+            return
+        setattr(result, "zhenxin_split_done", True)
+
+        from zhenxin._aux.segments import split_reply
+
+        text = "".join(str(getattr(component, "text", "") or "") for component in chain)
+        segments = split_reply(
+            text,
+            max_segments=int(cfg.max_segments),
+            min_chars=int(cfg.min_chars),
+            min_segment_chars=int(cfg.min_segment_chars),
+        )
+        if len(segments) <= 1:
+            return
+        delay = max(0.0, min(5.0, float(cfg.delay_s)))
+        remaining: list[str] = []
+        for index, segment in enumerate(segments[:-1]):
+            try:
+                if not await self._send_text(user_key, segment):
+                    raise RuntimeError("send_message returned false")
+            except Exception:
+                # Never drop text: merge this and every later bubble into the
+                # final one, which the framework will still send.
+                remaining = segments[index:]
+                break
+            if delay:
+                await asyncio.sleep(delay)
+        final = "".join(remaining) if remaining else segments[-1]
+        try:
+            result.chain.clear()
+            result.chain.append(Plain(final))
+        except Exception:
+            # If the result object cannot be rewritten, leave the original
+            # chain untouched: a duplicated first bubble is worse.
+            return
 
     async def terminate(self):
         task = getattr(self, "_background", None)
@@ -146,10 +230,86 @@ class ZhenxinPlugin(Star):
         cfg = self.engine.cfg.style_learning
         if not cfg.enabled:
             return
-        for user_key in self.engine.style_learning.due_users(limit=3):
-            online = bool(cfg.online) and self.engine.style_learning.online_due(user_key)
-            await asyncio.to_thread(self.engine.style_learning.refresh, user_key, online=online)
+        from zhenxin._aux.style_learning import join_note
+
+        learner = self.engine.style_learning
+        for user_key in learner.due_users(limit=3):
+            online = bool(cfg.online) and learner.online_due(user_key)
+            try:
+                gathered = await asyncio.to_thread(learner.gather, user_key, online=online)
+                error = str(gathered.get("error") or "")
+                pref: list[str] | None = None
+                web: list[str] | None = None
+                # Re-screen only when there is a *new* preference sentence;
+                # otherwise the 24h local tick would call the model for nothing.
+                if gathered.get("pref_new"):
+                    pref = await self.screen_knowledge("pref", gathered["pref"], user_key)
+                    if pref is None:
+                        error = join_note(error, "偏好甄别失败，保留上一次结果")
+                if gathered.get("web"):
+                    web = await self.screen_knowledge("web", gathered["web"], user_key)
+                    if web is None:
+                        error = join_note(error, "网络知识甄别失败，保留上一次结果")
+                await asyncio.to_thread(
+                    learner.apply,
+                    user_key,
+                    pref=pref,
+                    web=web,
+                    error=error,
+                    online=bool(gathered.get("online")),
+                )
+            except Exception:
+                try:
+                    from astrbot.api import logger  # type: ignore
+
+                    logger.exception("zhenxin style learning tick failed")
+                except Exception:
+                    pass
             await asyncio.sleep(0)
+
+    async def _host_provider(self, user_key: str = ""):
+        """The provider AstrBot is currently using, or ``None``."""
+        getter = getattr(self.context, "get_using_provider_async", None)
+        if not callable(getter):
+            return None
+        try:
+            return await getter(user_key)
+        except TypeError:
+            try:
+                return await getter()
+            except Exception:  # noqa: BLE001
+                return None
+        except Exception:  # noqa: BLE001
+            return None
+
+    async def screen_knowledge(
+        self, kind: str, items: list[str], user_key: str = ""
+    ) -> list[str] | None:
+        """Screen style-knowledge candidates; ``None`` means "keep old".
+
+        The host provider is preferred (works with AstrBot's own model config
+        even when ``main_model.enabled`` is false); the engine gateway is the
+        standalone fallback.  No model at all → nothing is written.
+        """
+        from zhenxin._aux.style_learning import SCREEN_SYSTEM, parse_screened, screen_prompt
+
+        if not items:
+            return []
+        prompt = screen_prompt(kind, items)
+        provider = await self._host_provider(user_key)
+        if provider is not None:
+            try:
+                response = await provider.text_chat(prompt=prompt, system_prompt=SCREEN_SYSTEM)
+                raw = str(getattr(response, "completion_text", "") or "")
+                parsed = parse_screened(raw)
+                if parsed is not None:
+                    return parsed
+            except Exception:  # noqa: BLE001 - fall back to the gateway
+                pass
+        try:
+            return await asyncio.to_thread(self.engine.screen_knowledge, kind, items)
+        except Exception:  # noqa: BLE001
+            return None
 
     async def _tick_conflicts(self) -> None:
         poll = getattr(self.page_api, "poll_conflicts", None)
@@ -179,15 +339,12 @@ class ZhenxinPlugin(Star):
     async def _polish_proactive(self, user_key: str, draft: str) -> str:
         """Optional: let the host model rewrite one short line.
 
-        This is the only extra model call in the whole plugin and it only runs
-        when the user explicitly enables ``proactive.use_llm``.  Any failure
-        falls back to the local draft.
+        Only runs when the user explicitly enables ``proactive.use_llm``.  Any
+        failure falls back to the local draft.  (The other optional model call
+        in the plugin is the low-frequency style-knowledge screen.)
         """
         try:
-            getter = getattr(self.context, "get_using_provider_async", None)
-            if not callable(getter):
-                return ""
-            provider = await getter(user_key)
+            provider = await self._host_provider(user_key)
             if provider is None:
                 return ""
             address = self.engine.facts.address(user_key)

@@ -82,15 +82,15 @@ python scripts/validate_metrics.py --db data/zhenxin.sqlite3
 l3:
   host_context_mode: "off"    # 不碰 req.contexts，只注入 L0/尾部
   # off: 最兼容，但 token 节省变小
-  # prepend: 保留宿主 contexts 再追加最近窗口，兼容但更费 token
   # replace: 默认，省钱但接管最近窗口
+  # 旧版 prepend（宿主+插件双份上下文）已删除；老配置按 off 处理
 ```
 
 其他检查点：
 
 - 真心在 `on_llm_request` 使用 `priority=-100`，尽量晚于其他注入插件；它会保留宿主 system prompt 的原文（只剥离自己上次追加的标记）。
 - 同一个 `req` 对象重复触发 hook 时不会重复追加（按 request id 去重）；Agent 多次请求会分别注入。
-- 不要同时开两个“接管上下文”的插件；如果必须共存，先用 `off`/`prepend`，再看实际 token。
+- 不要同时开两个“接管上下文”的插件；如果必须共存，先用 `off`，再看实际 token。
 
 建议做一个 **canary 群/小号**：先跑 1~2 天，再扩到主号。
 

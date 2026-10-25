@@ -367,10 +367,9 @@
         "default": "replace",
         "options": [
           "replace",
-          "prepend",
           "off"
         ],
-        "hint": "replace 省钱；off 最兼容（与别的记忆插件共存时选它）；prepend 保留宿主上下文但更费 token。"
+        "hint": "replace 省钱；off 最兼容（与别的记忆插件共存时选它）。旧版 prepend（宿主+插件双份上下文）已删除。"
       },
       "cache_ttl_seconds": {
         "description": "缓存 TTL 假设（秒）",
@@ -439,12 +438,6 @@
         "description": "回复节奏",
         "type": "bool",
         "default": true
-      },
-      "style": {
-        "description": "跟着用户的说话习惯微调",
-        "type": "bool",
-        "default": true,
-        "hint": "从长期用词、句长、表情和追问习惯里学；只收紧回复长度/表情/追问，不增加额外模型调用。"
       },
       "rhythm_postprocess": {
         "description": "节奏后处理",
@@ -625,26 +618,49 @@
     }
   },
   "style_learning": {
-    "description": "说话习惯 · 像真人一样聊天",
+    "description": "说话偏好 · 越聊越合拍",
     "type": "object",
-    "hint": "模仿用户本人 + 周期性从网络学习聊天习惯，总结成最多 500 字知识库；每轮只带一小段。",
+    "hint": "不再模仿用户的口头禅。只从用户明确说过的偏好和论坛/聊天平台的讨论里，用小模型甄别后写入最多 500 字知识库；每轮只带一小段。",
     "items": {
       "enabled": {
-        "description": "启用说话学习",
+        "description": "启用说话偏好学习",
         "type": "bool",
         "default": true,
         "obvious_hint": true
-      },
-      "learn_user": {
-        "description": "模仿用户本人",
-        "type": "bool",
-        "default": true
       },
       "online": {
         "description": "周期性联网学习",
         "type": "bool",
         "default": true,
-        "hint": "低频（默认 7 天一次）搜索公开的聊天习惯资料，规则提炼成短句；网络失败会保留上一次结果。"
+        "hint": "低频（默认 7 天一次）只搜论坛/聊天/社交平台；广告、SEO、英语学习页会在规则和模型两层被剔除。"
+      },
+      "search_endpoint": {
+        "description": "搜索 API 地址（可选）",
+        "type": "string",
+        "default": "",
+        "hint": "留空用内置的公开搜索。可填 SearXNG / Bing / Google CSE / Tavily 等接口；{query} 表示 URL 编码后的关键词，{key} 表示 URL 编码后的 API Key。"
+      },
+      "search_api_format": {
+        "description": "搜索 API 返回格式",
+        "type": "string",
+        "default": "html",
+        "options": [
+          "html",
+          "json"
+        ],
+        "hint": "html 用内置解析；json 会从 snippet/content/description/summary 等字段提取摘要。"
+      },
+      "search_api_key": {
+        "description": "搜索 API Key（可选）",
+        "type": "string",
+        "default": "",
+        "hint": "只保存在插件配置里，不会回显到页面。留空表示不使用；接口需要 query 参数时也可以在地址里用 {key}。"
+      },
+      "search_api_header": {
+        "description": "API Key 请求头",
+        "type": "string",
+        "default": "Authorization",
+        "hint": "默认 Authorization，会自动加 Bearer 前缀；有的接口用 X-API-KEY。"
       },
       "interval_days": {
         "description": "联网学习间隔（天）",
@@ -666,6 +682,60 @@
           "step": 50
         },
         "hint": "超过上限会自动删减；每轮只注入其中约 110 字，避免上下文变长。"
+      }
+    }
+  },
+  "split": {
+    "description": "对话分段 · 像真人一样连发几条",
+    "type": "object",
+    "hint": "默认关闭。只改变发送方式：把一条长回复按句子拆成几条短消息，不增加模型调用，也不会让上下文变长。图片/语音/引用消息不参与分段。",
+    "items": {
+      "enabled": {
+        "description": "启用对话分段",
+        "type": "bool",
+        "default": false,
+        "obvious_hint": true
+      },
+      "max_segments": {
+        "description": "最多拆成几条",
+        "type": "int",
+        "default": 3,
+        "slider": {
+          "min": 2,
+          "max": 5,
+          "step": 1
+        }
+      },
+      "min_chars": {
+        "description": "短于多少字不拆",
+        "type": "int",
+        "default": 40,
+        "slider": {
+          "min": 10,
+          "max": 200,
+          "step": 10
+        }
+      },
+      "min_segment_chars": {
+        "description": "每段少于多少字就和相邻段合并",
+        "type": "int",
+        "default": 8,
+        "slider": {
+          "min": 2,
+          "max": 30,
+          "step": 1
+        }
+      },
+      "delay_s": {
+        "description": "每段之间停顿（秒）",
+        "type": "float",
+        "default": 0.6,
+        "slider": {
+          "min": 0.0,
+          "max": 3.0,
+          "step": 0.1
+        },
+        "hint": "像真人打字一样留一点间隔；0 表示连续发出。"
       }
     }
   },

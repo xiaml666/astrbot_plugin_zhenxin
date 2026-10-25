@@ -200,6 +200,39 @@ class MemoryV2Tests(unittest.TestCase):
         engine.facts.backfill_from_turns("u1")
         self.assertEqual("", engine.facts.address("u1"))
 
+    def test_a_naming_question_is_not_the_users_address(self):
+        # Regression: "那我叫你小肥鱼好不好" used to be parsed as
+        # 称呼我“你小肥鱼好不好” because "我叫" matched mid-sentence.
+        from zhenxin._aux import zero_value
+
+        self.assertEqual([], zero_value.identity_facts("那我叫你小肥鱼好不好"))
+        engine, _ = make_engine()
+        engine.db.append_turn("u1", 1, "user", "那我叫你小肥鱼好不好", 1.0)
+        engine.facts.backfill_from_turns("u1")
+        self.assertEqual("", engine.facts.address("u1"))
+        self.assertEqual("", engine.facts.assistant_name("u1"))
+
+    def test_identity_statements_still_work(self):
+        from zhenxin._aux import zero_value
+
+        self.assertIn("老大", zero_value.identity_facts("你以后就叫我老大")[0][0])
+        self.assertEqual(
+            [("你叫“小肥鱼”", "assistant_name")],
+            zero_value.identity_facts("以后我就叫你小肥鱼"),
+        )
+        self.assertEqual([], zero_value.identity_facts("我叫外卖了"))
+        self.assertEqual([], zero_value.identity_facts("我叫你不要熬夜"))
+
+    def test_repair_identity_removes_legacy_garbage_and_keeps_real_names(self):
+        engine, _ = make_engine()
+        engine.facts.add("u1", "称呼我“你小肥鱼好不好”", "address", importance=0.98)
+        engine.facts.add("u1", "称呼我“阿岚”", "address", importance=0.98)
+        engine.db.append_turn("u1", 1, "user", "那我叫你小肥鱼好不好", 1.0)
+        removed = engine.facts.repair_identity("u1")
+        self.assertEqual(1, removed)
+        self.assertEqual("称呼我“阿岚”", engine.facts.address("u1"))
+        self.assertEqual("", engine.facts.assistant_name("u1"))
+
     def test_conflict_alert_is_mentioned_once_to_the_model(self):
         engine, _ = make_engine(**{"shortcircuit.enabled": False})
         engine.db.set_state("__global__", "conflict_alert", {
@@ -303,34 +336,296 @@ class MemoryV2Tests(unittest.TestCase):
 
 
 class StyleLearningTests(unittest.TestCase):
-    def test_local_profile_is_capped_and_injected(self):
+    def test_a_stray_filler_is_never_a_candidate(self):
+        # The reported bug: one "就是" in the middle of ordinary messages was
+        # stored as "开口常说就是".  A sentence without an explicit preference
+        # cue must never even reach the model.
+        texts = [
+            "嗯，今天就是有点累",
+            "随便聊聊吧",
+            "这个就是那个意思",
+        ]
+        self.assertEqual([], style_learning.preference_candidates(texts))
+
+    def test_explicit_preferences_are_candidates_but_questions_are_not(self):
+        texts = [
+            "以后别老追问我了",
+            "说短一点就行",
+            "那我叫你小肥鱼好不好",
+        ]
+        picked = style_learning.preference_candidates(texts)
+        self.assertIn("以后别老追问我了", picked)
+        self.assertTrue(any("短一点" in item for item in picked))
+        self.assertNotIn("那我叫你小肥鱼好不好", picked)
+
+    def test_without_a_model_nothing_is_written(self):
         engine, _ = make_engine(**{"shortcircuit.enabled": False})
-        for i in range(1, 20):
-            say(engine, "嗯，今天好累啊，不想动了哈哈", i)
+        for i in range(1, 8):
+            say(engine, "希望以后说话短一点，别老追问", i)
         result = engine.style_learning.refresh("u1", online=False)
         self.assertTrue(result["ok"])
-        status = result["status"]
-        self.assertTrue(status["knowledge"])
-        self.assertLessEqual(status["chars"], 500)
-        self.assertIn("用户习惯", status["knowledge"])
-        plan = engine.begin_turn("u1", "在吗", round_no=20)
-        self.assertIn("〔像真人一点：", plan.ephemeral_tail)
+        self.assertIn("甄别模型", result["error"])
+        self.assertNotIn("pref", result["status"]["sources"])
+        self.assertNotIn("短一点", result["status"]["knowledge"])
 
-    def test_web_snippets_are_distilled_without_a_model(self):
+    def test_screened_preferences_are_stored_and_injected(self):
+        engine, _ = make_engine(**{"shortcircuit.enabled": False})
+        for i in range(1, 8):
+            say(engine, "以后说话短一点，别老追问", i)
+        seen = []
+
+        def reviewer(kind, items):
+            seen.append((kind, list(items)))
+            return ["对方希望回复短一点，不要连续追问"]
+
+        result = engine.style_learning.refresh("u1", online=False, reviewer=reviewer)
+        self.assertTrue(result["ok"])
+        self.assertEqual("pref", seen[0][0])
+        self.assertIn("短一点", result["status"]["knowledge"])
+        self.assertIn("pref", result["status"]["sources"])
+        plan = engine.begin_turn("u1", "在吗", round_no=9)
+        self.assertIn("〔说话偏好：", plan.ephemeral_tail)
+
+    def test_web_snippets_are_prefiltered_before_the_model(self):
+        snippets = [
+            "限时优惠，扫码加微信领取英语课程，名额有限。",
+            "论坛里大家聊天更爱用短句，一次只说一件事。",
+            "真人聊天时先接住情绪，再给建议。",
+        ]
+        picked = style_learning.web_candidates(snippets)
+        self.assertEqual(2, len(picked))
+        self.assertFalse(any("限时" in item for item in picked))
+
+    def test_model_rejection_clears_web_knowledge(self):
         snippets = [
             "真人聊天时更常用短句，先说结论再补充细节。",
-            "共情的关键是复述对方的感受，而不是马上给建议。",
-            "聊天里适度使用语气词会让表达更自然。",
             "这是一条与聊天无关的广告内容。",
         ]
         with mock.patch.object(style_learning, "search_notes", return_value=(snippets, "")):
             engine, _ = make_engine(**{"shortcircuit.enabled": False})
             for i in range(1, 5):
                 say(engine, "好呀，今天还行吧", i)
-            result = engine.style_learning.refresh("u1", online=True)
+            result = engine.style_learning.refresh(
+                "u1", online=True, reviewer=lambda kind, items: []
+            )
         self.assertTrue(result["ok"])
-        self.assertIn("短句", result["status"]["knowledge"] or "")
+        self.assertNotIn("web", result["status"]["sources"])
+        self.assertNotIn("广告", result["status"]["knowledge"])
+
+    def test_screened_web_knowledge_is_stored(self):
+        snippets = ["论坛里大家聊天更爱用短句，一次只说一件事。"]
+        with mock.patch.object(style_learning, "search_notes", return_value=(snippets, "")):
+            engine, _ = make_engine(**{"shortcircuit.enabled": False})
+            for i in range(1, 5):
+                say(engine, "好呀，今天还行吧", i)
+            result = engine.style_learning.refresh(
+                "u1",
+                online=True,
+                reviewer=lambda kind, items: ["日常聊天多用短句，一次只说一件事"],
+            )
         self.assertIn("web", result["status"]["sources"])
+        self.assertIn("短句", result["status"]["knowledge"])
+
+    def test_search_api_key_header_is_optional_and_bearer_by_default(self):
+        self.assertEqual({}, style_learning._api_headers("", "Authorization"))
+        self.assertEqual(
+            {"Authorization": "Bearer abc"},
+            style_learning._api_headers("abc", "Authorization"),
+        )
+        self.assertEqual(
+            {"X-API-KEY": "abc"},
+            style_learning._api_headers("abc", "X-API-KEY"),
+        )
+
+    def test_custom_json_search_api_is_parsed(self):
+        payload = (
+            '{"results": [{"content": "论坛里大家聊天更爱用短句，一次只说一件事。"},'
+            ' {"content": "共情的关键是先接住情绪，再给建议。"}]}'
+        )
+        endpoint = "https://searx.example/search?q={query}&format=json&key={key}"
+        with mock.patch.object(style_learning, "_fetch", return_value=payload) as fetch:
+            snippets, error = style_learning.search_notes(
+                queries=("聊天 语气",),
+                endpoint=endpoint,
+                api_format="json",
+                api_key="k-1",
+                api_header="X-API-KEY",
+            )
+        self.assertEqual("", error)
+        self.assertEqual(2, len(snippets))
+        args, _kwargs = fetch.call_args
+        self.assertIn("q=%E8%81%8A%E5%A4%A9%20%E8%AF%AD%E6%B0%94", args[0])
+        self.assertIn("key=k-1", args[0])
+        self.assertEqual("k-1", args[2]["X-API-KEY"])
+
+    def test_json_search_api_reports_invalid_json(self):
+        with mock.patch.object(style_learning, "_fetch", return_value="<html>nope</html>"):
+            snippets, error = style_learning.search_notes(
+                queries=("q",), endpoint="https://x.example/search?q={query}", api_format="json"
+            )
+        self.assertEqual([], snippets)
+        self.assertIn("不是 JSON", error)
+
+    def test_search_errors_do_not_leak_the_api_key(self):
+        with mock.patch.object(
+            style_learning,
+            "_fetch",
+            side_effect=RuntimeError("bad https://x.example/search?key=secret"),
+        ):
+            snippets, error = style_learning.search_notes(
+                queries=("q",),
+                endpoint="https://x.example/search?q={query}&key={key}",
+                api_format="json",
+                api_key="secret",
+            )
+        self.assertEqual([], snippets)
+        self.assertNotIn("secret", error)
+        self.assertIn("x.example", error)
+
+    def test_search_results_must_match_the_requested_site(self):
+        page = (
+            '<li class="b_algo"><h2><a href="https://www.yomiclub.com/">x</a></h2>'
+            "<p>匿名聊天交友站点，随机匹配陌生人开启对话。</p></li>"
+            '<li class="b_algo"><h2><a href="https://www.v2ex.com/t/1">y</a></h2>'
+            "<p>论坛里大家聊天更爱用短句，一次只说一件事。</p></li>"
+        )
+        with mock.patch.object(style_learning, "_fetch", return_value=page):
+            snippets, _error = style_learning.search_notes(
+                queries=("site:v2ex.com 聊天",), timeout=1
+            )
+        self.assertEqual(["论坛里大家聊天更爱用短句，一次只说一件事。"], snippets)
+
+    def test_redirect_links_are_unwrapped_and_domains_checked(self):
+        encoded = "a1aHR0cHM6Ly9leGFtcGxlLmNvbS9h"
+        redirect = "https://www.bing.com/ck/a?x=1&amp;u=" + encoded
+        self.assertEqual("https://example.com/a", style_learning._real_url(redirect))
+        self.assertTrue(style_learning._url_allowed("https://v2ex.com/t/1", "v2ex.com"))
+        self.assertTrue(style_learning._url_allowed("https://www.v2ex.com/t/1", "v2ex.com"))
+        self.assertFalse(style_learning._url_allowed("https://evil-v2ex.com/t/1", "v2ex.com"))
+        self.assertTrue(style_learning._url_allowed("", ""))
+
+    def test_parse_screened_accepts_json_and_rejects_ads(self):
+        self.assertEqual(
+            ["对方希望被叫小肥鱼"],
+            style_learning.parse_screened('["对方希望被叫小肥鱼"]'),
+        )
+        self.assertEqual(
+            ["日常聊天多用短句"],
+            style_learning.parse_screened('```json\n["日常聊天多用短句"]\n```'),
+        )
+        self.assertEqual([], style_learning.parse_screened('["限时优惠，扫码报名"]'))
+        self.assertIsNone(style_learning.parse_screened("完全不是 JSON"))
+        self.assertIsNone(style_learning.parse_screened(""))
+
+    def test_legacy_imitation_and_unfiltered_web_rows_are_purged(self):
+        import tempfile
+        from pathlib import Path
+
+        from zhenxin.db import Database
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "zhenxin.sqlite3"
+            db = Database(path)
+            db.execute(
+                "INSERT INTO style_knowledge(user_key,source,content,chars,created_at,updated_at)"
+                " VALUES('u1','local','用户习惯：开口常说“就是”',16,1,1),"
+                "('u1','web','限时优惠，扫码报名',9,1,1),"
+                "('u1','seed','内置常识',4,1,1)"
+            )
+            # Pretend this is a 0.6.5 database: version 1 means "the old learner
+            # ran here", so the next open must purge its rows once.
+            db.connection.execute("PRAGMA user_version=1")
+            db.connection.commit()
+            db.close()
+            db = Database(path)
+            sources = {
+                str(row["source"])
+                for row in db.fetchall("SELECT source FROM style_knowledge WHERE user_key='u1'")
+            }
+            self.assertEqual({"seed"}, sources)
+            db.close()
+
+
+class StyleLearnApiTests(unittest.TestCase):
+    def test_manual_learn_screens_with_the_host_model(self):
+        engine, _ = make_engine(**{"shortcircuit.enabled": False, "style_learning.min_turns": 1})
+        say(engine, "以后说话短一点，别老追问", 1)
+        plugin = FakePlugin(FakeContext())
+        calls = []
+
+        async def screener(kind, items, user=""):
+            calls.append((kind, list(items)))
+            return ["对方希望回复短一点，不要连续追问"]
+
+        plugin.screen_knowledge = screener
+        api = PluginPageAPI(plugin, engine, {})
+        api._payload_override = {"user": "u1", "online": False}
+        data = asyncio.run(api.style_learn())
+        self.assertTrue(data["ok"])
+        self.assertEqual("pref", calls[0][0])
+        self.assertIn("短一点", data["status"]["knowledge"])
+        self.assertIn("pref", data["status"]["sources"])
+
+    def test_search_api_key_is_masked_and_can_be_saved(self):
+        engine, _ = make_engine()
+        engine.cfg.style_learning.search_api_key = "secret-key"
+        api = PluginPageAPI(FakePlugin(FakeContext()), engine, {})
+        data = asyncio.run(api.status())
+        style = data["config"]["style_learning"]
+        self.assertTrue(style["search_api_key_set"])
+        self.assertEqual("", style["search_api_key"])
+        self.assertNotIn("secret-key", str(data))
+
+        api._payload_override = {
+            "values": {
+                "style_learning.search_endpoint": "https://searx.example/search?q={query}",
+                "style_learning.search_api_format": "json",
+                "style_learning.search_api_key": "new-key",
+                "style_learning.search_api_header": "X-API-KEY",
+            }
+        }
+        result = asyncio.run(api.save_config())
+        self.assertTrue(result["ok"])
+        self.assertEqual("new-key", engine.cfg.style_learning.search_api_key)
+        self.assertEqual("json", engine.cfg.style_learning.search_api_format)
+        self.assertEqual("X-API-KEY", engine.cfg.style_learning.search_api_header)
+        self.assertEqual("", result["config"]["style_learning"]["search_api_key"])
+        self.assertNotIn("new-key", str(result))
+
+    def test_clearing_the_search_api_key_is_explicit(self):
+        engine, _ = make_engine()
+        engine.cfg.style_learning.search_api_key = "secret-key"
+        api = PluginPageAPI(FakePlugin(FakeContext()), engine, {})
+        api._payload_override = {"values": {"style_learning.search_api_key": ""}}
+        result = asyncio.run(api.save_config())
+        self.assertTrue(result["ok"])
+        self.assertEqual("", engine.cfg.style_learning.search_api_key)
+        self.assertFalse(result["config"]["style_learning"]["search_api_key_set"])
+
+    def test_search_test_uses_the_saved_config_without_writing(self):
+        engine, _ = make_engine()
+        cfg = engine.cfg.style_learning
+        cfg.search_endpoint = "https://searx.example/search?q={query}"
+        cfg.search_api_format = "json"
+        cfg.search_api_key = "k-1"
+        cfg.search_api_header = "X-API-KEY"
+        calls = {}
+
+        def fake(queries, **kwargs):
+            calls["queries"] = queries
+            calls["kwargs"] = kwargs
+            return (["论坛里大家聊天更爱用短句，一次只说一件事。"], "")
+
+        with mock.patch.object(style_learning, "search_notes", side_effect=fake):
+            api = PluginPageAPI(FakePlugin(FakeContext()), engine, {})
+            data = asyncio.run(api.style_search_test())
+        self.assertTrue(data["ok"])
+        self.assertEqual(1, data["count"])
+        self.assertTrue(data["custom"])
+        self.assertEqual("https://searx.example/search?q={query}", calls["kwargs"]["endpoint"])
+        self.assertEqual("json", calls["kwargs"]["api_format"])
+        self.assertEqual("k-1", calls["kwargs"]["api_key"])
+        self.assertNotIn("k-1", str(data))
 
 
 class ProactiveTests(unittest.TestCase):
@@ -439,14 +734,22 @@ class ConfigRoundTripTests(unittest.TestCase):
         self.assertTrue(engine.cfg.proactive.enabled)
         self.assertEqual(True, result["config"]["l0"]["tail_injection"])
 
-    def test_basic_style_switch_does_not_disable_human_style_learning(self):
+    def test_removed_imitation_switch_cannot_be_saved(self):
         engine, _ = make_engine()
         api = PluginPageAPI(FakePlugin(FakeContext()), engine, {})
-        api._payload_override = {"values": {"aux.style": False}}
+        api._payload_override = {"values": {"aux.style": False, "aux.rhythm": False}}
         result = asyncio.run(api.save_config())
         self.assertTrue(result["ok"])
-        self.assertFalse(engine.style.enabled)
+        self.assertNotIn("aux.style", result["saved"])
+        self.assertFalse(engine.rhythm.enabled)
         self.assertTrue(engine.style_learning.cfg.enabled)
+
+    def test_prepend_is_no_longer_accepted(self):
+        engine, _ = make_engine()
+        api = PluginPageAPI(FakePlugin(FakeContext()), engine, {})
+        with self.assertRaises(ValueError):
+            api._coerce("l3.host_context_mode", "prepend")
+        self.assertEqual("off", api._coerce("l3.host_context_mode", "off"))
 
     def test_defaults_include_new_sections(self):
         from zhenxin.page_api import schema_defaults
@@ -456,6 +759,8 @@ class ConfigRoundTripTests(unittest.TestCase):
             "memory.top_k",
             "memory.weight_semantic",
             "style_learning.max_chars",
+            "style_learning.search_endpoint",
+            "split.enabled",
             "proactive.enabled",
             "l0.tail_injection",
         ):

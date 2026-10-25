@@ -26,16 +26,23 @@ class PageApiTests(unittest.TestCase):
         config = {}
         api = PluginPageAPI(FakePlugin(context), engine, config)
         api.register()
-        self.assertEqual(len(context.routes), 18)
+        self.assertEqual(len(context.routes), 19)
         self.assertTrue(context.routes[0][0].endswith("/page/status"))
         self.assertTrue(any(r[0].endswith("/page/preset") for r in context.routes))
         self.assertTrue(any(r[0].endswith("/page/reset") for r in context.routes))
         self.assertTrue(any(r[0].endswith("/page/memory") for r in context.routes))
+        self.assertTrue(any(r[0].endswith("/page/style/search-test") for r in context.routes))
         self.assertEqual(api._coerce("shadow_mode", "true"), True)
         self.assertEqual(api._coerce("l0.inject", "2"), 2)
         self.assertEqual(api._coerce("l3.host_context_mode", "off"), "off")
         self.assertEqual(api._coerce("live_allowlist", "a\nb\n"), ["a", "b"])
-        self.assertEqual(api._coerce("aux.style", "true"), True)
+        self.assertEqual(api._coerce("proactive.only_private", "true"), True)
+        self.assertIs(api._coerce("aux.rhythm", False), False)
+        self.assertEqual(api._coerce("split.enabled", "true"), True)
+        self.assertEqual(api._coerce("split.max_segments", "4"), 4)
+        self.assertAlmostEqual(api._coerce("split.delay_s", "0.8"), 0.8)
+        with self.assertRaises(ValueError):
+            api._coerce("style_learning.search_api_header", "X-Bad\nInjected: 1")
 
     def test_page_assets_are_beginner_pro_and_jargon_free(self):
         page = (ROOT / "pages" / "zhenxin" / "index.html").read_text(encoding="utf-8")
@@ -120,7 +127,14 @@ class PageApiTests(unittest.TestCase):
         self.assertNotIn("confirm(", script)
         self.assertIn("askConfirm", script)
         self.assertIn("confirm-mask", page)
-        self.assertIn('data-path="aux.style"', page)
+        self.assertIn('data-path="style_learning.enabled"', page)
+        self.assertIn('data-path="split.enabled"', page)
+        self.assertIn("对话分段", page)
+        self.assertIn('data-path="style_learning.search_endpoint"', page)
+        self.assertIn('id="search-key"', page)
+        self.assertIn('id="search-test"', page)
+        # The old statistical imitation switch is gone for good.
+        self.assertNotIn('data-path="aux.style"', page)
 
     def test_memory_list_sorts_by_time_and_exposes_pools(self):
         import asyncio
@@ -156,7 +170,11 @@ class PageApiTests(unittest.TestCase):
         self.assertEqual(defaults["shadow_mode"], True)
         self.assertEqual(defaults["l0.inject"], 3)
         self.assertEqual(defaults["metrics.output_price_per_million"], 8.0)
-        self.assertEqual(defaults["aux.style"], True)
+        self.assertEqual(defaults["aux.rhythm"], True)
+        self.assertNotIn("aux.style", defaults)
+        self.assertEqual(defaults["split.enabled"], False)
+        self.assertEqual(defaults["split.max_segments"], 3)
+        self.assertEqual(defaults["split.delay_s"], 0.6)
 
     def test_reset_conversation_keeps_facts_and_metrics(self):
         import asyncio
@@ -352,7 +370,7 @@ class PageApiTests(unittest.TestCase):
         self.assertEqual("astrbot_plugin_proactive_chat", data["alert"]["items"][0]["name"])
         self.assertIsNotNone(engine.db.get_state("__global__", "conflict_alert"))
 
-    def test_conflict_alert_first_scan_is_only_a_baseline(self):
+    def test_first_user_initiated_scan_alerts_existing_conflicts(self):
         import asyncio
 
         engine, _ = make_engine()
@@ -366,12 +384,45 @@ class PageApiTests(unittest.TestCase):
                 "reasons": ["改写 system_prompt"],
             }
         )
+        # Opening the page / health tab is user-initiated: an existing conflict
+        # must be visible immediately instead of looking like a silent bug.
         data = asyncio.run(api.health_scan())
-        self.assertIsNone(data["alert"])
+        self.assertIsNotNone(data["alert"])
         self.assertEqual(
             ["astrbot_plugin_splitter"],
             engine.db.get_state("__global__", "health_known_plugins", []),
         )
+
+    def test_status_scans_immediately_when_the_plugin_set_changes(self):
+        import asyncio
+
+        engine, _ = make_engine()
+        engine.db.set_state("__global__", "health_known_plugins", [])
+        api = PluginPageAPI(FakePlugin(FakeContext()), engine, {})
+        scans = []
+
+        def scan(force=False):
+            scans.append(force)
+            return self._scan(
+                {
+                    "name": "mem0",
+                    "display": "mem0",
+                    "severity": "direct",
+                    "enabled": True,
+                    "reasons": ["改写 req.contexts"],
+                }
+            )
+
+        api._scan_plugins = scan
+        api._plugins_dir = lambda: ROOT
+        api._plugins_fingerprint = lambda _path: "v1"
+        data = asyncio.run(api.status())
+        self.assertEqual(1, len(data["conflict_alert"]["items"]))
+        self.assertEqual("mem0", data["conflict_alert"]["items"][0]["name"])
+        # Same fingerprint → no second full scan on the next status poll.
+        api._alert_checked_at = 0.0
+        asyncio.run(api.status())
+        self.assertEqual(1, len(scans))
 
     def test_conflict_alert_fires_again_after_off_and_on(self):
         import asyncio

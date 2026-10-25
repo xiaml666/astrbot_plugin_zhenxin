@@ -32,15 +32,44 @@ ADDRESS_CANCEL_RE = re.compile(
     r"|(?:不叫|别叫)(?:我)?"
 )
 ADDRESS_RE = re.compile(
-    r"(?:叫我|喊我|称呼我(?:为|作)?|我的名字(?:是|叫)|我叫)"
-    r"([\u4e00-\u9fffA-Za-z0-9_]{1,12})"
+    r"(?:叫我|喊我|称呼我(?:为|作)?|我的名字(?:是|叫)|我叫(?!你|您|他|她|它|们))"
+    r"([\u4e00-\u9fffA-Za-z0-9_]{1,8})"
 )
-# The user may also give *the assistant* a name ("你以后叫小满").  That is a
-# different identity fact and must not be rendered as "call the user X".
+# The user may also give *the assistant* a name ("你以后叫小满", "那我叫你小肥鱼
+# 好不好").  That is a different identity fact and must not be rendered as
+# "call the user X".  ``我叫`` in "我叫你…" belongs here too: "I call you X" is
+# naming the assistant, not the user.
 ASSISTANT_NAME_RE = re.compile(
-    r"(?:你(?:以后|就)(?:叫|叫做)(?!我)|你的名字(?:是|叫)|以后叫你)"
-    r"([\u4e00-\u9fffA-Za-z0-9_]{1,12})"
+    r"(?:你(?:以后|就|再)?(?:叫|叫做)|你的名字(?:是|叫)|以后叫你"
+    r"|我(?:以后|就)?(?:叫|喊)你|叫你|喊你|管你叫)"
+    r"([\u4e00-\u9fffA-Za-z0-9_]{1,8})"
 )
+_RHETORICAL_TAIL_RE = re.compile(
+    r"(?:好不好|好不好呀|行不行|可不可以|可以吗|好吗|行吗|怎么样|如何|对吧|是不是|要不要)+$"
+)
+# A proposal ("那我叫你小肥鱼好不好") is not an accepted name yet.  Storing a
+# name from a question is how "你小肥鱼好不好" ended up as the user's address.
+_QUESTION_LIKE_RE = re.compile(
+    r"[?？]|吗|呢|么|好不好|行不行|可不可以|要不要|是不是|能不能|怎么样|如何"
+)
+# A name is a name.  These characters almost always mean the regex captured a
+# sentence fragment instead ("你小肥鱼好不好", "不要熬夜", "一声你敢答应吗").
+_NAME_BAD_CHARS = set(
+    "你您我他她它谁啥吗呢吧啊哦嘛呀哈的了着过把被让对错有没有是在和跟同与不别要想能会去来说问帮给一声这那"
+)
+_NAME_STOPWORDS = {
+    "外卖",
+    "快递",
+    "滴滴",
+    "出租",
+    "服务员",
+    "大家",
+    "什么",
+    "东西",
+    "一声",
+    "名字",
+}
+
 _EXPLICIT_MEMORY_RE = re.compile(r"(?:记住|记一下|帮我记|别忘了|提醒我)[，,:：\s]*(.{2,40})")
 # Words that carry no identity by themselves; never use them as the only
 # overlap when deciding what to forget.
@@ -89,12 +118,47 @@ def address_in(text: str) -> str:
 
 
 def _clean_name(raw: str) -> str:
-    name = re.sub(r"[了啦吧呀呢啊哦嘛哈]+$", "", (raw or "").strip()).strip()
-    if len(name) < 1 or name in _STOP:
+    name = (raw or "").strip()
+    # "叫你小肥鱼好不好" -> "小肥鱼": rhetorical tails and trailing particles
+    # are part of the question, not part of the name.
+    name = _RHETORICAL_TAIL_RE.sub("", name)
+    name = re.sub(r"[了啦吧呀呢啊哦嘛哈吗]+$", "", name).strip()
+    if not name or name in _STOP or name in _NAME_STOPWORDS:
+        return ""
+    if any(char in _NAME_BAD_CHARS for char in name):
         return ""
     if any(word in name for word in ("什么", "啥", "哪", "怎么", "多少", "吗", "呢")):
         return ""
+    if len(name) > 6:
+        return ""
     return name
+
+
+def name_is_valid(raw: str) -> bool:
+    """Whether a *stored* name is still a plausible name.
+
+    Unlike ``_clean_name`` this does not enforce the short capture length (a
+    Latin name may be longer) and does not strip suffixes: it only rejects
+    sentence fragments such as ``你小肥鱼好不好``.
+    """
+    name = str(raw or "").strip("“”\"' ").strip()
+    if not name or len(name) > 12:
+        return False
+    if name in _STOP or name in _NAME_STOPWORDS:
+        return False
+    if any(char in _NAME_BAD_CHARS for char in name):
+        return False
+    return not any(word in name for word in ("什么", "啥", "哪", "怎么", "多少", "吗", "呢"))
+
+
+def name_from_fact(text: str) -> str:
+    """Extract the name out of ``称呼我“X”`` / ``你叫“X”`` facts."""
+    value = str(text or "").strip()
+    for prefix in ("称呼我", "你叫"):
+        if value.startswith(prefix):
+            value = value[len(prefix):]
+            break
+    return value.strip().strip("“”\"' ")
 
 
 def assistant_name_in(text: str) -> str:
@@ -109,13 +173,20 @@ def assistant_name_in(text: str) -> str:
 
 
 def identity_facts(text: str) -> list[tuple[str, str]]:
-    """Return durable identity facts in ``(fact_text, kind)`` form."""
+    """Return durable identity facts in ``(fact_text, kind)`` form.
+
+    Only statements count.  A question or proposal ("那我叫你小肥鱼好不好")
+    is not consent, so it never creates an address or assistant-name fact.
+    """
+    raw = str(text or "")
+    if _QUESTION_LIKE_RE.search(raw):
+        return []
     out: list[tuple[str, str]] = []
-    name = address_in(text)
+    name = address_in(raw)
     if name:
         out.append((f"称呼我“{name}”", "address"))
-    ai_name = assistant_name_in(text)
-    if ai_name and not any(ai_name == item[0] for item in out):
+    ai_name = assistant_name_in(raw)
+    if ai_name:
         out.append((f"你叫“{ai_name}”", "assistant_name"))
     return out
 

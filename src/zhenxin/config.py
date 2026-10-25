@@ -138,9 +138,9 @@ class L3Config:
     include_ephemeral: bool = True
     # Assumption used only by the cache-hit estimate / dashboards.
     cache_ttl_seconds: int = 300
-    # replace: plugin owns the recent window. prepend: keep host contexts and
-    # add the plugin window (diagnostic / highly compatible, more tokens).
-    # off: never touch req.contexts.
+    # replace: plugin owns the recent window. off: never touch req.contexts.
+    # (A legacy "prepend" value is treated as off; duplicating the host window
+    # and the plugin window doubled the context tokens, so it was removed.)
     host_context_mode: str = "replace"
 
 
@@ -149,7 +149,6 @@ class AuxConfig:
     topic_stack: bool = True
     compression: bool = True
     rhythm: bool = True
-    style: bool = True
     lexicon: bool = True
     open_loops: bool = True
     negative_patterns: bool = True
@@ -198,25 +197,51 @@ class MemoryConfig:
 
 @dataclass
 class StyleLearningConfig:
-    """Slow, periodic "talk like a real person" knowledge base.
+    """Slow, periodic, model-screened speech-preference knowledge base.
 
-    The learner combines two sources: the user's own messages (always local)
-    and periodic web search results about natural human chat habits.  The
-    distilled text is capped hard (500 chars by default) so the per-turn hint
-    can never grow into a second prompt.
+    Two sources: sentences where the user explicitly says how they want to be
+    talked to, and periodic snippets from forums / chat / social platforms.
+    Nothing is stored before a model screen approves it; the learner never
+    imitates the user's wording.  The result is capped hard (500 chars by
+    default) so the per-turn hint can never grow into a second prompt.
     """
 
     enabled: bool = True
-    learn_user: bool = True
     online: bool = True
     interval_days: float = 7.0
     local_interval_hours: float = 24.0
     min_turns: int = 6
     max_chars: int = 500
     hint_chars: int = 110
-    # Optional override; empty means the built-in public search endpoint.
+    # Optional search API.  Empty endpoint = the built-in DuckDuckGo/Bing HTML
+    # endpoints restricted to discussion platforms.  A custom endpoint may use
+    # ``{query}`` and ``{key}`` placeholders.
     search_endpoint: str = ""
+    # html: parse result snippets; json: read common search-API shapes
+    # (SearXNG / Bing / Google CSE / Tavily all expose snippet or content).
+    search_api_format: str = "html"
+    search_api_key: str = ""
+    search_api_header: str = "Authorization"
     search_timeout_s: float = 8.0
+
+
+@dataclass
+class SplitConfig:
+    """Optional reply segmentation ("对话分段").
+
+    A long reply is sent as a few consecutive bubbles, like a real person
+    typing.  This is transport-only: no extra model call, no extra context
+    tokens, and the stored assistant turn remains the full text.  Off by
+    default because it is a visible product decision.
+    """
+
+    enabled: bool = False
+    max_segments: int = 3
+    # Do not bother splitting short replies.
+    min_chars: int = 40
+    # Fragments shorter than this are merged into a neighbour.
+    min_segment_chars: int = 8
+    delay_s: float = 0.6
 
 
 @dataclass
@@ -283,6 +308,7 @@ class Config:
     aux: AuxConfig = field(default_factory=AuxConfig)
     memory: MemoryConfig = field(default_factory=MemoryConfig)
     style_learning: StyleLearningConfig = field(default_factory=StyleLearningConfig)
+    split: SplitConfig = field(default_factory=SplitConfig)
     proactive: ProactiveConfig = field(default_factory=ProactiveConfig)
     feedback: FeedbackConfig = field(default_factory=FeedbackConfig)
     metrics: MetricsConfig = field(default_factory=MetricsConfig)

@@ -263,6 +263,18 @@ class Database:
         self._conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_facts_pool ON facts(user_key, pool, created_at)"
         )
+        # Schema/user-data migration marker.  Version 2 removes the speech
+        # knowledge written by the old learner: `local` rows imitated the
+        # user's verbal tics ("开口常说就是") and `web` rows were rule-only, so
+        # advertisements could enter the knowledge base.  `user_version` is
+        # used because a full plugin reset intentionally wipes the `state`
+        # table but must not re-run this deletion on the next restart.
+        version = int(self._conn.execute("PRAGMA user_version").fetchone()[0] or 0)
+        if version < 2:
+            self._conn.execute(
+                "DELETE FROM style_knowledge WHERE source IN ('local','web')"
+            )
+            self._conn.execute("PRAGMA user_version=2")
 
     @property
     def connection(self) -> sqlite3.Connection:

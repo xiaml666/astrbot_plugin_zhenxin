@@ -105,7 +105,6 @@ aux:
   topic_stack: true
   compression: true
   rhythm: true
-  style: true
   lexicon: true
   open_loops: true
   negative_patterns: true
@@ -135,15 +134,21 @@ memory:
   trash_ttl_days: 7
 
 style_learning:
+  # Only explicit preferences + model-screened forum snippets; never imitates
+  # the user's phrasing.  Nothing is stored without a model screen.
   enabled: true
-  learn_user: true
   online: true
   interval_days: 7
   local_interval_hours: 24
   min_turns: 12
   max_chars: 500
   hint_chars: 110
+  # Optional search API: {query} = URL-encoded keywords, {key} = URL-encoded key.
+  # Leave empty to use the built-in DuckDuckGo/Bing HTML endpoints.
   search_endpoint: ""
+  search_api_format: "html"   # html | json
+  search_api_key: ""
+  search_api_header: "Authorization"
   search_timeout_s: 8
 
 proactive:

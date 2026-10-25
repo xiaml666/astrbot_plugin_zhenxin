@@ -552,6 +552,31 @@ class FactBank:
         ]
         return {user: self.backfill_from_turns(user, limit) for user in users}
 
+    def repair_identity(self, user_key: str) -> int:
+        """Remove identity facts that older versions mis-parsed.
+
+        Version ≤0.6.5 took "那我叫你小肥鱼好不好" and stored
+        ``称呼我“你小肥鱼好不好”``.  Such rows are deleted here and the
+        conversation is re-scanned with the fixed patterns.  A valid name is
+        never touched, so this is safe to run once per user.
+        """
+        if not self.cfg.enabled or not user_key:
+            return 0
+        rows = self.db.fetchall(
+            "SELECT id,text FROM facts WHERE user_key=? AND kind IN ('address','assistant_name')",
+            (user_key,),
+        )
+        removed = 0
+        for row in rows:
+            name = zero_value.name_from_fact(str(row["text"]))
+            if zero_value.name_is_valid(name):
+                continue
+            self.db.execute("DELETE FROM facts WHERE id=?", (int(row["id"]),))
+            removed += 1
+        if removed:
+            self.backfill_from_turns(user_key)
+        return removed
+
     # -------------------------------------------------------------- page view
     def list_facts(
         self,
