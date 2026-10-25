@@ -490,7 +490,9 @@ class ZhenxinEngine:
                 mapped.append(candidates[int(idx)].row_id)
         return mapped
 
-    def screen_knowledge(self, kind: str, items: list[str]) -> list[str] | None:
+    def screen_knowledge(
+        self, kind: str, items: list[str], topics: list[str] | None = None
+    ) -> list[str] | None:
         """Screen style-knowledge candidates with the decision/main model.
 
         Used by the standalone library and as the fallback when the AstrBot
@@ -503,7 +505,9 @@ class ZhenxinEngine:
         if not items:
             return []
         try:
-            raw = self.gateway.screen(screen_prompt(kind, items), SCREEN_SYSTEM)
+            raw = self.gateway.screen(
+                screen_prompt(kind, items, topics=topics), SCREEN_SYSTEM
+            )
         except Exception:  # noqa: BLE001 - no provider / provider error
             return None
         return parse_screened(raw)

@@ -267,7 +267,9 @@ class ZhenxinPlugin(Star):
                     if pref is None:
                         error = join_note(error, "偏好甄别失败，保留上一次结果")
                 if gathered.get("web"):
-                    web = await self.screen_knowledge("web", gathered["web"], user_key)
+                    web = await self.screen_knowledge(
+                        "web", gathered["web"], user_key, topics=gathered.get("topics")
+                    )
                     if web is None:
                         error = join_note(error, "网络知识甄别失败，保留上一次结果")
                 await asyncio.to_thread(
@@ -303,7 +305,7 @@ class ZhenxinPlugin(Star):
             return None
 
     async def screen_knowledge(
-        self, kind: str, items: list[str], user_key: str = ""
+        self, kind: str, items: list[str], user_key: str = "", topics: list[str] | None = None
     ) -> list[str] | None:
         """Screen style-knowledge candidates; ``None`` means "keep old".
 
@@ -315,7 +317,7 @@ class ZhenxinPlugin(Star):
 
         if not items:
             return []
-        prompt = screen_prompt(kind, items)
+        prompt = screen_prompt(kind, items, topics=topics)
         provider = await self._host_provider(user_key)
         if provider is not None:
             try:
@@ -327,7 +329,9 @@ class ZhenxinPlugin(Star):
             except Exception:  # noqa: BLE001 - fall back to the gateway
                 pass
         try:
-            return await asyncio.to_thread(self.engine.screen_knowledge, kind, items)
+            return await asyncio.to_thread(
+                self.engine.screen_knowledge, kind, items, topics
+            )
         except Exception:  # noqa: BLE001
             return None
 

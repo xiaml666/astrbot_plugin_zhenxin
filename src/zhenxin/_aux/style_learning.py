@@ -31,10 +31,12 @@ import re
 import time
 import urllib.parse
 import urllib.request
+from collections import Counter
 from typing import Any, Callable
 
 from ..config import StyleLearningConfig
 from ..db import Database
+from ..normalize import STOPWORDS, content_tokens
 
 _SENTENCE_SPLIT_RE = re.compile(r"[。！？!?；;\n]+")
 _TAG_RE = re.compile(r"<[^>]+>")
@@ -205,6 +207,9 @@ _QUESTION_TAIL_RE = re.compile(
 
 SEARCH_URL = "https://html.duckduckgo.com/html/?q={query}"
 BING_URL = "https://www.bing.com/search?q={query}&setlang=zh-CN"
+# 360's HTML result page is reachable from mainland-China servers where
+# DuckDuckGo is unroutable; it exposes the real URL in ``data-mdurl``.
+SO_URL = "https://www.so.com/s?q={query}"
 USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
     "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
@@ -338,6 +343,55 @@ def _results(page: str) -> list[tuple[str, str]]:
     return unique[:10]
 
 
+def _so_results(page: str) -> list[tuple[str, str]]:
+    """Parse 360 search results (real URL lives in ``data-mdurl``)."""
+    out: list[tuple[str, str]] = []
+    matches = list(
+        re.finditer(r'<h3[^>]*class="res-title"[^>]*>(.*?)</h3>', page, re.S | re.I)
+    )
+    for index, match in enumerate(matches[:12]):
+        block = match.group(1)
+        href = re.search(r'data-mdurl="([^"]+)"', block, re.I)
+        if not href:
+            continue
+        end = matches[index + 1].start() if index + 1 < len(matches) else min(
+            len(page), match.end() + 4000
+        )
+        tail = page[match.end() : end]
+        summary = re.search(
+            r'class="res-list-summary"[^>]*>(.*?)</(?:span|div)>', tail, re.S | re.I
+        )
+        if not summary:
+            summary = re.search(
+                r'class="res-desc"[^>]*>(.*?)</div>', tail, re.S | re.I
+            )
+        text = _clean(summary.group(1)) if summary else _clean(block)
+        if 10 <= len(text) <= 300:
+            out.append((html.unescape(href.group(1)), text))
+    seen: set[str] = set()
+    unique: list[tuple[str, str]] = []
+    for url, text in out:
+        key = text[:40]
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append((url, text))
+    return unique[:10]
+
+
+def _summarize_errors(errors: list[str]) -> str:
+    if not errors:
+        return "没有搜到可用结果"
+    hosts: list[str] = []
+    for error in errors:
+        host = error.split(":", 1)[0].strip()
+        if host and host not in hosts:
+            hosts.append(host)
+    if len(hosts) <= 1:
+        return errors[0][:200]
+    return "联网搜索失败：" + "、".join(hosts[:4]) + "（网络不可达或被反爬拦截）"
+
+
 def search_notes(
     queries: tuple[str, ...] = _QUERIES,
     *,
@@ -348,7 +402,7 @@ def search_notes(
     Every result URL is checked against the query's ``site:`` domain, because
     search engines sometimes ignore the operator and return advertisement
     landing pages.  Returns ``(snippets, error)``; a blocked network is not an
-    exception.
+    exception.  Errors are only reported when nothing at all was collected.
     """
     collected: list[str] = []
     errors: list[str] = []
@@ -358,10 +412,22 @@ def search_notes(
             break
         encoded = urllib.parse.quote(query)
         site = _site_filter(query)
-        for url in (
-            SEARCH_URL.format(query=encoded),
-            BING_URL.format(query=encoded),
-        ):
+        # 360 first for topic/generic queries (reachable from CN servers);
+        # Bing first for site-restricted queries (360 often ignores site:).
+        sources: list[tuple[str, str]] = []
+        if site:
+            sources = [
+                (BING_URL.format(query=encoded), "bing"),
+                (SO_URL.format(query=encoded), "so"),
+                (SEARCH_URL.format(query=encoded), "ddg"),
+            ]
+        else:
+            sources = [
+                (SO_URL.format(query=encoded), "so"),
+                (BING_URL.format(query=encoded), "bing"),
+                (SEARCH_URL.format(query=encoded), "ddg"),
+            ]
+        for url, kind in sources:
             if time.time() >= deadline:
                 break
             try:
@@ -369,9 +435,10 @@ def search_notes(
             except Exception as exc:  # noqa: BLE001 - network is best effort
                 errors.append(f"{_host(url)}: {exc}")
                 continue
+            parsed = _so_results(page) if kind == "so" else _results(page)
             found = [
                 text
-                for result_url, text in _results(page)
+                for result_url, text in parsed
                 if _url_allowed(result_url, site)
             ]
             if found:
@@ -379,7 +446,9 @@ def search_notes(
                 break
         if len(collected) >= 8:
             break
-    return collected, "; ".join(errors[-2:])
+    if not collected:
+        return [], _summarize_errors(errors)
+    return collected, ""
 
 
 def _sentences(text: str) -> list[str]:
@@ -407,13 +476,70 @@ def _looks_like_ad(text: str) -> bool:
     return "://" in text or "www." in lowered
 
 
-def web_candidates(snippets: list[str], limit: int = 12) -> list[str]:
+_TOPIC_STOP = {
+    "知道", "觉得", "可以", "应该", "可能", "喜欢", "想要", "问题", "时候",
+    "东西", "事情", "感觉", "其实", "然后", "反正", "不过", "还是", "因为",
+    "所以", "但是", "如果", "这样", "那样", "什么", "怎么", "多少", "这个",
+    "那个", "自己", "我们", "你们", "他们", "现在", "今天", "明天", "以后",
+    "已经", "一个", "没有", "不是", "就是", "真的", "有点", "一下", "出来",
+    "起来", "地方", "方法", "内容", "部分", "比较", "非常", "特别", "一样",
+    "这种", "那种", "有些", "很多", "不会", "不能", "不要", "不用", "需要",
+    "开始", "继续", "发现", "看到", "听到", "说到", "告诉", "回答", "聊天",
+    "说话", "回复", "名字", "老大", "宝宝", "聪明",
+}
+_TOPIC_HINTS = (
+    "小说", "书", "文", "稿", "项目", "游戏", "电影", "剧", "动漫", "考试",
+    "课", "学习", "猫", "狗", "宠物", "饭", "菜", "咖啡", "旅行", "病",
+    "医院", "程序", "代码", "画", "音乐", "歌", "运动", "健身", "摄影",
+)
+
+
+def topic_queries(texts: list[str], limit: int = 2) -> tuple[list[str], list[str]]:
+    """Pick a couple of recent conversation topics and turn them into queries.
+
+    This is the rule-based fallback for the model-driven curiosity query.  A
+    token must look like a topic (not a discourse word such as "知道"), and
+    domain hints ("小说", "游戏", "考试"...) are ranked higher.
+    """
+    counts: Counter[str] = Counter()
+    for text in texts[-40:]:
+        for token in content_tokens(text):
+            token = str(token).strip()
+            if (
+                2 <= len(token) <= 6
+                and token not in STOPWORDS
+                and token not in _TOPIC_STOP
+                and not token.isdigit()
+                and not token.startswith(("http", "www"))
+            ):
+                counts[token] += 1
+    scored = []
+    for token, count in counts.items():
+        score = float(count)
+        if any(hint in token or token in hint for hint in _TOPIC_HINTS):
+            score += 2.0
+        if 3 <= len(token) <= 4:
+            score += 0.5
+        scored.append((score, token))
+    scored.sort(key=lambda item: (-item[0], -len(item[1])))
+    topics = [token for _, token in scored[: max(1, int(limit))]]
+    queries: list[str] = []
+    for topic in topics:
+        queries.append(f"{topic} 怎么聊 不尴尬")
+        queries.append(f"{topic} 经验 讨论")
+    return queries[: max(1, int(limit)) * 2], topics
+
+
+def web_candidates(
+    snippets: list[str], limit: int = 12, topics: list[str] | None = None
+) -> list[str]:
     """Rule prefilter for search snippets (the model screen still follows).
 
     A snippet must be substantially Chinese, must not be an advert/SEO copy and
-    must describe conversational behaviour.  This is intentionally stricter
-    than "any Chinese sentence": public search is full of landing pages.
+    must describe conversational behaviour *or* mention one of the conversation
+    topics (which is what topic-driven autonomous learning looks for).
     """
+    topic_words = [str(topic) for topic in (topics or []) if str(topic).strip()]
     picked: list[str] = []
     seen: set[str] = set()
     for snippet in snippets:
@@ -423,7 +549,10 @@ def web_candidates(snippets: list[str], limit: int = 12) -> list[str]:
                 continue
             if _cjk_ratio(sentence) < 0.45 or _looks_like_ad(sentence):
                 continue
-            if not any(word in sentence for word in _BEHAVIOUR_WORDS):
+            related = any(word in sentence for word in _BEHAVIOUR_WORDS)
+            if not related and topic_words:
+                related = any(topic in sentence for topic in topic_words)
+            if not related:
                 continue
             normal = re.sub(r"\s+", "", sentence)
             key = normal[:18]
@@ -463,22 +592,29 @@ def preference_candidates(texts: list[str], limit: int = 12) -> list[str]:
     return picked[-max(1, int(limit)):]
 
 
-def screen_prompt(kind: str, items: list[str], limit: int = 4) -> str:
+def screen_prompt(
+    kind: str, items: list[str], limit: int = 4, topics: list[str] | None = None
+) -> str:
     """Prompt for the mandatory model screen.
 
     ``kind`` is ``"web"`` (public snippets) or ``"pref"`` (the user's own
-    explicit preferences).  The prompt is small on purpose: this runs at most
-    once per day/week, never per turn.
+    explicit preferences).  ``topics`` carries the recent conversation topics
+    that drove the search, so the model can keep topic knowledge instead of
+    only generic "how to chat" rules.
     """
     numbered = "\n".join(
         f"{index}. {str(item)[:80]}" for index, item in enumerate(items[:16], 1)
     )
     if kind == "web":
+        topic_text = "、".join(str(topic) for topic in (topics or []) if str(topic).strip())
         rules = (
-            "这些句子来自论坛/聊天/社交平台的搜索摘要。只保留真正描述中国人日常聊天方式的句子；"
-            "广告、SEO 文案、课程/英语学习、法律医疗金融建议、口号、营销词、链接一律丢弃；"
+            "这些句子来自论坛/聊天/社交平台的搜索摘要"
+            + (f"（最近聊到：{topic_text}）" if topic_text else "")
+            + "。提炼 0-2 条对以后和这个人聊天有用的知识点："
+            "可以是聊天方式，也可以是与最近话题相关的背景、常见说法或经验；"
+            "广告、SEO 文案、课程/英语学习、隐私、具体个人八卦、法律医疗金融建议、口号、营销词、链接一律丢弃；"
             "与聊天无关、看不懂、重复的也丢弃。"
-            f"最多保留 {limit} 条，每条改写为不超过 30 字的中文陈述句，不要品牌名和网址。"
+            f"最多保留 {limit} 条，每条改写成不超过 30 字的中文陈述句，不要品牌名和网址。"
         )
     else:
         rules = (
@@ -757,12 +893,17 @@ class HumanStyleLearner:
                 merged.append(line)
         error = ""
         web: list[str] = []
+        topics: list[str] = []
         if online and self.cfg.online:
+            texts = self._user_texts(user_key)
+            topic_search, topics = topic_queries(texts)
+            queries = tuple(topic_search + list(_QUERIES[:1])) if topic_search else _QUERIES
             snippets, error = search_notes(
+                queries,
                 timeout=float(self.cfg.search_timeout_s),
             )
             if snippets:
-                web = web_candidates(snippets)
+                web = web_candidates(snippets, topics=topics)
                 if not web and not error:
                     error = "未获取到可用的中文讨论内容"
             elif not error:
@@ -772,6 +913,7 @@ class HumanStyleLearner:
             "pref": merged[-16:],
             "pref_new": pref,
             "web": web,
+            "topics": topics,
             "error": error,
             "online": bool(online and self.cfg.online),
         }
