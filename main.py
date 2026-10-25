@@ -138,7 +138,7 @@ class ZhenxinPlugin(Star):
 
     @filter.on_decorating_result(priority=-100_000_000_000_000_000)
     async def zhenxin_on_decorating_result(self, event: AstrMessageEvent):
-        """Optional reply segmentation ("对话分段").
+        """Voice replies on request, then optional reply segmentation.
 
         AstrBot sends the last component list itself; we send the earlier
         bubbles here and leave the final one in ``result.chain``.  Rules:
@@ -147,8 +147,6 @@ class ZhenxinPlugin(Star):
         streaming results are left to the framework.
         """
         cfg = self.engine.cfg.split
-        if not cfg.enabled:
-            return
         user_key = self.adapter.user_key(event)
         # Segmentation is transport-only (the stored reply text and the prompt
         # are unchanged), so it must also work in observation/shadow mode.
@@ -180,17 +178,31 @@ class ZhenxinPlugin(Star):
                     return
         elif not marker:
             return
+        # The chain must be rewritable for either voice or segmentation.
+        if not hasattr(result.chain, "clear") or not hasattr(result.chain, "extend"):
+            return
+        # A voice request cannot be satisfied by the model: the host owns TTS.
+        # Synthesise the reply and hand the framework a Record instead of text,
+        # so "用语音说…" produces an actual voice message.
+        try:
+            if await self._send_voice_reply(event, result):
+                setattr(result, "zhenxin_split_done", True)
+                return
+        except Exception:
+            try:
+                from astrbot.api import logger  # type: ignore
+
+                logger.exception("zhenxin voice reply failed; falling back to text")
+            except Exception:
+                pass
+        if not cfg.enabled:
+            return
         try:
             from astrbot.api.message_components import Plain  # type: ignore
         except Exception:
             return
         chain = list(result.chain)
         if not chain:
-            return
-        # We send the first bubbles ourselves and rewrite the chain for the
-        # final one.  If the chain cannot be rewritten, doing nothing is safer
-        # than sending the first bubble twice.
-        if not hasattr(result.chain, "clear") or not hasattr(result.chain, "extend"):
             return
         setattr(result, "zhenxin_split_done", True)
 
@@ -243,6 +255,80 @@ class ZhenxinPlugin(Star):
             # If the result object cannot be rewritten, leave the original
             # chain untouched: a duplicated first bubble is worse.
             return
+
+    async def _tts_provider(self, event: AstrMessageEvent):
+        """Host TTS provider for this session, or None when none is configured."""
+        umo = getattr(event, "unified_msg_origin", None)
+        getter = getattr(self.context, "get_using_tts_provider_async", None)
+        if callable(getter):
+            try:
+                return await getter(umo)
+            except Exception:
+                return None
+        getter = getattr(self.context, "get_using_tts_provider", None)
+        if callable(getter):
+            try:
+                return getter(umo)
+            except Exception:
+                return None
+        return None
+
+    async def _send_voice_reply(self, event: AstrMessageEvent, result) -> bool:
+        """Replace a text reply with a voice message when the user asked for one.
+
+        The model cannot trigger TTS by itself — the host owns the provider —
+        so a prompt line alone only produced "我发了" claims that were false.
+        Here the reply is synthesised and the chain is rewritten to a Record.
+        Returns False when this turn is not a voice turn or synthesis failed,
+        leaving the normal text path untouched.
+        """
+        user_key = self.adapter.user_key(event)
+        if not self.engine.voice_pending(user_key):
+            return False
+        try:
+            from astrbot.api.message_components import Plain, Record  # type: ignore
+        except Exception:
+            return False
+        parts: list[str] = []
+        for comp in list(result.chain):
+            kind = type(comp).__name__.lower()
+            if kind == "plain":
+                text = str(getattr(comp, "text", "") or "").strip()
+                if text:
+                    parts.append(text)
+            elif "reply" in kind:
+                # A quote is fine to drop; the voice message stands alone.
+                continue
+            else:
+                # Never replace a chain that carries an image/at/face; losing
+                # media is worse than losing the voice for one turn.
+                return False
+        text = "\n".join(parts).strip()
+        if not text:
+            return False
+        provider = await self._tts_provider(event)
+        if provider is None:
+            return False
+        audio = await provider.get_audio(text)
+        if not audio:
+            return False
+        result.chain.clear()
+        result.chain.extend(
+            [
+                Record(
+                    file=str(audio),
+                    url=str(audio),
+                    text=text,
+                )
+            ]
+        )
+        try:
+            from astrbot.api import logger  # type: ignore
+
+            logger.info("zhenxin voice reply sent (%d chars)", len(text))
+        except Exception:
+            pass
+        return True
 
     async def terminate(self):
         task = getattr(self, "_background", None)

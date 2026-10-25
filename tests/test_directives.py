@@ -3,7 +3,11 @@ from __future__ import annotations
 import unittest
 
 from tests.helpers import make_engine
-from zhenxin._aux.directives import capability_block, is_redo_request
+from zhenxin._aux.directives import (
+    capability_block,
+    is_redo_request,
+    is_voice_request,
+)
 
 
 class RedoDetectTests(unittest.TestCase):
@@ -27,6 +31,48 @@ class RedoDetectTests(unittest.TestCase):
             "",
         ):
             self.assertFalse(is_redo_request(text), text)
+
+
+class VoiceDetectTests(unittest.TestCase):
+    def test_detects_voice_requests(self):
+        for text in (
+            "你用语音说句我爱你",
+            "语音",
+            "语音语音",
+            "用语音啊",
+            "不像你的声音啊，再说一遍",
+            "说给我听",
+            "唱一句",
+        ):
+            self.assertTrue(is_voice_request(text), text)
+
+    def test_plain_messages_are_not_voice_requests(self):
+        for text in ("今天好累", "你在干嘛", "晚安"):
+            self.assertFalse(is_voice_request(text), text)
+
+
+class VoiceWindowTests(unittest.TestCase):
+    def test_voice_request_opens_a_window_and_followups_stay_in_it(self):
+        engine, clock = make_engine()
+        engine.begin_turn("u1", "用语音说句我爱你")
+        self.assertTrue(engine.voice_pending("u1"))
+        # "说慢一点" has no voice keyword but is a follow-up in the window.
+        plan = engine.begin_turn("u1", "说慢一点")
+        self.assertIn("要的是语音回复", plan.ephemeral_tail)
+        clock.advance(engine.VOICE_TTL_SECONDS + 1)
+        self.assertFalse(engine.voice_pending("u1"))
+        plan = engine.begin_turn("u1", "说慢一点")
+        self.assertNotIn("要的是语音回复", plan.ephemeral_tail)
+
+    def test_voice_stop_closes_the_window(self):
+        engine, _ = make_engine()
+        engine.begin_turn("u1", "用语音说句我爱你")
+        self.assertTrue(engine.voice_pending("u1"))
+        plan = engine.begin_turn("u1", "别发语音了，打字就行")
+        self.assertFalse(engine.voice_pending("u1"))
+        self.assertNotIn("要的是语音回复", plan.ephemeral_tail)
+        plan = engine.begin_turn("u1", "在吗")
+        self.assertNotIn("要的是语音回复", plan.ephemeral_tail)
 
 
 class CapabilityBlockTests(unittest.TestCase):

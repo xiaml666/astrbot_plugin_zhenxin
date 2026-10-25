@@ -7,7 +7,14 @@ import time
 from typing import Any, Callable, Sequence
 
 from ._aux.compression import CompressedInbound, compress_inbound
-from ._aux.directives import REDO_HINT, capability_block, is_redo_request
+from ._aux.directives import (
+    REDO_HINT,
+    VOICE_HINT,
+    capability_block,
+    is_redo_request,
+    is_voice_request,
+    is_voice_stop,
+)
 from ._aux.lexicon import Lexicon
 from ._aux.negative import NegativePatterns
 from ._aux.open_loops import OpenLoops
@@ -31,6 +38,10 @@ from .proactive import ProactiveScheduler
 
 
 class ZhenxinEngine:
+    # A voice request stays in effect for the next few minutes so follow-ups
+    # ("说慢一点", "再说一次") are answered with voice too.
+    VOICE_TTL_SECONDS = 600
+
     def __init__(
         self,
         config: Config | None = None,
@@ -102,6 +113,29 @@ class ZhenxinEngine:
         """
         caps = {str(k): bool(v) for k, v in (capabilities or {}).items()}
         self.capability_text = capability_block(caps)
+
+    def voice_pending(self, user_key: str) -> bool:
+        """True while the user's last voice request is still in effect."""
+        try:
+            until = float(self.db.get_state(user_key, "voice_until", 0) or 0)
+        except (TypeError, ValueError):
+            return False
+        return until > float(self.clock())
+
+    def note_voice_request(self, user_key: str, text: str) -> bool:
+        """Refresh the voice window when this message asks for speech."""
+        if is_voice_request(text):
+            self.db.set_state(
+                user_key, "voice_until", float(self.clock()) + float(self.VOICE_TTL_SECONDS)
+            )
+            return True
+        return self.voice_pending(user_key)
+
+    def clear_voice_request(self, user_key: str) -> None:
+        try:
+            self.db.set_state(user_key, "voice_until", 0.0)
+        except Exception:
+            pass
 
     @staticmethod
     def _build_provider(cfg: Any) -> Any:
@@ -238,6 +272,14 @@ class ZhenxinEngine:
         # the hint budget truncates from the end, and this must survive.
         if is_redo_request(raw):
             ephemeral_parts.append(REDO_HINT)
+        # Voice works the same way: the host owns TTS, so the model must write
+        # the spoken words only, not stage directions.  "打字就行" closes the
+        # window immediately.
+        stopped = is_voice_stop(raw)
+        if stopped:
+            self.clear_voice_request(user_key)
+        if not stopped and self.note_voice_request(user_key, raw):
+            ephemeral_parts.append(VOICE_HINT)
         # Long-term fact bank: pull the few facts that actually match this
         # message.  They ride in the tail, so depth is free (no prefix cache hit
         # is lost) and facts that left the recent window are still reachable.

@@ -31,10 +31,39 @@ REDO_HINT = (
 )
 
 VOICE_LINE = (
-    "你在这个会话里可以发语音：你说的话会被合成成声音发出去，那就是你的声音。"
-    "对方想听语音、让你用语音说时，直接答应，不要说自己没有嗓子、发不出语音、只能打字，"
-    "也不要把语音说成是别人或系统替你念的。不用解释这套机制，正常说话即可。"
+    "你在这个会话里可以发语音：对方要语音时，系统会把你说的话合成成声音发出去，"
+    "那就是你的声音。不要说没有嗓子、发不出语音、只能打字，也不要把语音说成是别人"
+    "或系统替你念的；直接说要说的话，不要解释语音是怎么来的。"
 )
+
+# A request for voice is a short chat instruction, not a technical question.
+_VOICE_RE = re.compile(
+    r"(语音|声音|用声|发个声|出声|念出来|念一遍|读出来|嗓子|唱一句|唱一段|说给我听)"
+)
+
+VOICE_HINT = (
+    "〔本轮〕对方要的是语音回复：直接说要说的话本身，不要写“发了/听到了吗/"
+    "这次是真声音”这类旁白，也不要说明语音是怎么生成的；系统会把你的话合成语音发出去。"
+    "对方要求慢一点时，用短句和停顿让它自然变慢，不要承诺具体的语速数值。"
+)
+
+_VOICE_STOP_RE = re.compile(r"(不用|不要|别|停止|取消|关掉).{0,4}(语音|声音)|打字|用文字|发文字")
+
+
+def is_voice_stop(text: str) -> bool:
+    """True when the user turns voice off ("别发语音了", "打字就行")."""
+    value = str(text or "").strip()
+    if not value:
+        return False
+    return bool(_VOICE_STOP_RE.search(value))
+
+
+def is_voice_request(text: str) -> bool:
+    """True when the user asks for a spoken reply ("用语音说…", "语音")."""
+    value = str(text or "").strip()
+    if not value:
+        return False
+    return bool(_VOICE_RE.search(value))
 
 
 def is_redo_request(text: str) -> bool:
