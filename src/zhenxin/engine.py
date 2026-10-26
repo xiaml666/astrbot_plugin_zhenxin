@@ -148,6 +148,48 @@ class ZhenxinEngine:
     def close(self) -> None:
         self.db.close()
 
+    def _session_start(self, user_key: str) -> float:
+        """Start timestamp of the current chat session.
+
+        A silence longer than ``l3.session_gap_minutes`` starts a new session;
+        the previous session's turns stop being injected as "recent".  Facts and
+        open loops are unaffected (they are long-term memory).
+        """
+        try:
+            now = float(self.clock())
+            gap = max(0.0, float(self.cfg.l3.session_gap_minutes)) * 60.0
+            last_at = float(
+                self.db.scalar(
+                    "SELECT MAX(created_at) FROM turns WHERE user_key=?", (user_key,), 0
+                )
+                or 0
+            )
+            stored = float(self.db.get_state(user_key, "session_started_at", 0) or 0)
+            if not stored:
+                stored = last_at or now
+            if last_at and now - last_at > gap:
+                stored = now
+                # A proactive opener is the bot's own last line.  When the user
+                # answers it after a long silence, keep just that line; dropping
+                # it made the bot explain a message it could not see.
+                last = self.db.fetchone(
+                    "SELECT kind,created_at FROM turns WHERE user_key=?"
+                    " ORDER BY id DESC LIMIT 1",
+                    (user_key,),
+                )
+                if (
+                    last is not None
+                    and str(last["kind"] or "") == "proactive"
+                    and now - float(last["created_at"] or 0) <= 24 * 3600
+                ):
+                    stored = float(last["created_at"] or 0)
+            elif last_at and stored > last_at:
+                stored = last_at
+            self.db.set_state(user_key, "session_started_at", stored)
+            return stored
+        except Exception:  # noqa: BLE001 - freshness must never break a turn
+            return 0.0
+
     # ------------------------------------------------------------------ turns
     def begin_turn(
         self,
@@ -183,9 +225,15 @@ class ZhenxinEngine:
             if not self.db.get_state(user_key, "emotion_repair_v3", False):
                 self.facts.repair_emotions(user_key)
                 self.db.set_state(user_key, "emotion_repair_v3", True)
+            # Purge quote fragments ("提到“有啊”"), identifier residue and
+            # invalid names ("你叫“笨鱼就叫”") that made clues read like noise.
+            if not self.db.get_state(user_key, "memory_repair_v4", False):
+                self.facts.repair_low_quality(user_key)
+                self.db.set_state(user_key, "memory_repair_v4", True)
         except Exception:  # noqa: BLE001 - recovery must never break a turn
             pass
         self._import_history(user_key, history)
+        session_started_at = self._session_start(user_key)
         # A retraction ("不用提醒了", "别叫我阿岚") is a strong, immediate
         # signal; the cue check is one regex, the scan only runs on a hit.
         try:
@@ -299,7 +347,10 @@ class ZhenxinEngine:
             assistant_name = self.facts.assistant_name(user_key)
             if assistant_name:
                 name = assistant_name.replace("你叫", "").strip("“”\"' ")
-                ephemeral_parts.append(f"〔你的名字〕对方希望你叫「{name}」")
+                ephemeral_parts.append(
+                    f"〔你的名字〕对方希望你叫「{name}」。称呼对方只用对方说过的；"
+                    "没说过就叫“你”，别自创昵称，也别用你自己的名字去叫对方。"
+                )
         if not hit:
             l1_result = self.l1.decide(
                 user_key,
@@ -371,6 +422,7 @@ class ZhenxinEngine:
             ephemeral_parts=ephemeral_parts,
             previous_ephemeral=previous_ephemeral,
             l0_tail=l0_block if tail_l0 else "",
+            session_started_at=session_started_at,
         )
         self.db.set_state(user_key, "last_ephemeral", built.ephemeral_tail)
 
@@ -441,7 +493,9 @@ class ZhenxinEngine:
         if not value:
             return
         turn_no = int(self.db.get_state(user_key, "round_no", 0) or 0)
-        self.db.append_turn(user_key, turn_no, "assistant", value, self.clock())
+        self.db.append_turn(
+            user_key, turn_no, "assistant", value, self.clock(), kind="proactive"
+        )
 
     def complete_turn(
         self,

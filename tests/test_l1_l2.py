@@ -80,7 +80,7 @@ class L2Tests(unittest.TestCase):
         engine, clock = make_engine(**{"l2.warm_limit": 2, "shortcircuit.enabled": False})
         for i in range(1, 26):
             clock.advance()
-            say(engine, f"记住这个代号 CODE{i}", i)
+            say(engine, f"我喜欢第{i}本绘本", i)
         warm = int(engine.db.scalar("SELECT COUNT(*) FROM warm_slots WHERE user_key='u1'", (), 0))
         self.assertLessEqual(warm, 2)
         cold = int(engine.db.scalar("SELECT COUNT(*) FROM cold_seeds WHERE user_key='u1'", (), 0))

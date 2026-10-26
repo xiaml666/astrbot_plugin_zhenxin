@@ -243,7 +243,13 @@ class MemoryV2Tests(unittest.TestCase):
 
     def test_repair_identity_removes_legacy_garbage_and_keeps_real_names(self):
         engine, _ = make_engine()
-        engine.facts.add("u1", "称呼我“你小肥鱼好不好”", "address", importance=0.98)
+        # Legacy rows predate the write-time identity filter, so insert one
+        # directly; ``repair_identity`` must still clean it up.
+        engine.db.execute(
+            "INSERT INTO facts(user_key,text,kind,importance,created_at,pool)"
+            " VALUES(?,?,?,?,?,?)",
+            ("u1", "称呼我“你小肥鱼好不好”", "address", 0.98, engine.clock(), "cycle"),
+        )
         engine.facts.add("u1", "称呼我“阿岚”", "address", importance=0.98)
         engine.db.append_turn("u1", 1, "user", "那我叫你小肥鱼好不好", 1.0)
         removed = engine.facts.repair_identity("u1")

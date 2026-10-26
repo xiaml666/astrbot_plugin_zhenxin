@@ -2,7 +2,7 @@
 
 > 虚拟不代表冰冷，每一个ta都带着真心。
 
-**v0.6.10 · 172 个测试 · AstrBot 4.29.1 实测 · MIT**
+**v0.6.11 · 180 个测试 · AstrBot 4.29.1 实测 · MIT**
 
 真心是给 AstrBot 用的长期记忆与上下文插件：不换模型，只决定每一轮让模型看到什么。
 
@@ -49,7 +49,7 @@ AstrBot 里常见的三种做法，代价大概是这样的：
 
 **方式二：Release zip**
 
-下载 `astrbot_plugin_zhenxin-0.6.10.zip` → 面板 → 插件 → 从文件安装。
+下载 `astrbot_plugin_zhenxin-0.6.11.zip` → 面板 → 插件 → 从文件安装。
 
 **方式三：GitHub**
 

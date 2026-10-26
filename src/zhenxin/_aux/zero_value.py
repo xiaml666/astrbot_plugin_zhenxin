@@ -148,6 +148,10 @@ def name_is_valid(raw: str) -> bool:
         return False
     if any(char in _NAME_BAD_CHARS for char in name):
         return False
+    # "笨鱼就叫" passed the character check and was injected as the assistant's
+    # name; a name with a verb fragment in it is not a name.
+    if any(word in name for word in ("就", "叫", "喊", "称", "名字")):
+        return False
     return not any(word in name for word in ("什么", "啥", "哪", "怎么", "多少", "吗", "呢"))
 
 

@@ -31,7 +31,10 @@ from ..config import L3Config
 from ..db import Database
 
 
-BOUNDARY = "【边界】只依据已知线索和最近对话回答；不知道就直说不知道，不要编造对方没说过的事。"
+BOUNDARY = (
+    "【边界】只依据已知线索和最近对话回答；不知道就直说不知道，不要编造对方没说过的事。"
+    "先直接回答对方这句话，别答非所问；没被要求就别长篇抒情、别总结陈词。"
+)
 
 
 def estimate_tokens(text: str) -> int:
@@ -94,6 +97,7 @@ class ContextBuilder:
         ephemeral_parts: list[str],
         previous_ephemeral: str = "",
         l0_tail: str = "",
+        session_started_at: float = 0.0,
     ) -> BuiltContext:
         hints = "\n".join(p for p in ephemeral_parts if p).strip()
         if self.cfg.include_ephemeral and hints:
@@ -110,6 +114,16 @@ class ContextBuilder:
             rows = self._window(user_key)
         else:
             rows = self.db.recent_turns(user_key, self._floor_messages())
+        # A new chat session starts after a long silence.  Carrying the previous
+        # session's turns into the new one made the model answer a fresh "晚安"
+        # with yesterday's thread ("你是在等我说慢一点对吧") — stale context is
+        # worse than no context.  Long-term facts still ride in the L0 block.
+        if session_started_at:
+            rows = [
+                r
+                for r in rows
+                if float(r["created_at"] or 0) >= float(session_started_at) - 1.0
+            ]
         messages = [{"role": r["role"], "content": r["content"]} for r in rows]
 
         prompt = text

@@ -23,6 +23,7 @@ Everything here is local: no embeddings API, no LLM call.
 from __future__ import annotations
 
 import math
+import re
 import time
 from datetime import datetime
 from typing import Any, Callable
@@ -84,6 +85,28 @@ def _row_get(row: Any, key: str, default: Any = 0) -> Any:
     return default if value is None else value
 
 
+def _low_value_fact(text: str, kind: str) -> bool:
+    """Fragments that must never become a stored memory or an L0 clue.
+
+    "提到“有啊”" / "相关：reset" / "爱你" (from "我爱你") used to show up in the
+    injected clue block and read as noise.  Identity rows are also checked so a
+    bad capture ("你叫“笨鱼就叫”") never reaches the prompt.
+    """
+    value = str(text or "").strip()
+    if value.startswith("提到") or value.startswith("相关："):
+        return True
+    if kind == "habit":
+        if len(value) <= 3:
+            return True
+        # "爱不爱我" / "喜欢的人" are emotional expressions or topics, not
+        # durable preferences; storing them made L0 read like a diary.
+        if re.search(r"(爱你|爱我|爱不爱|喜欢你|喜欢我|喜欢的人|想你|想我)", value):
+            return True
+    if kind in ("address", "assistant_name"):
+        return not zero_value.name_is_valid(zero_value.name_from_fact(value))
+    return False
+
+
 def retention(row: Any, now: float, *, half_life_days: float = 30.0) -> float:
     """Ebbinghaus retention with a spacing effect.
 
@@ -139,6 +162,8 @@ class FactBank:
             return False
         text = (text or "").strip()[:MAX_CHARS]
         if not text:
+            return False
+        if _low_value_fact(text, kind):
             return False
         now = self.clock()
         existing = self.db.fetchone(
@@ -474,23 +499,31 @@ class FactBank:
         """The best address fact, injected every turn (or an empty string)."""
         if not self.cfg.enabled or not user_key:
             return ""
-        row = self.db.fetchone(
+        rows = self.db.fetchall(
             "SELECT text FROM facts WHERE user_key=? AND kind='address'"
-            " AND pool<>'trash' ORDER BY importance DESC, mentions DESC, id DESC LIMIT 1",
+            " AND pool<>'trash' ORDER BY importance DESC, mentions DESC, id DESC LIMIT 5",
             (user_key,),
         )
-        return str(row["text"]) if row else ""
+        for row in rows:
+            text = str(row["text"] or "")
+            if zero_value.name_is_valid(zero_value.name_from_fact(text)):
+                return text
+        return ""
 
     def assistant_name(self, user_key: str) -> str:
         """The name the user gave the assistant, injected every turn."""
         if not self.cfg.enabled or not user_key:
             return ""
-        row = self.db.fetchone(
+        rows = self.db.fetchall(
             "SELECT text FROM facts WHERE user_key=? AND kind='assistant_name'"
-            " AND pool<>'trash' ORDER BY importance DESC, mentions DESC, id DESC LIMIT 1",
+            " AND pool<>'trash' ORDER BY importance DESC, mentions DESC, id DESC LIMIT 5",
             (user_key,),
         )
-        return str(row["text"]) if row else ""
+        for row in rows:
+            text = str(row["text"] or "")
+            if zero_value.name_is_valid(zero_value.name_from_fact(text)):
+                return text
+        return ""
 
     def backfill_from_turns(self, user_key: str, limit: int = 400) -> int:
         """Recover identity / explicit memories from the stored recent turns.
@@ -615,6 +648,27 @@ class FactBank:
             removed += 1
         if removed:
             self.backfill_from_turns(user_key)
+        return removed
+
+    def repair_low_quality(self, user_key: str) -> int:
+        """Delete facts that are fragments rather than memories.
+
+        Covers quote residue ("提到“有啊”"), identifier residue
+        ("相关：reset"), one-token habits ("爱你" extracted from "我爱你") and
+        invalid identity rows ("你叫“笨鱼就叫”").  These used to show up in L0
+        as "相关：reset / 最近想念 / 爱你", which reads like noise.
+        """
+        if not self.cfg.enabled or not user_key:
+            return 0
+        rows = self.db.fetchall(
+            "SELECT id,text,kind FROM facts WHERE user_key=?", (user_key,)
+        )
+        removed = 0
+        for row in rows:
+            if not _low_value_fact(str(row["text"]), str(row["kind"])):
+                continue
+            self.db.execute("DELETE FROM facts WHERE id=?", (int(row["id"]),))
+            removed += 1
         return removed
 
     # -------------------------------------------------------------- page view

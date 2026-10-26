@@ -141,7 +141,8 @@ CREATE TABLE IF NOT EXISTS turns (
     turn_no INTEGER NOT NULL,
     role TEXT NOT NULL,
     content TEXT NOT NULL,
-    created_at REAL NOT NULL
+    created_at REAL NOT NULL,
+    kind TEXT NOT NULL DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS metrics (
@@ -257,6 +258,11 @@ class Database:
         for name, decl in fact_additions.items():
             if name not in fact_cols:
                 self._conn.execute(f"ALTER TABLE facts ADD COLUMN {name} {decl}")
+        turn_cols = {row[1] for row in self._conn.execute("PRAGMA table_info(turns)").fetchall()}
+        if "kind" not in turn_cols:
+            self._conn.execute(
+                "ALTER TABLE turns ADD COLUMN kind TEXT NOT NULL DEFAULT ''"
+            )
         # This index depends on a migrated column, so it cannot live in the
         # initial SCHEMA script: on an old database the column does not exist
         # yet when executescript() runs.
@@ -342,11 +348,19 @@ class Database:
         self.set_state(user_key, key, value)
         return value
 
-    def append_turn(self, user_key: str, turn_no: int, role: str, content: str, now: float | None = None) -> None:
+    def append_turn(
+        self,
+        user_key: str,
+        turn_no: int,
+        role: str,
+        content: str,
+        now: float | None = None,
+        kind: str = "",
+    ) -> None:
         now = time.time() if now is None else now
         self.execute(
-            "INSERT INTO turns(user_key,turn_no,role,content,created_at) VALUES(?,?,?,?,?)",
-            (user_key, turn_no, role, content, now),
+            "INSERT INTO turns(user_key,turn_no,role,content,created_at,kind) VALUES(?,?,?,?,?,?)",
+            (user_key, turn_no, role, content, now, str(kind or "")),
         )
         # Hard cap keeps the hot history bounded; cache-aware pruning is the
         # primary mechanism, this is only a safety net.
@@ -358,7 +372,7 @@ class Database:
 
     def recent_turns(self, user_key: str, limit: int = 20) -> list[sqlite3.Row]:
         rows = self.fetchall(
-            "SELECT id,role,content,turn_no FROM turns WHERE user_key=? ORDER BY id DESC LIMIT ?",
+            "SELECT id,role,content,turn_no,created_at,kind FROM turns WHERE user_key=? ORDER BY id DESC LIMIT ?",
             (user_key, limit),
         )
         return list(reversed(rows))
@@ -371,6 +385,6 @@ class Database:
         evictions.
         """
         return self.fetchall(
-            "SELECT id,role,content,turn_no FROM turns WHERE user_key=? AND id>=? ORDER BY id LIMIT ?",
+            "SELECT id,role,content,turn_no,created_at,kind FROM turns WHERE user_key=? AND id>=? ORDER BY id LIMIT ?",
             (user_key, int(first_id), int(limit)),
         )

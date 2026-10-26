@@ -31,8 +31,6 @@ from ..normalize import (
     is_correction,
 )
 
-_QUOTED_RE = re.compile(r"[“\"「『]([^”\"」』]{1,40})[”\"」』]")
-_IDENT_RE = re.compile(r"(?<![A-Za-z0-9_])([A-Za-z][A-Za-z0-9_.+\-]{2,30})(?![A-Za-z0-9_])")
 _PREF_RE = re.compile(r"((?:不)?(?:喜欢|爱|讨厌|不吃|不喝|爱喝|最怕|最烦|离不开))([^，,。！？!?\n]{1,14})")
 _CORRECT_RE = re.compile(r"(?:不是|不叫).{0,10}?(?:是|叫)([^，,。！？!?\n]{1,24})")
 _CORRECTION_PAIR_RE = re.compile(r"不是([^，,。！？!?\n]{1,10})[，, ]*(?:是|而是)([^，,。！？!?\n]{1,14})")
@@ -111,17 +109,6 @@ class Distiller:
                     self._candidate(fact, kind, text, kind, 0.98 if kind == "address" else 0.95)
                 )
 
-        # 3. Explicit quote / identifier.
-        if not question:
-            for m in _QUOTED_RE.finditer(text):
-                quoted = m.group(1).strip()
-                if len(quoted) >= 2:
-                    out.append(self._candidate(f"提到“{quoted}”", "fact", text, "quote", 0.8))
-            for m in _IDENT_RE.finditer(text):
-                ident = m.group(1)
-                if ident.lower() not in ("http", "https", "www"):
-                    out.append(self._candidate(f"相关：{ident}", "fact", text, "identifier", 0.6))
-
         # 3. Stable preferences / habits.
         if not question:
             for m in _PREF_RE.finditer(text):
@@ -164,12 +151,6 @@ class Distiller:
             kws = keywords_for_seed(text, 2)
             if kws:
                 out.append(self._candidate("在意" + "、".join(kws), "relationship", text, "relation", 0.5))
-
-        # 8. Bootstrap fallback: make the first turns usable without invention.
-        if bootstrap and not out:
-            kws = keywords_for_seed(text, 2)
-            if kws:
-                out.append(self._candidate("提到" + "、".join(kws), "fact", text, "bootstrap", 0.5))
 
         return self._dedupe(out)[: self.max_candidates]
 

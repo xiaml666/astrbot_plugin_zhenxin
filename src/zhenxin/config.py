@@ -131,6 +131,10 @@ class L3Config:
     # byte-identical for ~3 of every 4 rounds.
     window_grow_turns: int = 4
     recent_max_chars: int = 2200
+    # A silence longer than this starts a new chat session: the previous
+    # session's turns are no longer injected as recent context.  Long-term
+    # facts/open loops still ride along in L0.
+    session_gap_minutes: float = 120.0
     # When the char budget is hit, cut down to this fraction so the next
     # eviction is several rounds away instead of next round.
     recent_char_low_water: float = 0.7
