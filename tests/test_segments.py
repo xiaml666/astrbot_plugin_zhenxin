@@ -241,7 +241,7 @@ class SplitChainTests(unittest.TestCase):
     def test_engine_defaults_enable_segmentation(self):
         engine, _ = make_engine()
         self.assertTrue(engine.cfg.split.enabled)
-        self.assertEqual(5, engine.cfg.split.max_segments)
+        self.assertEqual(2, engine.cfg.split.max_segments)
         self.assertEqual(10, engine.cfg.split.min_segment_chars)
         self.assertEqual("natural", engine.cfg.split.delay_mode)
 

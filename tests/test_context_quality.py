@@ -66,7 +66,8 @@ class NameQualityTests(unittest.TestCase):
         self.assertEqual("你叫“蓝心心”", engine.facts.assistant_name("u1"))
 
     def test_nickname_rule_follows_the_assistant_name(self):
-        self.assertIn("先直接回答对方这句话", BOUNDARY)
+        self.assertIn("先直接回答", BOUNDARY)
+        self.assertIn("自己说过的话要算数", BOUNDARY)
         engine, _ = make_engine()
         add_fact(engine, "你叫“蓝心心”", kind="assistant_name", importance=1.0)
         plan = engine.begin_turn("u1", "晚安")

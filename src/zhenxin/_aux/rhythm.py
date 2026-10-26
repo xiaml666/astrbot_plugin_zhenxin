@@ -35,7 +35,7 @@ class Rhythm:
 def render_hint(rhythm: Rhythm) -> str:
     """Build the tail hint from the (possibly adjusted) rhythm fields."""
     bits = [
-        f"{rhythm.max_chars}字内",
+        f"{rhythm.max_chars}字内，一次一两句",
         {
             "steady": "少追问",
             "soft": "先接情绪",
@@ -107,24 +107,24 @@ class RhythmController:
         emo = self._emotion(text) or (emotions[-1] if emotions else "")
         topic = self._topic_type(text)
         if emo in ("烦躁", "生气", "无语", "崩溃"):
-            max_chars, tone, follow = 48, "steady", False
+            max_chars, tone, follow = 24, "steady", False
         elif emo in ("低落", "委屈", "孤单", "想念"):
-            max_chars, tone, follow = 62, "soft", True
+            max_chars, tone, follow = 30, "soft", True
         elif emo == "疲惫":
-            max_chars, tone, follow = 46, "warm", False
+            max_chars, tone, follow = 24, "warm", False
         elif emo == "开心":
-            max_chars, tone, follow = 50, "bright", False
+            max_chars, tone, follow = 28, "bright", False
         else:
-            max_chars, tone, follow = 72, "neutral", True
+            max_chars, tone, follow = 34, "neutral", True
         if topic == "work":
-            max_chars = min(max_chars, 52)
+            max_chars = min(max_chars, 30)
             follow = False
         elif topic == "health":
-            max_chars = min(max_chars, 70)
+            max_chars = min(max_chars, 32)
             follow = True
         emoji = warmth >= 0.62 and tone in ("bright", "warm", "soft") and neg == 0
         if warmth < 0.35:
-            max_chars = min(max_chars, 38)
+            max_chars = min(max_chars, 20)
             follow = False
             emoji = False
         result = Rhythm(max_chars, follow, emoji, tone, warmth, topic, "")

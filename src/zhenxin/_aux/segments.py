@@ -269,7 +269,7 @@ def split_chain(
     chain: Sequence[Any],
     *,
     plain_factory: Callable[[str], Any],
-    max_segments: int = 5,
+    max_segments: int = 2,
     min_segment_chars: int = 10,
     balanced: bool = True,
     enable_reply: bool = True,

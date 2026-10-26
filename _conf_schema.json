@@ -671,7 +671,7 @@
       "max_segments": {
         "description": "最多拆成几条",
         "type": "int",
-        "default": 5,
+        "default": 2,
         "slider": {
           "min": 2,
           "max": 8,

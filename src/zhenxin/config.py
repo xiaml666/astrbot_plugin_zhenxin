@@ -232,7 +232,7 @@ class SplitConfig:
     """
 
     enabled: bool = True
-    max_segments: int = 5
+    max_segments: int = 2
     # Fragments shorter than this are merged into a neighbour.
     min_segment_chars: int = 10
     # natural: 0.5s + 0.1s per char of the next bubble; fast: 0.3s; slow: 2.5s.

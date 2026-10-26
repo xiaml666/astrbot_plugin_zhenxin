@@ -172,7 +172,7 @@ class PageApiTests(unittest.TestCase):
         self.assertNotIn("aux.style", defaults)
         self.assertNotIn("style_learning.search_endpoint", defaults)
         self.assertEqual(defaults["split.enabled"], True)
-        self.assertEqual(defaults["split.max_segments"], 5)
+        self.assertEqual(defaults["split.max_segments"], 2)
         self.assertEqual(defaults["split.delay_mode"], "natural")
 
     def test_reset_conversation_keeps_facts_and_metrics(self):
